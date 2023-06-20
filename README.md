@@ -17,7 +17,7 @@ DeepmediKit is available through [CocoaPods](https://cocoapods.org). To install
 it, simply add the following line to your Podfile:
 
 ```ruby
-pod 'DeepmediKit'
+pod 'DeepmediKit', :git => 'https://github.com/deep-medi/DeepmediKit.git'
 ```
 
 ## Author
@@ -26,4 +26,4 @@ demianjun@gmail.com, demianjun@gmail.com
 
 ## License
 
-DeepmediKit is available under the MIT license. See the LICENSE file for more info.
+DeepmediKit is available under the BSD license. See the LICENSE file for more info.
