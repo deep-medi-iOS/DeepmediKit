@@ -8,7 +8,6 @@
 
 import UIKit
 import AVKit
-import Alamofire
 import DeepmediKit
 
 class FaceViewController: UIViewController {
