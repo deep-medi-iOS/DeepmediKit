@@ -1,5 +1,7 @@
 # macOS
+xcuserdata/
 .DS_Store
+Pods/
 
 # Xcode
 build/
