@@ -21,9 +21,12 @@ public class CameraPreview: UIView {
         useCornerRadius: Bool? = nil
     ) {
         self.model.previewLayer = layer
+        self.model.previewLayerBounds = self.frame
         self.layer.addSublayer(layer)
         layer.videoGravity = .resizeAspectFill
-        layer.frame = frame
+        layer.frame = CGRect(x: 0, y: 0,
+                             width: frame.width,
+                             height: frame.height)
         
         guard useCornerRadius ?? false && model.measurePart == .finger else { return }
         layer.cornerRadius = frame.width / 2

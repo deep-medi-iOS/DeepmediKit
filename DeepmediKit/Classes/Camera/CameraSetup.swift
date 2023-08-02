@@ -28,13 +28,14 @@ class CameraSetup: NSObject {
         return self.session
     }
     
-    func useCaptureDevice() -> AVCaptureDevice? {
-        return self.captureDevice
+    func useCaptureDevice() -> AVCaptureDevice {
+        guard let device = self.captureDevice else { return AVCaptureDevice(uniqueID: "tmp")! }
+        return device
     }
     
     func hasTorch() -> Bool {
-        guard let torch = self.captureDevice?.hasTorch else { return false }
-        return torch
+        guard let device = self.captureDevice else { return false }
+        return device.hasTorch
     }
     
     @available(iOS 10.0, *)
@@ -109,7 +110,6 @@ class CameraSetup: NSObject {
                     }
                 } else {
                     if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500)  {
-                        
                         currentFormat = format
                     }
                 }
@@ -137,9 +137,9 @@ class CameraSetup: NSObject {
     
     func correctColor() {
         try! self.captureDevice?.lockForConfiguration()
-        let gainset = AVCaptureDevice.WhiteBalanceGains(redGain: 1.0,
+        let gainset = AVCaptureDevice.WhiteBalanceGains(redGain: 1.6,
                                                         greenGain: 1.0, // 3 -> 1 edit
-                                                        blueGain: 1.0)
+                                                        blueGain: 1.6)
         self.captureDevice?.setWhiteBalanceModeLocked(with: gainset,
                                                       completionHandler: nil)
         self.captureDevice?.unlockForConfiguration()

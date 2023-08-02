@@ -14,6 +14,7 @@ class Model {
     var measurePart: CameraObject.Part = .face
     
     var limitTapTime: Int
+    var limitNoTapTime: Int
     var fingerMeasurementTime: Double
     var breathMeasurement: Bool
     
@@ -21,6 +22,7 @@ class Model {
     
     var faceRecognitionAreaView: UIView?
     var previewLayer: AVCaptureVideoPreviewLayer?
+    var previewLayerBounds: CGRect
         
     var faceMeasurementTime: Double {
         didSet {
@@ -46,6 +48,7 @@ class Model {
     init() {
         self.faceRecognitionAreaView = UIView()
         self.previewLayer = AVCaptureVideoPreviewLayer()
+        self.previewLayerBounds = CGRect()
         
         self.useFaceRecognitionArea = true
         
@@ -59,6 +62,7 @@ class Model {
         self.overlappingSec = 2
         
         self.limitTapTime = 3
+        self.limitNoTapTime = 5
         self.fingerMeasurementTime = 30.0
         self.breathMeasurement = true
     }

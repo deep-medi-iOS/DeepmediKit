@@ -35,7 +35,7 @@ class FingerViewController: UIViewController {
         self.completionMethod()
         
         self.camera.initalized(
-            part:.finger,
+            part: .finger,
             delegate:fingerMeasureKit,
             session: session,
             captureDevice: captureDevice
@@ -47,7 +47,7 @@ class FingerViewController: UIViewController {
         
         self.setupUI()
         
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.fingerMeasureKit.startSession()
         }
     }
@@ -55,7 +55,7 @@ class FingerViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         preview.setup(
             layer: previewLayer,
-            frame: preview.bounds,
+            frame: preview.frame,
             useCornerRadius: true
         )
     }

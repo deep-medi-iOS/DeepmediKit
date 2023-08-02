@@ -13,7 +13,7 @@
 
 + (NSString *)openCVVersionString;
 
-+ (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer hasTorch:(BOOL)isTorch device: (NSString *)device;
++ (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer device: (NSString *)device;
 + (NSArray *)detectFaceSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 + (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 
