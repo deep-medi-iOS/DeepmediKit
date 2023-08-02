@@ -29,6 +29,9 @@ class MeasurementModel {
     let outputFingerStatus = PublishSubject<MeasurementModel.status>()
     let fingerMeasurementComplete = BehaviorSubject(value: (false, URL(string: ""), URL(string: ""), URL(string: "")))
     
+    var stoppedByNotTap = false
+    var stoppedByFlipingDevice = false
+    
     //얼굴 전용
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     
@@ -66,5 +69,21 @@ class MeasurementModel {
             result = .flip
         }
         return result
+    }
+    
+    func checkStopStatus(
+        _ status: MeasurementModel.status
+    ) {
+        switch status {
+        case .tap:
+            self.stoppedByNotTap = false
+            self.stoppedByFlipingDevice = false
+        case .noTap:
+            self.stoppedByNotTap = true
+            self.stoppedByFlipingDevice = false
+        default:
+            self.stoppedByNotTap = false
+            self.stoppedByFlipingDevice = true
+        }
     }
 }

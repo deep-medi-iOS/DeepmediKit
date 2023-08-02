@@ -48,7 +48,7 @@ class FaceViewController: UIViewController {
         faceMeasureKitModel.setMeasurementTime(30)
         faceMeasureKitModel.setWindowSecond(15)
         faceMeasureKitModel.setOverlappingSecond(2)
-        faceMeasureKitModel.willUseFaceRecognitionArea(true)
+        faceMeasureKitModel.willUseFaceRecognitionArea(false)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
@@ -62,7 +62,7 @@ class FaceViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         preview.setup(
             layer: previewLayer,
-            frame: preview.bounds
+            frame: preview.frame
         )
 
         faceMeasureKitModel.injectingRecognitionAreaView(faceRecognitionAreaView)

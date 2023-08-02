@@ -57,8 +57,9 @@ open class DataModel {
     func initRGBData() {
         self.rData.removeAll()
         self.gData.removeAll()
-        self.gTempData.removeAll()
         self.bData.removeAll()
+        self.timeStamp.removeAll()
+        self.gTempData.removeAll()
         
         self.rgbData.removeAll()
         self.rgbDataToArr.removeAll()
@@ -86,32 +87,31 @@ open class DataModel {
     }
     
     func collectRGB(
+        timeStamp: Double,
         r: Float,
         g: Float,
         b: Float
     ) {
-        let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-        guard timeStamp != 0.0 else { return print("rgb timeStamp error") }
         let dataFormat = (timeStamp, r, g, b)
-        
-        self.gTempData.append(g)
         self.rData.append(r)
         self.gData.append(g)
         self.bData.append(b)
+        self.gTempData.append(g)
+        self.timeStamp.append(timeStamp)
         self.rgbData.append(dataFormat)
     }
     
     func collectAccelemeterData(
         _ acc: CMAccelerometerData?,
         _ err: Error?
-    ) -> Float {
+    ) {
         if err != nil {
             print("error")
-            return Float()
+            return
         } else {
             guard let accMeasureData = acc?.acceleration else {
                 print("accelerometer measured data return")
-                return Float()
+                return
             }
             var x: Float = 0, y: Float = 0, z: Float = 0
             x = Float(accMeasureData.x)
@@ -119,15 +119,13 @@ open class DataModel {
             z = Float(accMeasureData.z)
             
             let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-            guard timeStamp != 0.0 else { return z }
+            guard timeStamp > 100 else { return print("acc timeStamp error") }
             let dataFormat = (timeStamp, x, y, z)
             
             self.accXdata.append(x)
             self.accYdata.append(y)
             self.accZdata.append(z)
             self.accData.append(dataFormat)
-            
-            return z
         }
     }
     

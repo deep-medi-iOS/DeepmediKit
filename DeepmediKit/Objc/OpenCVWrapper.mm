@@ -31,7 +31,7 @@
 return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
 }
 
-+ (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer hasTorch:(BOOL)hasTorch device: (NSString *)device {
++ (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer device: (NSString *)device {
     cv::Mat mBGR;
     cv::Mat edgeMat;
     cv::Mat dataBuffer;
@@ -74,37 +74,29 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     
     BOOL result;
     
-    if (!hasTorch) { // ipad no torch
-        if (canny < 7.0 && r < 120.0f && g > 5.0f  && b < 15.0f) {
+    if ([device containsString:@"6"]) {
+        if(canny < 7.0 && r > 100.0f && g < 175.0f) {
+            result = true;
+        } else {
+            result = false;
+        }
+    } else if ([device containsString:@"7"] || [device containsString:@"8"]) {
+        if(canny < 3.0 && r > 100.0f && g < 130.0f) {
+            result = true;
+        } else {
+            result = false;
+        }
+    } else if([device containsString:@"X"]) {
+        if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 2.0f) {
             result = true;
         } else {
             result = false;
         }
     } else {
-        if ([device containsString:@"6"]) {
-            if(canny < 7.0 && r > 100.0f && g < 175.0f) {
-                result = true;
-            } else {
-                result = false;
-            }
-        } else if ([device containsString:@"7"] || [device containsString:@"8"]) {
-            if(canny < 3.0 && r > 100.0f && g < 130.0f) {
-                result = true;
-            } else {
-                result = false;
-            }
-        } else if([device containsString:@"X"]) {
-            if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 2.0f) {
-                result = true;
-            } else {
-                result = false;
-            }
+        if(canny < 3.0 && (r / 255) > 0.4f && (g / 255) < 0.15f) {
+            result = true;
         } else {
-            if(canny < 3.0 && (r / 255) > 0.05f && (g / 255) < 5.0f) {
-                result = true;
-            } else {
-                result = false;
-            }
+            result = false;
         }
     }
     
