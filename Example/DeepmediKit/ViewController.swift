@@ -12,7 +12,7 @@ class ViewController: UIViewController {
 
     let goFaceButton = UIButton()
     let goFingerButton = UIButton()
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         self.ui()

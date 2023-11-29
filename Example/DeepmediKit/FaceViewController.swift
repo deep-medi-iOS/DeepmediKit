@@ -48,13 +48,12 @@ class FaceViewController: UIViewController {
         faceMeasureKitModel.setMeasurementTime(30)
         faceMeasureKitModel.setWindowSecond(15)
         faceMeasureKitModel.setOverlappingSecond(2)
-        faceMeasureKitModel.willUseFaceRecognitionArea(true)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         self.setupUI()
         
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.global(qos: .background).async {
             self.faceMeasureKit.startSession()
         }
     }
@@ -62,10 +61,11 @@ class FaceViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         preview.setup(
             layer: previewLayer,
-            frame: preview.frame
+            frame: preview.frame,
+            useCornerRadius: true
         )
 
-        faceMeasureKitModel.injectingRecognitionAreaView(faceRecognitionAreaView)
+        faceMeasureKitModel.injectingRecognitionAreaView(faceRecognitionAreaView, superView: self.view)
     }
 
     func completionMethod() {
@@ -77,13 +77,28 @@ class FaceViewController: UIViewController {
             print("second: \(second)")
         }
         
-        faceMeasureKit.finishedMeasurement { (successed, path) in
-            print("face rbg path", path)
-            if successed {
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
+        faceMeasureKit.stopMeasurement { isStop in
+            print("face detect is stop: \(isStop)")
+        }
+        
+        faceMeasureKit.finishedMeasurement { (face, chest) in
+            let (faceRes, facePath) = face
+            let (chestRes, chestPath) = chest
+            print("face path", facePath)
+            print("chest path", chestPath)
+            if faceRes && chestRes {
+                let faceHeader = self.header.v2Header(
+                    method: .post,
+                    uri: "face uri",
+                    secretKey: "secretKey",
+                    apiKey: "apiKey"
+                )
+                let chestHeader = self.header.v2Header(
+                    method: .post,
+                    uri: "chest uri",
+                    secretKey: "secretKey",
+                    apiKey: "apiKey"
+                )
                 
                 DispatchQueue.global(qos: .background).async {
                     self.faceMeasureKit.stopSession()
@@ -107,19 +122,19 @@ class FaceViewController: UIViewController {
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            preview.topAnchor.constraint(equalTo: self.view.topAnchor),
-            preview.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            preview.widthAnchor.constraint(equalToConstant: width),
-            preview.heightAnchor.constraint(equalToConstant: height)
+            preview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            preview.widthAnchor.constraint(equalToConstant: width * 0.8),
+            preview.topAnchor.constraint(equalTo: view.topAnchor, constant: height * 0.2),
+            preview.heightAnchor.constraint(equalToConstant: width * 0.8)
         ])
 
         NSLayoutConstraint.activate([
-            faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
-            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
-            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
+            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
+            faceRecognitionAreaView.centerYAnchor.constraint(equalTo: preview.centerYAnchor),
+            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.8),
+            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.8),
         ])
-
+   
         NSLayoutConstraint.activate([
             previousButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             previousButton.bottomAnchor.constraint(equalTo: self.view.bottomAnchor, constant: -80),
@@ -136,7 +151,8 @@ class FaceViewController: UIViewController {
     }
     
     @objc func prev() {
-        self.faceMeasureKit.stopSession()
-        self.dismiss(animated: true)
+        self.dismiss(animated: true) {
+            self.faceMeasureKit.stopSession()
+        }
     }
 }
