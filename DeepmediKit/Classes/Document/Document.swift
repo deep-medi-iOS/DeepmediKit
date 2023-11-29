@@ -68,21 +68,21 @@ public class Document {
         let length = self.byteArray(from: 900),
             chestSize = self.byteArray(from: 32)
         
-        for i in length.indices {
+        for i in length.indices.reversed() {
             if i > 3 {
                 let lengthArr = length[i]
                 self.dataModel.byteData.append(lengthArr)
             }
         }
         
-        for i in chestSize.indices {
+        for i in chestSize.indices.reversed() {
             if i > 3 {
                 let sizeArr = chestSize[i]
                 self.dataModel.byteData.append(sizeArr)
             }
         }
         
-        for i in chestSize.indices {
+        for i in chestSize.indices.reversed() {
             if i > 3 {
                 let sizeArr = chestSize[i]
                 self.dataModel.byteData.append(sizeArr)
@@ -90,11 +90,10 @@ public class Document {
         }
         
         self.dataModel.timeStamp.forEach { time in
-            
             let timeDiff = Int((time - self.dataModel.timeStamp.first!) / 1000),
                 timeToByteArr = self.byteArray(from: timeDiff)
             
-            for i in timeToByteArr.indices {
+            for i in timeToByteArr.indices.reversed() {
                 if i > 3 {
                     let timeArr = timeToByteArr[i]
                     self.dataModel.byteData.append(timeArr)
@@ -158,6 +157,10 @@ public class Document {
             dataSubStr += "\(dataToArr[i])"
         }
         
-        try? dataSubStr.write(to: file, atomically: true, encoding: String.Encoding.utf8)
+        try? dataSubStr.write(
+            to: file,
+            atomically: true,
+            encoding: String.Encoding.utf8
+        )
     }
 }

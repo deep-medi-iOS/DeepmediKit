@@ -137,7 +137,6 @@ open class FingerKit: NSObject {
     }
     
     deinit {
-        print("deinit")
         UIApplication.shared.isIdleTimerDisabled = false
     }
     

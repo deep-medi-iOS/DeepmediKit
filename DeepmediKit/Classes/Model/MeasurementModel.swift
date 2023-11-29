@@ -34,6 +34,7 @@ class MeasurementModel {
     
     //얼굴 전용
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
+    let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     
     //bind
     func bindFingerTap() {

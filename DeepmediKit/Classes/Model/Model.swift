@@ -7,6 +7,7 @@
 
 import UIKit
 import AVKit
+import MLKitFaceDetection
 
 class Model {
     static let shared = Model()
@@ -23,7 +24,9 @@ class Model {
     var faceRecognitionAreaView: UIView?
     var previewLayer: AVCaptureVideoPreviewLayer?
     var previewLayerBounds: CGRect
-        
+
+    var superView = UIView()
+    
     var faceMeasurementTime: Double {
         didSet {
             if self.faceMeasurementTime < 30.0 {

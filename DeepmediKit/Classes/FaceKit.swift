@@ -27,7 +27,7 @@ public class FaceKit: NSObject {
     private var lastFrame: CMSampleBuffer?,
                 gCIContext: CIContext?,
                 cropFaceRect: CGRect?,
-                cropChestRect: CGRect?
+                chestRect: CGRect?
     
     // MARK: Property
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
@@ -37,14 +37,41 @@ public class FaceKit: NSObject {
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
     
-    public func finishedMeasurement(
-        _ isSuccess: @escaping((Bool, URL?) -> ())
+    
+    
+    private var faceImgView = UIImageView()
+    private var chestImgView = UIImageView()
+    
+    private var superView = UIView()
+    private var tempView = UIView()
+    
+    public func stopMeasurement(
+        _ isStop: @escaping((Bool) -> ())
     ) {
-        let completion = self.measurementModel.faceMeasurementComplete
-        completion
-            .asDriver(onErrorJustReturn: (false, URL(string: "")))
-            .drive(onNext: { result in
-                isSuccess(result.0, result.1)
+        let stop = self.measurementModel.measurementStop
+        stop
+            .asDriver(onErrorJustReturn: false)
+            .asDriver()
+            .drive(onNext: { stop in
+                isStop(stop)
+            })
+            .disposed(by: bag)
+    }
+    
+    public func finishedMeasurement(
+        _ isSuccess: @escaping(((Bool, URL?), (Bool, URL?)) -> ())
+    ) {
+        let faceCompletion = self.measurementModel.faceMeasurementComplete
+        let chestCompletion = self.measurementModel.chestMeasurementComplete
+        
+        Observable
+            .combineLatest(
+                faceCompletion,
+                chestCompletion
+            )
+            .asDriver(onErrorJustReturn: ((false, URL(string: "")), (false, URL(string: ""))))
+            .drive(onNext: { (face, chest) in
+                isSuccess(face, chest)
             })
             .disposed(by: bag)
     }
@@ -83,6 +110,7 @@ public class FaceKit: NSObject {
     }
     
     deinit {
+        print("face deinit")
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
@@ -91,23 +119,33 @@ public class FaceKit: NSObject {
         self.preparingSec = 2
         if let previewLayer = self.model.previewLayer {
             self.previewLayer = previewLayer
+            self.cameraSetup.useSession().startRunning()
         }
-        self.cameraSetup.useSession().startRunning()
     }
     
     open func stopSession() {
+        self.lastFrame = nil
+        self.cropFaceRect = nil
+        self.chestRect = nil
         self.measurementTimer.invalidate()
+        self.dataModel.gTempData.removeAll()
+        self.dataModel.initRGBData()
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         self.cameraSetup.useSession().stopRunning()
     }
     
     private func collectDatas() {
-        let completion = self.measurementModel.faceMeasurementComplete,
+        let faceCompletion = self.measurementModel.faceMeasurementComplete,
+            chestCompletion = self.measurementModel.chestMeasurementComplete,
             secondRemaining = self.measurementModel.secondRemaining,
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
         
+        self.superView = self.model.superView
+        self.superView.addSubview(self.tempView)
+        
+        self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
-
+        
         self.preparingSec = 1
         self.measurementTime = self.model.faceMeasurementTime
         self.measurementTimer = Timer.scheduledTimer(
@@ -121,10 +159,14 @@ public class FaceKit: NSObject {
             if self.measurementTime <= 0 {
                 timer.invalidate()
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-                if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
-                    completion.onNext((result: true, url: rgbPath))
+                self.makeDocument.makeDocuFromChestData()
+                if let rgbPath = self.dataModel.rgbDataPath,
+                   let filePath = self.dataModel.chestDataPath { //파일이 존재할때 api호출 시도
+                    faceCompletion.onNext((result: true, url: rgbPath))
+                    chestCompletion.onNext((result: true, url: filePath))
                 } else {
-                    completion.onNext((result: false, url: URL(string: "")))
+                    faceCompletion.onNext((result: false, url: URL(string: "")))
+                    chestCompletion.onNext((result: true, url: URL(string: "")))
                 }
             }
         }
@@ -147,6 +189,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             cvimgRef,
             CVPixelBufferLockFlags(rawValue: 0)
         )
+        
         if self.model.useFaceRecognitionArea,
            let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
             self.faceRecognitionAreaView = faceRecognitionAreaView
@@ -208,20 +251,33 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     
                     if self.model.useFaceRecognitionArea {
                         
-                        let x = (face.frame.origin.x + face.frame.size.width * 0.3),
-                            y = (face.frame.origin.y + face.frame.size.height * 0.2),
-                            w = (face.frame.size.width * 0.4),
-                            h = (face.frame.size.height * 0.6)
-                        let normalizedRect = CGRect(x: x / imageWidth,
-                                                    y: y / imageHeight,
-                                                    width: w / imageWidth,
-                                                    height: h / imageHeight)
-                        let standardizedRect = self.previewLayer.layerRectConverted(fromMetadataOutputRect: normalizedRect).standardized,
-                            recognitionStandardizedRect = CGRect(x: standardizedRect.origin.x + previewBounds.origin.x,
-                                                                 y: standardizedRect.origin.y + previewBounds.origin.y,
-                                                                 width: standardizedRect.width,
-                                                                 height: standardizedRect.height)
+//                        let x = (face.frame.origin.x + face.frame.size.width * 0.3),
+//                            y = (face.frame.origin.y + face.frame.size.height * 0.2),
+//                            w = (face.frame.size.width * 0.4),
+//                            h = (face.frame.size.height * 0.6)
                         
+                        let x = (face.frame.origin.x + face.frame.size.width),
+                            y = (face.frame.origin.y + face.frame.size.height),
+                            w = (face.frame.size.width),
+                            h = (face.frame.size.height)
+                        
+                        let normalizedRect = CGRect(
+                            x: x / imageWidth,
+                            y: y / imageHeight,
+                            width: w / imageWidth,
+                            height: h / imageHeight
+                        )
+                        
+                        let standardizedRect = self.previewLayer.layerRectConverted(fromMetadataOutputRect: normalizedRect).standardized,
+                            recognitionStandardizedRect = CGRect(
+                                x: standardizedRect.origin.x + previewBounds.origin.x,
+                                y: standardizedRect.origin.y + previewBounds.origin.y,
+                                width: standardizedRect.width,
+                                height: standardizedRect.height
+                            )
+                        self.tempView.frame = recognitionStandardizedRect
+                        self.tempView.layer.borderColor = UIColor.blue.cgColor
+                        self.tempView.layer.borderWidth = 2
                         self.recognitionArea(
                             face: face,
                             imageWidth: imageWidth,
@@ -236,15 +292,21 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                             y1 = (face.frame.origin.y + face.frame.size.height * 0.1),
                             w1 = (face.frame.size.width * 0.8),
                             h1 = (face.frame.size.height * 0.8)// 얼굴인식 위치 설정
-                        let noneRecognitionNormalizedRect = CGRect(x: x1 / imageWidth,
-                                                                   y: y1 / imageHeight,
-                                                                   width: w1 / imageWidth,
-                                                                   height: h1 / imageHeight)
+                        
+                        let noneRecognitionNormalizedRect = CGRect(
+                            x: x1 / imageWidth,
+                            y: y1 / imageHeight,
+                            width: w1 / imageWidth,
+                            height: h1 / imageHeight
+                        )
+                        
                         let standardizedRect1 = self.previewLayer.layerRectConverted(fromMetadataOutputRect: noneRecognitionNormalizedRect).standardized,
-                            noneRecgnitionStandardizedRect = CGRect(x: standardizedRect1.origin.x + previewBounds.origin.x,
-                                                                    y: standardizedRect1.origin.y + previewBounds.origin.y,
-                                                                    width: standardizedRect1.width,
-                                                                    height: standardizedRect1.height)
+                            noneRecgnitionStandardizedRect = CGRect(
+                                x: standardizedRect1.origin.x + previewBounds.origin.x,
+                                y: standardizedRect1.origin.y + previewBounds.origin.y,
+                                width: standardizedRect1.width,
+                                height: standardizedRect1.height
+                            )
                         
                         self.noneRecognitionArea(
                             face: face,
@@ -255,9 +317,13 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     }
                 }
             } else {
-                self.dataModel.gTempData.removeAll()
-                self.cropFaceRect = nil
                 self.lastFrame = nil
+                self.cropFaceRect = nil
+                self.chestRect = nil
+                self.dataModel.gTempData.removeAll()
+                self.dataModel.initRGBData()
+                self.measurementTimer.invalidate()
+                self.measurementModel.measurementStop.onNext(true)
             }
         }
     }
@@ -269,16 +335,36 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         standardizedRect: CGRect,
         faceRecognitionAreaView: UIView
     ) {
+        let originX = face.frame.origin.x,
+            originY = face.frame.origin.y,
+            faceWidth = face.frame.size.width,
+            faceHeight = face.frame.size.height
         
         if faceRecognitionAreaView.frame.minX <= standardizedRect.minX &&
-           faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
-           faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
-           faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+            faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
+            faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
+            faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+            self.measurementModel.measurementStop.onNext(false)
             
-            self.cropFaceRect = CGRect(x: face.frame.origin.x,
-                                       y: face.frame.origin.y,
-                                       width: face.frame.width,
-                                       height: face.frame.height).integral // 얼굴인식 위치 계산
+            guard originX >= 0 && originY >= 0 else {
+                print("origin return")
+                return
+            }
+            
+            self.cropFaceRect = CGRect(
+                x: originX,
+                y: originY,
+                width: faceWidth,
+                height: faceHeight
+            ).integral
+            
+            self.chestRect = CGRect(
+                x: originX + faceHeight,
+                y: originY,
+                width: faceWidth,
+                height: faceWidth
+            )
+            
             self.addContours(
                 for: face,
                 imageWidth: imageWidth,
@@ -287,8 +373,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         } else {
             self.lastFrame = nil
             self.cropFaceRect = nil
+            self.chestRect = nil
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
+            self.measurementTimer.invalidate()
+            self.measurementModel.measurementStop.onNext(true)
         }
     }
     
@@ -298,7 +387,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         imageHeight: CGFloat,
         standardizedRect: CGRect
     ) {
-        
         let minX = UIScreen.main.bounds.minX,
             minY = UIScreen.main.bounds.minY,
             maxX = UIScreen.main.bounds.maxX,
@@ -319,7 +407,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 imageHeight: imageHeight
             )
         } else {
-            print("data count: \(self.dataModel.gData.count)")
             self.lastFrame = nil
             self.cropFaceRect = nil
             self.dataModel.gTempData.removeAll()
@@ -328,7 +415,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func updatePreviewOverlayViewWithLastFrame() {
         DispatchQueue.main.sync {
-            guard lastFrame != nil else { fatalError("sample buffer error") }
+            guard lastFrame != nil else {
+                print("lastFrame return")
+                return
+            }
             if self.model.useFaceRecognitionArea {
                 self.useRecogntionFace()
             } else {
@@ -338,7 +428,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func useRecogntionFace() {
-        if self.cropFaceRect != nil {
+        if self.cropFaceRect != nil && self.chestRect != nil {
             if self.dataModel.gTempData.count == self.preparingSec * 30 {
                 self.cameraSetup.setUpCatureDevice()
                 self.collectDatas()
@@ -366,7 +456,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         imageWidth: CGFloat,
         imageHeight: CGFloat
     ) {
-        if let rect = self.cropFaceRect,
+        if let faceRect = self.cropFaceRect,
+           let chestRect = self.chestRect,
            let lastFrame = self.lastFrame,
            let faceContour = face.contour(ofType: .face),
            let leftEyeContour = face.contour(ofType: .leftEye),
@@ -376,9 +467,14 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
            let rightEyeBrowTopContour = face.contour(ofType: .rightEyebrowTop),
            let rightEyeBrowBottomContour = face.contour(ofType: .rightEyebrowBottom),
            let upperLipContour = face.contour(ofType: .upperLipTop),
-           let lowerLipContour = face.contour(ofType: .lowerLipBottom),
-           let faceCropBuffer = self.croppedSampleBuffer(lastFrame, with: rect),
-           let cropImage = OpenCVWrapper.converting(faceCropBuffer) {
+           let lowerLipContour = face.contour(ofType: .lowerLipBottom) {
+            print("faceRect: \(faceRect)")
+            
+            guard let faceCropBuffer = self.croppedSampleBuffer(lastFrame, with: faceRect),
+                  let cropImage = OpenCVWrapper.converting(faceCropBuffer) else {
+                print("faceCropBuffer return")
+                return
+            }
             
             var facePath = UIBezierPath().then { p in
                 p.lineWidth = 2
@@ -428,7 +524,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 facePath.lineJoinStyle = .miter
                 
                 guard let previewLayer = previewLayer,
-                      let cropImage = cropImage else { return print("crop image return") }
+                      let cropImage = cropImage else {
+                    print("crop image return")
+                    return
+                }
                 
                 gridPath(
                     previewLayer: previewLayer,
@@ -483,9 +582,17 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 facePath.append(lipsPath)
                 
                 guard let faceCropImage = getMaskedImage(picture: cropImage, cgPath: facePath.cgPath),
-                      let sampleBuffer = faceCropImage.createCMSampleBuffer() else { fatalError("face crop image return") }
+                      let faceSampleBuffer = faceCropImage.createCMSampleBuffer() else { fatalError("face crop image return") }
                 
-                self.extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
+                self.extractRGBFromDetectFace(sampleBuffer: faceSampleBuffer)
+                print("chestRect: \(chestRect)")
+                
+                 if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect) {
+                    //                   let chestImage = OpenCVWrapper.converting(chestBuffer) {
+                    
+                    //                    self.chestImgView.image = chestImage
+                    self.extractByteFromDetectChest(sampleBuffer: chestBuffer)
+                }
             }
         }
     }
@@ -516,6 +623,17 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         } else {
             self.dataModel.gTempData.append(g)
         }
+    }
+    
+    func extractByteFromDetectChest(
+        sampleBuffer: CMSampleBuffer
+    ) {
+        guard let chestData = OpenCVWrapper.detectChestSampleBuffer(sampleBuffer) else { return print("objc casting error") }
+        
+        let buf = UnsafeMutableBufferPointer(start: chestData, count: 32 * 32)
+        let array = Array(buf)
+        
+        self.dataModel.bytesArr.append(array)
     }
     
     private func normalizedPoint(

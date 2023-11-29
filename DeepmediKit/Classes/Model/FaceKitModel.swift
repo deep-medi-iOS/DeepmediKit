@@ -12,16 +12,18 @@ public class FaceKitModel: NSObject {
     let model = Model.shared
     
     public func injectingRecognitionAreaView(
-        _ view: UIView
+        _ view: UIView,
+        superView: UIView
     ) {
         self.model.faceRecognitionAreaView = view
+        self.model.superView = superView
     }
     
-    public func willUseFaceRecognitionArea(
-        _ use: Bool
-    ) {
-        self.model.useFaceRecognitionArea = use
-    }
+//    public func willUseFaceRecognitionArea(
+//        _ use: Bool
+//    ) {
+//        self.model.useFaceRecognitionArea = use
+//    }
     
     public func setMeasurementTime(
         _ time: Double?

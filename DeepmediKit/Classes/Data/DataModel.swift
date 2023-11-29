@@ -64,6 +64,9 @@ open class DataModel {
         self.rgbData.removeAll()
         self.rgbDataToArr.removeAll()
         self.rgbSubStr.removeAll()
+        
+        self.bytesArr.removeAll()
+        self.byteData.removeAll()
     }
     
     func initAccData() {

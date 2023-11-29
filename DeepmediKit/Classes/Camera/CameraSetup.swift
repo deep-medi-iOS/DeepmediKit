@@ -53,11 +53,26 @@ class CameraSetup: NSObject {
             self.detection(captureDevice)
             
         } else {
-            
-            if let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
-                self.detection(captureDevice)
-            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
-                self.detection(captureDevice1)
+//            if let captureDevice0 = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) {
+//                print("2: \(UIDevice().currentModelName())")
+//                self.detection(captureDevice0)
+//            } else 
+//            if let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+//                print("1: \(UIDevice().currentModelName())")
+//                self.detection(captureDevice)
+//            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
+//                print("3: \(UIDevice().currentModelName())")
+//                self.detection(captureDevice1)
+            if #available(iOS 13.0, *) {
+                if UIDevice().currentModelName().contains("Pro") {
+                    guard let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera,
+                                                                      for: .video,
+                                                                      position: .back) else { fatalError("capture device error") }
+                    self.detection(captureDevice)
+                } else {
+                    guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
+                    self.detection(captureDevice)
+                }
             } else { // iOS version 13.0 이하
                 guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
                 self.detection(captureDevice)
@@ -125,7 +140,7 @@ class CameraSetup: NSObject {
         self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
         self.captureDevice?.unlockForConfiguration()
         
-        guard part == .finger, self.captureDevice?.hasTorch ?? false else { return }
+        guard part == .finger && self.captureDevice?.hasTorch ?? false else { return }
             self.correctColor()
     }
     
