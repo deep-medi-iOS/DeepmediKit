@@ -166,13 +166,16 @@ open class FingerKit: NSObject {
     
     private func stopMeasurement() {
         self.isComplete = true
-        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-        self.cameraSetup.useSession().stopRunning()
         self.motionManager.stopAccelerometerUpdates()
         self.motionManager.stopGyroUpdates()
         self.motionManager.stopDeviceMotionUpdates()
         self.turnOnThe(torch: false)
         self.elementInitalize()
+        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
+        
+        DispatchQueue.global(qos: .background).async {
+            self.cameraSetup.useSession().stopRunning()
+        }
     }
     
     private func elementInitalize() {
@@ -405,7 +408,7 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         
         self.measurementModel.inputFingerTap.onNext(tap)
         let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-        guard timeStamp != 0 else { return }
+        guard timeStamp > 100 else { return }
         self.dataModel.collectRGB(
             timeStamp: timeStamp,
             r: r, g: g, b: b
@@ -428,7 +431,7 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
     
     @objc private func updatedChartData() {
-        let filteredG = self.filter(g: self.dataModel.gTempData)
+        let filteredG = self.filter(g: self.dataModel.gData)
         self.measurementModel.inputFilteringGvalue.onNext(filteredG)
     }
     

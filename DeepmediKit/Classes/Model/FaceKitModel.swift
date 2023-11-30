@@ -12,11 +12,9 @@ public class FaceKitModel: NSObject {
     let model = Model.shared
     
     public func injectingRecognitionAreaView(
-        _ view: UIView,
-        superView: UIView
+        _ view: UIView
     ) {
         self.model.faceRecognitionAreaView = view
-        self.model.superView = superView
     }
     
 //    public func willUseFaceRecognitionArea(

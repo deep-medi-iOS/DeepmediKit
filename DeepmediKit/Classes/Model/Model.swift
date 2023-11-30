@@ -25,8 +25,6 @@ class Model {
     var previewLayer: AVCaptureVideoPreviewLayer?
     var previewLayerBounds: CGRect
 
-    var superView = UIView()
-    
     var faceMeasurementTime: Double {
         didSet {
             if self.faceMeasurementTime < 30.0 {

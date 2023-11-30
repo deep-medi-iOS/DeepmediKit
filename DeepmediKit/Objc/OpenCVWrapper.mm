@@ -161,37 +161,36 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
 }
 
 + (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer {
-  
-  CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-  CVPixelBufferLockBaseAddress(imageBuffer, 0);
-  
-  void* bufferAddress;
-  size_t width;
-  size_t height;
-  size_t bytesPerRow;
-  
-  bufferAddress = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-  width = CVPixelBufferGetWidth(imageBuffer);
-  height = CVPixelBufferGetHeight(imageBuffer);
-  bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-  unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-  
-  cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
-  cv::resize(imgMat, imgMat, cv::Size(32, 32));
-  cv::cvtColor(imgMat, imgMat, cv::COLOR_RGBA2GRAY); // BGRA2GRAY -> RGBA2GRAY 차이가 큼
-  cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-
-  unsigned long size = height * width;
-  
-  uint8_t *buf = new uint8_t[size];
-
-  memcpy(buf, imgMat.data, size);
-  
-  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
     
-  imgMat.release();
-  
-  return buf;
+    void* bufferAddress;
+    size_t width;
+    size_t height;
+    size_t bytesPerRow;
+    
+    bufferAddress = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+    width = CVPixelBufferGetWidth(imageBuffer);
+    height = CVPixelBufferGetHeight(imageBuffer);
+    bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
+    
+    cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
+    cv::resize(imgMat, imgMat, cv::Size(32, 32));
+    cv::cvtColor(imgMat, imgMat, cv::COLOR_RGBA2GRAY); // BGRA2GRAY -> RGBA2GRAY 차이가 큼
+    cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
+    
+    unsigned long size = height * width;
+    
+    uint8_t *buf = new uint8_t[size];
+    
+    memcpy(buf, imgMat.data, size);
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    
+    imgMat.release();
+    
+    return buf;
 }
 
 + (UIImage *)convertingBuffer:(CMSampleBufferRef)sampleBuffer {

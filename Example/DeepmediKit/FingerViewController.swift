@@ -47,9 +47,7 @@ class FingerViewController: UIViewController {
         
         self.setupUI()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.fingerMeasureKit.startSession()
-        }
+        self.fingerMeasureKit.startSession()
     }
     
     override func viewDidLayoutSubviews() {
@@ -61,13 +59,14 @@ class FingerViewController: UIViewController {
     }
     
     @objc func prev() {
-        self.fingerMeasureKit.stopSession()
-        self.dismiss(animated: true)
+        self.dismiss(animated: true) {
+            self.fingerMeasureKit.stopSession()
+        }
     }
     
     func completionMethod() {
         fingerMeasureKit.measuredValue { value in
-//            print("value: \(value)")
+            print("value: \(value)")
         }
         
         fingerMeasureKit.measurementCompleteRatio { ratio in
@@ -75,7 +74,7 @@ class FingerViewController: UIViewController {
         }
         
         fingerMeasureKit.timesLeft { time in
-//            print("left time: \(time)")
+            print("left time: \(time)")
         }
         
         fingerMeasureKit.stopMeasurement { isStop in
@@ -106,10 +105,12 @@ class FingerViewController: UIViewController {
             print("finger acc path:", accPath)
             print("finger gyr pPath:", gyroPath)
             if success {
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
+                let header = self.header.v2Header(
+                    method: .post,
+                    uri: "uri",
+                    secretKey: "secretKey",
+                    apiKey: "apiKey"
+                )
                 
                 DispatchQueue.global(qos: .background).async {
                     self.fingerMeasureKit.stopSession()
