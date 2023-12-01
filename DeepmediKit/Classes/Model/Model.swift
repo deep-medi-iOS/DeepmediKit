@@ -18,7 +18,7 @@ class Model {
     var limitNoTapTime: Int
     var fingerMeasurementTime: Double
     var breathMeasurement: Bool
-    
+        
     var useFaceRecognitionArea: Bool
     
     var faceRecognitionAreaView: UIView?

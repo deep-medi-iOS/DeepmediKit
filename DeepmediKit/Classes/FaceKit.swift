@@ -37,13 +37,30 @@ public class FaceKit: NSObject {
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
     
+    private var isReal:Bool = false ,
+                diffArr:[CGFloat] = [],
+                checkArr:[Bool] = []
+    
+    public func checkRealFace(
+        _ isReal: @escaping((Bool) -> ())
+    ) {
+        let check = self.measurementModel.checkRealFace
+        check
+            .asDriver(onErrorJustReturn: false)
+            .distinctUntilChanged()
+            .drive { check in
+                isReal(check)
+            }
+            .disposed(by: bag)
+    }
+    
     public func stopMeasurement(
         _ isStop: @escaping((Bool) -> ())
     ) {
         let stop = self.measurementModel.measurementStop
         stop
             .asDriver(onErrorJustReturn: false)
-            .asDriver()
+            .distinctUntilChanged()
             .drive(onNext: { stop in
                 isStop(stop)
             })
@@ -74,7 +91,6 @@ public class FaceKit: NSObject {
         let ratio = self.measurementModel.measurementCompleteRatio
         ratio
             .asDriver(onErrorJustReturn: "0%")
-            .asDriver()
             .drive(onNext: { ratio in
                 com(ratio)
             })
@@ -146,6 +162,8 @@ public class FaceKit: NSObject {
         
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
+        self.diffArr.removeAll()
+        self.checkArr.removeAll()
         
         self.preparingSec = 1
         self.measurementTime = self.model.faceMeasurementTime
@@ -271,21 +289,19 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //                            chestY = face.frame.origin.y + face.frame.size.height * 0.1,
 //                            chestWidth =  face.frame.size.width * 0.8,
 //                            chestHeight = face.frame.size.height * 0.8
-//                        
 //                        let normalizedChestRect = CGRect(
 //                            x: chestX / imageWidth,
 //                            y: chestY / imageHeight,
 //                            width: chestWidth / imageWidth,
 //                            height: chestHeight / imageHeight
 //                        )
-//                        
 //                        let standardizedChestRect = self.previewLayer.layerRectConverted(fromMetadataOutputRect: normalizedChestRect).standardized,
 //                            recognitionStandardizedChestRect = CGRect(
 //                                x: standardizedChestRect.origin.x + previewBounds.origin.x,
 //                                y: standardizedChestRect.origin.y + previewBounds.origin.y,
 //                                width: standardizedChestRect.width,
 //                                height: standardizedChestRect.height
-//                            )
+//                        )
                         
                         self.recognitionArea(
                             face: face,
@@ -374,6 +390,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
             self.measurementTimer.invalidate()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
             self.measurementModel.measurementStop.onNext(true)
         }
     }
@@ -407,6 +425,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.lastFrame = nil
             self.cropFaceRect = nil
             self.dataModel.gTempData.removeAll()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
         }
     }
     
@@ -426,11 +446,15 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func useRecogntionFace() {
         if self.cropFaceRect != nil && self.chestRect != nil {
-            if self.dataModel.gTempData.count == self.preparingSec * 30 {
+            if self.dataModel.gTempData.count >= self.preparingSec * 30 && self.isReal {
+                self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
                 self.collectDatas()
             }
         } else {
+            self.measurementModel.checkRealFace.onNext(false)
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData()
             self.measurementTimer.invalidate()
@@ -445,6 +469,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
         } else {
             self.dataModel.gTempData.removeAll()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
         }
     }
     
@@ -524,6 +550,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     print("crop image return")
                     return
                 }
+                
+                checkReal(eyePoints: leftEyePoints)
                 
                 gridPath(
                     previewLayer: previewLayer,
@@ -626,6 +654,29 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let array = Array(buf)
         
         self.dataModel.bytesArr.append(array)
+    }
+    
+    private func checkReal(
+        eyePoints: [VisionPoint]
+    ) {
+        if !self.measurementTimer.isValid {
+            let eyeXpoints = eyePoints.map { $0.x },
+                maxXpoint = eyeXpoints.max() ?? 0,
+                minXpoint = eyeXpoints.min() ?? 0,
+                diff = maxXpoint - minXpoint
+            self.diffArr.append(diff)
+            let avg = self.diffArr.reduce(CGFloat(0), +) / CGFloat(self.diffArr.count)
+            let ratio = diff / avg
+            let standardRatio = diff < 26 ? 0.8 : 0.6
+            let check = ratio < standardRatio ? true : false
+            if self.checkArr.count < 150 {
+                self.checkArr.append(check)
+            } else {
+                self.checkArr.removeFirst()
+                self.checkArr.append(check)
+            }
+            self.isReal = self.checkArr.contains(true)
+        }
     }
     
     private func normalizedPoint(

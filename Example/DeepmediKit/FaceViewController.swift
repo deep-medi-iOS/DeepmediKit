@@ -33,6 +33,11 @@ class FaceViewController: UIViewController {
         b.setTitleColor(.white, for: .normal)
         b.backgroundColor = .black
     }
+    
+    let checkLabel = UILabel().then { l in
+        l.font = UIFont.systemFont(ofSize: 50)
+        l.layer.cornerRadius = 25
+    }
  
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -69,6 +74,17 @@ class FaceViewController: UIViewController {
     }
 
     func completionMethod() {
+        faceMeasureKit.checkRealFace { check in
+            print("face is real: \(check)")
+            if check {
+                self.checkLabel.text = "Real"
+                self.checkLabel.backgroundColor = .green
+            } else {
+                self.checkLabel.text = "Not Real"
+                self.checkLabel.backgroundColor = .red
+            }
+        }
+        
         faceMeasureKit.measurementCompleteRatio { ratio in
             print("complete ratio: \(ratio)")
         }
@@ -112,10 +128,12 @@ class FaceViewController: UIViewController {
         
         self.view.addSubview(preview)
         self.view.addSubview(faceRecognitionAreaView)
+        self.view.addSubview(checkLabel)
         self.view.addSubview(previousButton)
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
+        checkLabel.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         
 //        NSLayoutConstraint.activate([
@@ -144,6 +162,11 @@ class FaceViewController: UIViewController {
             faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
             faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
             faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
+        ])
+        
+        NSLayoutConstraint.activate([
+            checkLabel.topAnchor.constraint(equalTo: faceRecognitionAreaView.bottomAnchor, constant: 5),
+            checkLabel.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
         ])
    
         NSLayoutConstraint.activate([
