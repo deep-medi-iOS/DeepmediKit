@@ -37,6 +37,10 @@ public class FaceKit: NSObject {
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
     
+    private var tempView = UIView()
+    private var faceImg = UIImageView()
+    private var chestImg = UIImageView()
+    
     private var isReal:Bool = false ,
                 diffArr:[CGFloat] = [],
                 checkArr:[Bool] = []
@@ -125,10 +129,13 @@ public class FaceKit: NSObject {
     open func startSession() {
         DispatchQueue.main.async {
             self.measurementTime = self.model.faceMeasurementTime
-            self.preparingSec = 2
+            self.preparingSec = 1
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
+//                self.tempView = self.model.tempView
+//                self.faceImg = self.model.faceImgView
+//                self.chestImg = self.model.chestImgView
             }
         }
         
@@ -237,6 +244,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     ) {
         
         var faces: [Face]
+        var wRatio: CGFloat = 1
+        var hRatio: CGFloat = 1
         
         let options = FaceDetectorOptions()
         options.landmarkMode = .none
@@ -262,6 +271,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 for face in faces {
                     
                     let previewBounds = self.model.previewLayerBounds
+                    if let superView = self.faceRecognitionAreaView.superview {
+                        wRatio = previewBounds.width / superView.frame.width
+                        hRatio = previewBounds.width / superView.frame.width
+                    }
                     
                     if self.model.useFaceRecognitionArea {
                         
@@ -269,14 +282,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                             faceY = face.frame.origin.y + face.frame.size.height * 0.1,
                             faceWidth = face.frame.size.width * 0.6,
                             faceHeight = face.frame.size.height * 0.8
-                  
                         let normalizedRect = CGRect(
                             x: faceX / imageWidth,
                             y: faceY / imageHeight,
                             width: faceWidth / imageWidth,
                             height: faceHeight / imageHeight
                         )
-                        
                         let standardizedRect = self.previewLayer.layerRectConverted(fromMetadataOutputRect: normalizedRect).standardized,
                             recognitionStandardizedFaceRect = CGRect(
                                 x: standardizedRect.origin.x + previewBounds.origin.x,
@@ -287,8 +298,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                         // MARK: 가슴측정 부위 위치
 //                        let chestX = face.frame.origin.x + face.frame.size.width,
 //                            chestY = face.frame.origin.y + face.frame.size.height * 0.1,
-//                            chestWidth =  face.frame.size.width * 0.8,
-//                            chestHeight = face.frame.size.height * 0.8
+//                            chestWidth =  face.frame.size.width * 0.8 * wRatio,
+//                            chestHeight = face.frame.size.height * 0.8 * hRatio
 //                        let normalizedChestRect = CGRect(
 //                            x: chestX / imageWidth,
 //                            y: chestY / imageHeight,
@@ -305,6 +316,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                         
                         self.recognitionArea(
                             face: face,
+                            widthRatio: wRatio,
+                            heightRatio: hRatio,
                             imageWidth: imageWidth,
                             imageHeight: imageHeight,
                             recognitionStandardizedFaceRect: recognitionStandardizedFaceRect,
@@ -355,6 +368,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func recognitionArea(
         face: Face,
+        widthRatio: CGFloat,
+        heightRatio: CGFloat,
         imageWidth: CGFloat,
         imageHeight: CGFloat,
         recognitionStandardizedFaceRect: CGRect,
@@ -368,15 +383,15 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.cropFaceRect = CGRect(
                 x: face.frame.origin.x,
                 y: face.frame.origin.y,
-                width: face.frame.width,
-                height: face.frame.height
+                width: face.frame.width * widthRatio,
+                height: face.frame.height * heightRatio
             ).integral
             
             self.chestRect = CGRect(
                 x: face.frame.origin.x + face.frame.size.width,
                 y: face.frame.origin.y + face.frame.size.height * 0.1,
-                width: face.frame.size.width * 0.8,
-                height: face.frame.size.width * 0.8
+                width: face.frame.size.width * 0.8 * widthRatio,
+                height: face.frame.size.width * 0.8 * heightRatio
             ).integral
             
             self.addContours(

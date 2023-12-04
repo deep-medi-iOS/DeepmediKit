@@ -38,6 +38,14 @@ class FaceViewController: UIViewController {
         l.font = UIFont.systemFont(ofSize: 50)
         l.layer.cornerRadius = 25
     }
+    
+    let temp = UIView()
+    let face = UIImageView().then { v in
+        v.contentMode = .scaleAspectFit
+    }
+    let chest = UIImageView().then { v in
+        v.contentMode = .scaleAspectFit
+    }
  
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -65,7 +73,7 @@ class FaceViewController: UIViewController {
         preview.setup(
             layer: previewLayer,
             frame: preview.frame,
-            useCornerRadius: false
+            useCornerRadius: true
         )
 
         faceMeasureKitModel.injectingRecognitionAreaView(
@@ -131,37 +139,59 @@ class FaceViewController: UIViewController {
         self.view.addSubview(checkLabel)
         self.view.addSubview(previousButton)
         
+        self.view.addSubview(temp)
+        self.view.addSubview(face)
+        self.view.addSubview(chest)
+        
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         checkLabel.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         
-//        NSLayoutConstraint.activate([
-//            preview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-//            preview.widthAnchor.constraint(equalToConstant: width * 0.8),
-//            preview.topAnchor.constraint(equalTo: view.topAnchor, constant: height * 0.2),
-//            preview.heightAnchor.constraint(equalToConstant: width * 0.8)
-//        ])
-//
-//        NSLayoutConstraint.activate([
-//            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
-//            faceRecognitionAreaView.centerYAnchor.constraint(equalTo: preview.centerYAnchor),
-//            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.8),
-//            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.8),
-//        ])
+        face.translatesAutoresizingMaskIntoConstraints = false
+        chest.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            preview.topAnchor.constraint(equalTo: self.view.topAnchor),
-            preview.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            preview.widthAnchor.constraint(equalToConstant: width),
-            preview.heightAnchor.constraint(equalToConstant: height)
+            preview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            preview.widthAnchor.constraint(equalToConstant: width * 0.8),
+            preview.topAnchor.constraint(equalTo: view.topAnchor, constant: height * 0.2),
+            preview.heightAnchor.constraint(equalToConstant: width * 0.8)
         ])
 
         NSLayoutConstraint.activate([
-            faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
             faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
-            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
-            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
+            faceRecognitionAreaView.centerYAnchor.constraint(equalTo: preview.centerYAnchor),
+            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.8),
+            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.8),
+        ])
+        
+//        NSLayoutConstraint.activate([
+//            preview.topAnchor.constraint(equalTo: self.view.topAnchor),
+//            preview.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+//            preview.widthAnchor.constraint(equalToConstant: width),
+//            preview.heightAnchor.constraint(equalToConstant: height)
+//        ])
+//
+//        NSLayoutConstraint.activate([
+//            faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
+//            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
+//            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
+//            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
+//        ])
+        
+        
+        NSLayoutConstraint.activate([
+            face.bottomAnchor.constraint(equalTo: chest.topAnchor),
+            face.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            face.widthAnchor.constraint(equalToConstant: width * 0.4),
+            face.heightAnchor.constraint(equalToConstant: width * 0.4)
+        ])
+        
+        NSLayoutConstraint.activate([
+            chest.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            chest.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            chest.widthAnchor.constraint(equalToConstant: width * 0.4),
+            chest.heightAnchor.constraint(equalToConstant: width * 0.4)
         ])
         
         NSLayoutConstraint.activate([

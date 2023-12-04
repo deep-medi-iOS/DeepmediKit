@@ -13,8 +13,14 @@ public class FaceKitModel: NSObject {
     
     public func injectingRecognitionAreaView(
         _ view: UIView
+//        temp: UIView,
+//        face: UIImageView,
+//        chest: UIImageView
     ) {
         self.model.faceRecognitionAreaView = view
+//        self.model.tempView = temp
+//        self.model.faceImgView = face
+//        self.model.chestImgView = chest
     }
     
 //    public func willUseFaceRecognitionArea(
