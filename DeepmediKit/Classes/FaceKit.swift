@@ -41,7 +41,8 @@ public class FaceKit: NSObject {
     private var faceImg = UIImageView()
     private var chestImg = UIImageView()
     
-    private var isReal:Bool = false ,
+    private var notDetectFace: Bool = true,
+                isReal:Bool = false ,
                 diffArr:[CGFloat] = [],
                 checkArr:[Bool] = []
     
@@ -66,6 +67,7 @@ public class FaceKit: NSObject {
             .asDriver(onErrorJustReturn: false)
             .distinctUntilChanged()
             .drive(onNext: { stop in
+                self.notDetectFace = stop
                 isStop(stop)
             })
             .disposed(by: bag)
@@ -151,9 +153,15 @@ public class FaceKit: NSObject {
         self.lastFrame = nil
         self.cropFaceRect = nil
         self.chestRect = nil
+        
         self.measurementTimer.invalidate()
-        self.dataModel.gTempData.removeAll()
+        
         self.dataModel.initRGBData()
+        self.dataModel.gTempData.removeAll()
+        
+        self.diffArr.removeAll()
+        self.checkArr.removeAll()
+        
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         
         DispatchQueue.global(qos: .background).async {
@@ -375,10 +383,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         recognitionStandardizedFaceRect: CGRect,
         faceRecognitionAreaView: UIView
     ) {
-        if faceRecognitionAreaView.frame.minX <= recognitionStandardizedFaceRect.minX &&
+        if let superView = faceRecognitionAreaView.superview,
+           self.checkFacePostion(
+            superViewFrame: superView.frame,
+            faceFrame: face.frame
+           ) &&
+            faceRecognitionAreaView.frame.minX <= recognitionStandardizedFaceRect.minX &&
             faceRecognitionAreaView.frame.maxX >= recognitionStandardizedFaceRect.maxX &&
             faceRecognitionAreaView.frame.minY <= recognitionStandardizedFaceRect.minY &&
             faceRecognitionAreaView.frame.maxY >= recognitionStandardizedFaceRect.maxY {
+            
             self.measurementModel.measurementStop.onNext(false)
             self.cropFaceRect = CGRect(
                 x: face.frame.origin.x,
@@ -692,6 +706,23 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
             self.isReal = self.checkArr.contains(true)
         }
+    }
+    
+    private func checkFacePostion(
+        superViewFrame: CGRect,
+        faceFrame: CGRect
+    ) -> Bool {
+        let superViewMinX = superViewFrame.minX,
+            superViewMinY = superViewFrame.minY,
+            superViewMaxX = superViewFrame.maxX * 3,
+            superViewMaxY = superViewFrame.maxY * 3
+        
+        let faceMinX = faceFrame.minY,
+            faceMinY = faceFrame.minX,
+            faceMaxX = faceFrame.maxY,
+            faceMaxY = faceFrame.maxX
+        
+        return superViewMinX <= faceMinX && faceMaxX <= superViewMaxX && superViewMinY <= faceMinY && faceMaxY <= superViewMaxY
     }
     
     private func normalizedPoint(

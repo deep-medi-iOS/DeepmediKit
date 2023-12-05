@@ -34,9 +34,14 @@ class FaceViewController: UIViewController {
         b.backgroundColor = .black
     }
     
+    let leftTimeLabel = UILabel().then { l in
+        l.font = UIFont.systemFont(ofSize: 30)
+    }
+    
     let checkLabel = UILabel().then { l in
         l.font = UIFont.systemFont(ofSize: 50)
-        l.layer.cornerRadius = 25
+        l.layer.cornerRadius = 5
+        l.clipsToBounds = true
     }
     
     let temp = UIView()
@@ -99,6 +104,7 @@ class FaceViewController: UIViewController {
 
         faceMeasureKit.timesLeft { second in
             print("second: \(second)")
+            self.leftTimeLabel.text = "\(second)"
         }
         
         faceMeasureKit.stopMeasurement { isStop in
@@ -108,9 +114,9 @@ class FaceViewController: UIViewController {
         faceMeasureKit.finishedMeasurement { (face, chest) in
             let (faceRes, facePath) = face
             let (chestRes, chestPath) = chest
-            print("face path", facePath)
-            print("chest path", chestPath)
             if faceRes && chestRes {
+                print("face path", facePath)
+                print("chest path", chestPath)
                 let faceHeader = self.header.v2Header(
                     method: .post,
                     uri: "face uri",
@@ -131,11 +137,12 @@ class FaceViewController: UIViewController {
     }
 
     func setupUI() {
-        let width = UIScreen.main.bounds.width * 0.8,
-            height = UIScreen.main.bounds.height * 0.8
+        let width: CGFloat = 220,//UIScreen.main.bounds.width * 0.8,
+            height: CGFloat = 220//UIScreen.main.bounds.height * 0.8
         
         self.view.addSubview(preview)
         self.view.addSubview(faceRecognitionAreaView)
+        self.view.addSubview(leftTimeLabel)
         self.view.addSubview(checkLabel)
         self.view.addSubview(previousButton)
         
@@ -145,6 +152,7 @@ class FaceViewController: UIViewController {
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
+        leftTimeLabel.translatesAutoresizingMaskIntoConstraints = false
         checkLabel.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         
@@ -153,16 +161,16 @@ class FaceViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             preview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            preview.widthAnchor.constraint(equalToConstant: width * 0.8),
             preview.topAnchor.constraint(equalTo: view.topAnchor, constant: height * 0.2),
-            preview.heightAnchor.constraint(equalToConstant: width * 0.8)
+            preview.widthAnchor.constraint(equalToConstant: width),// * 0.8),
+            preview.heightAnchor.constraint(equalToConstant: width)// * 0.8)
         ])
 
         NSLayoutConstraint.activate([
             faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
             faceRecognitionAreaView.centerYAnchor.constraint(equalTo: preview.centerYAnchor),
-            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.8),
-            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.8),
+            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width),// * 0.8),
+            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width)// * 0.8),
         ])
         
 //        NSLayoutConstraint.activate([
@@ -196,7 +204,12 @@ class FaceViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             checkLabel.topAnchor.constraint(equalTo: faceRecognitionAreaView.bottomAnchor, constant: 5),
-            checkLabel.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
+            checkLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+        ])
+        
+        NSLayoutConstraint.activate([
+            leftTimeLabel.topAnchor.constraint(equalTo: checkLabel.bottomAnchor, constant: 5),
+            leftTimeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
    
         NSLayoutConstraint.activate([
