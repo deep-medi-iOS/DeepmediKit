@@ -73,19 +73,19 @@ class FaceViewController: UIViewController {
         
         self.faceMeasureKit.startSession()
     }
-    
+
     override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
         preview.setup(
             layer: previewLayer,
             frame: preview.frame,
             useCornerRadius: true
         )
-
         faceMeasureKitModel.injectingRecognitionAreaView(
             faceRecognitionAreaView
         )
     }
-
+    
     func completionMethod() {
         faceMeasureKit.checkRealFace { check in
             print("face is real: \(check)")

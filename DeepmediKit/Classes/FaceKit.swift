@@ -129,20 +129,13 @@ public class FaceKit: NSObject {
     }
     
     open func startSession() {
-        DispatchQueue.main.async {
-            self.measurementTime = self.model.faceMeasurementTime
-            self.preparingSec = 1
-            if self.model.useFaceRecognitionArea,
-               let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
-                self.faceRecognitionAreaView = faceRecognitionAreaView
-//                self.tempView = self.model.tempView
-//                self.faceImg = self.model.faceImgView
-//                self.chestImg = self.model.chestImgView
-            }
-        }
+        self.measurementTime = self.model.faceMeasurementTime
+        self.preparingSec = 1
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
-            if let previewLayer = self.model.previewLayer {
+            if let previewLayer = self.model.previewLayer,
+               let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
+                self.faceRecognitionAreaView = faceRecognitionAreaView
                 self.previewLayer = previewLayer
                 self.cameraSetup.useSession().startRunning()
             }
