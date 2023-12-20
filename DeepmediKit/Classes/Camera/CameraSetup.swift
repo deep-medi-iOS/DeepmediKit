@@ -43,7 +43,6 @@ class CameraSetup: NSObject {
         _ part: CameraObject.Part
     ) {
         self.session.sessionPreset = .low
-        
         if part == .face {
             guard let captureDevice = AVCaptureDevice.default(
                 .builtInWideAngleCamera,
@@ -51,32 +50,11 @@ class CameraSetup: NSObject {
                 position: .front
             ) else { fatalError("capture device error") }
             self.detection(captureDevice)
-            
         } else {
-//            if let captureDevice0 = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) {
-//                print("2: \(UIDevice().currentModelName())")
-//                self.detection(captureDevice0)
-//            } else 
-//            if let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
-//                print("1: \(UIDevice().currentModelName())")
-//                self.detection(captureDevice)
-//            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
-//                print("3: \(UIDevice().currentModelName())")
-//                self.detection(captureDevice1)
-            if #available(iOS 13.0, *) {
-                if UIDevice().currentModelName().contains("Pro") {
-                    guard let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera,
-                                                                      for: .video,
-                                                                      position: .back) else { fatalError("capture device error") }
-                    self.detection(captureDevice)
-                } else {
-                    guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
-                    self.detection(captureDevice)
-                }
-            } else { // iOS version 13.0 이하
-                guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
-                self.detection(captureDevice)
-            }
+            guard let captureDevice = AVCaptureDevice.default(
+                for: .video
+            ) else { fatalError("capture device error") }
+            self.detection(captureDevice)
         }
     }
     
