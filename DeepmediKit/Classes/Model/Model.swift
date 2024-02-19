@@ -19,6 +19,7 @@ class Model {
     var breathMeasurement: Bool
     
     var useFaceRecognitionArea: Bool
+    var willCheckRealFace: Bool
     
     var faceRecognitionAreaView: UIView?
     var previewLayer: AVCaptureVideoPreviewLayer?
@@ -51,6 +52,7 @@ class Model {
         self.previewLayerBounds = CGRect()
         
         self.useFaceRecognitionArea = true
+        self.willCheckRealFace = true
         
         self.age = 20
         self.gender = 0

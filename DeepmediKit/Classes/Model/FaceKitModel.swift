@@ -23,6 +23,12 @@ public class FaceKitModel: NSObject {
         self.model.useFaceRecognitionArea = use
     }
     
+    public func willCheckRealFace(
+        _ check: Bool
+    ) {
+        self.model.willCheckRealFace = check
+    }
+    
     public func setMeasurementTime(
         _ time: Double?
     ) {
