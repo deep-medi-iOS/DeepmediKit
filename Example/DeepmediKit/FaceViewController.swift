@@ -49,14 +49,13 @@ class FaceViewController: UIViewController {
         faceMeasureKitModel.setWindowSecond(15)
         faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
+        faceMeasureKitModel.willCheckRealFace(true)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         self.setupUI()
-        
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1) {
-            self.faceMeasureKit.startSession()
-        }
+
+        self.faceMeasureKit.startSession()
     }
     
     override func viewDidLayoutSubviews() {
@@ -69,6 +68,10 @@ class FaceViewController: UIViewController {
     }
 
     func completionMethod() {
+        faceMeasureKit.checkRealFace { check in
+            print("face is real: \(check)")
+        }
+        
         faceMeasureKit.measurementCompleteRatio { ratio in
             print("complete ratio: \(ratio)")
         }
@@ -77,17 +80,20 @@ class FaceViewController: UIViewController {
             print("second: \(second)")
         }
         
+        faceMeasureKit.stopMeasurement { stop in
+            print("stop state: \(stop)")
+        }
+        
         faceMeasureKit.finishedMeasurement { (successed, path) in
-            print("face rbg path", path)
+            print("face measure state: \(successed)")
+            print("face rbg path: \(path)")
             if successed {
                 let header = self.header.v2Header(method: .post,
                                                   uri: "uri",
                                                   secretKey: "secretKey",
                                                   apiKey: "apiKey")
                 
-                DispatchQueue.global(qos: .background).async {
-                    self.faceMeasureKit.stopSession()
-                }
+                self.faceMeasureKit.stopSession()
             } else {
                 print("error")
             }

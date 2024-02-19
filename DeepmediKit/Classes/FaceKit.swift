@@ -37,6 +37,39 @@ public class FaceKit: NSObject {
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
     
+    private var notDetectFace = true,
+                isReal = false ,
+                diffArr:[CGFloat] = [],
+                checkArr:[Bool] = []
+    
+    public func checkRealFace(
+        _ isReal: @escaping((Bool) -> ())
+    ) {
+        let check = self.measurementModel.checkRealFace
+        check
+            .asDriver(onErrorJustReturn: false)
+            .distinctUntilChanged()
+            .drive { check in
+                isReal(check)
+            }
+            .disposed(by: bag)
+    }
+    
+    public func stopMeasurement(
+        _ isStop: @escaping((Bool) -> ())
+    ) {
+        let stop = self.measurementModel.measurementStop
+        stop
+            .debug()
+            .asDriver(onErrorJustReturn: true)
+            .distinctUntilChanged()
+            .drive(onNext: { stop in
+                self.notDetectFace = stop
+                isStop(stop)
+            })
+            .disposed(by: bag)
+    }
+    
     public func finishedMeasurement(
         _ isSuccess: @escaping((Bool, URL?) -> ())
     ) {
@@ -88,26 +121,51 @@ public class FaceKit: NSObject {
     
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
-        self.preparingSec = 2
-        if let previewLayer = self.model.previewLayer {
-            self.previewLayer = previewLayer
+        self.preparingSec = 1
+        
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
+            if let previewLayer = self.model.previewLayer {
+                self.previewLayer = previewLayer
+            }
+            
+            if self.model.useFaceRecognitionArea,
+               let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
+                self.faceRecognitionAreaView = faceRecognitionAreaView
+            }
+         
+            self.cameraSetup.useSession().startRunning()
         }
-        self.cameraSetup.useSession().startRunning()
     }
     
     open func stopSession() {
+        self.lastFrame = nil
+        self.cropFaceRect = nil
+        
         self.measurementTimer.invalidate()
+        self.dataModel.initRGBData()
+        self.dataModel.gTempData.removeAll()
+        self.diffArr.removeAll()
+        self.checkArr.removeAll()
+        
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-        self.cameraSetup.useSession().stopRunning()
+
+        DispatchQueue.global(qos: .background).async {
+            self.cameraSetup.useSession().stopRunning()
+        }
     }
     
     private func collectDatas() {
+        self.measurementModel.measurementStop.onNext(false)
+        
         let completion = self.measurementModel.faceMeasurementComplete,
             secondRemaining = self.measurementModel.secondRemaining,
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
         
+        self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
-
+        self.diffArr.removeAll()
+        self.checkArr.removeAll()
+        
         self.preparingSec = 1
         self.measurementTime = self.model.faceMeasurementTime
         self.measurementTimer = Timer.scheduledTimer(
@@ -147,10 +205,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             cvimgRef,
             CVPixelBufferLockFlags(rawValue: 0)
         )
-        if self.model.useFaceRecognitionArea,
-           let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
-            self.faceRecognitionAreaView = faceRecognitionAreaView
-        }
         
         self.lastFrame = sampleBuffer
         
@@ -255,9 +309,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     }
                 }
             } else {
-                self.dataModel.gTempData.removeAll()
-                self.cropFaceRect = nil
                 self.lastFrame = nil
+                self.cropFaceRect = nil
+                self.dataModel.gTempData.removeAll()
+                self.measurementModel.measurementStop.onNext(true)
             }
         }
     }
@@ -271,9 +326,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     ) {
         
         if faceRecognitionAreaView.frame.minX <= standardizedRect.minX &&
-           faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
-           faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
-           faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+            faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
+            faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
+            faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
             
             self.cropFaceRect = CGRect(x: face.frame.origin.x,
                                        y: face.frame.origin.y,
@@ -289,6 +344,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.cropFaceRect = nil
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
+            self.measurementTimer.invalidate()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
+            self.measurementModel.measurementStop.onNext(true)
         }
     }
     
@@ -319,16 +378,21 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 imageHeight: imageHeight
             )
         } else {
-            print("data count: \(self.dataModel.gData.count)")
+            self.measurementModel.measurementStop.onNext(true)
             self.lastFrame = nil
             self.cropFaceRect = nil
             self.dataModel.gTempData.removeAll()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
         }
     }
     
     private func updatePreviewOverlayViewWithLastFrame() {
         DispatchQueue.main.sync {
-            guard lastFrame != nil else { fatalError("sample buffer error") }
+            guard lastFrame != nil else {
+                print("sample buffer error")
+                return
+            }
             if self.model.useFaceRecognitionArea {
                 self.useRecogntionFace()
             } else {
@@ -339,25 +403,33 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func useRecogntionFace() {
         if self.cropFaceRect != nil {
-            if self.dataModel.gTempData.count == self.preparingSec * 30 {
+            if self.dataModel.gTempData.count >= self.preparingSec * 30 && self.isReal {
+                self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
                 self.collectDatas()
             }
         } else {
+            self.measurementModel.checkRealFace.onNext(false)
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData()
             self.measurementTimer.invalidate()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
         }
     }
     
     private func noneUseRecognitionFace() {
         if self.cropFaceRect != nil {
-            self.cameraSetup.setUpCatureDevice()
-            if self.dataModel.gTempData.count == self.preparingSec * 30 && !self.measurementTimer.isValid {
+            if self.dataModel.gTempData.count >= self.preparingSec * 30 && !self.measurementTimer.isValid && self.isReal {
+                self.measurementModel.checkRealFace.onNext(true)
+                self.cameraSetup.setUpCatureDevice()
                 self.collectDatas()
             }
         } else {
+            self.measurementModel.checkRealFace.onNext(false)
             self.dataModel.gTempData.removeAll()
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
         }
     }
     
@@ -429,6 +501,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 
                 guard let previewLayer = previewLayer,
                       let cropImage = cropImage else { return print("crop image return") }
+                
+                if self.model.willCheckRealFace {
+                    checkReal(eyePoints: leftEyePoints)
+                } else {
+                    self.isReal = true
+                }
                 
                 gridPath(
                     previewLayer: previewLayer,
@@ -515,6 +593,29 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             )
         } else {
             self.dataModel.gTempData.append(g)
+        }
+    }
+    
+    private func checkReal(
+        eyePoints: [VisionPoint]
+    ) {
+        if !self.measurementTimer.isValid {
+            let eyeXpoints = eyePoints.map { $0.x },
+                maxXpoint = eyeXpoints.max() ?? 0,
+                minXpoint = eyeXpoints.min() ?? 0,
+                diff = maxXpoint - minXpoint
+            self.diffArr.append(diff)
+            let avg = self.diffArr.reduce(CGFloat(0), +) / CGFloat(self.diffArr.count)
+            let ratio = diff / avg
+            let standardRatio = diff < 26 ? 0.8 : 0.6
+            let check = ratio < standardRatio ? true : false
+            if self.checkArr.count < 150 {
+                self.checkArr.append(check)
+            } else {
+                self.checkArr.removeFirst()
+                self.checkArr.append(check)
+            }
+            self.isReal = self.checkArr.contains(true)
         }
     }
     
