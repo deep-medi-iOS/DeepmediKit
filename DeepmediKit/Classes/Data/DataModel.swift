@@ -59,7 +59,7 @@ open class DataModel {
         self.gData.removeAll()
         self.bData.removeAll()
         self.timeStamp.removeAll()
-        self.gTempData.removeAll()
+//        self.gTempData.removeAll()
         
         self.rgbData.removeAll()
         self.rgbDataToArr.removeAll()
@@ -96,7 +96,7 @@ open class DataModel {
         self.rData.append(r)
         self.gData.append(g)
         self.bData.append(b)
-        self.gTempData.append(g)
+//        self.gTempData.append(g)
         self.timeStamp.append(timeStamp)
         self.rgbData.append(dataFormat)
     }

@@ -259,7 +259,7 @@ open class FingerKit: NSObject {
             .asDriver(onErrorJustReturn: .noTap)
             .drive(onNext: { [weak self] status in
                 guard let self = self else { return }
-                
+                self.measurementModel.checkStopStatus(status)
                 if status == .tap && (self.tap.count <= self.limitTapCount * 3) {
                     
                     if self.tap.count == 30 && !self.isComplete {
@@ -272,18 +272,10 @@ open class FingerKit: NSObject {
                     self.stopMeasureStatus.removeAll()
                                                             
                 } else if (status == .noTap) {
-
                     self.noTap.append(.noTap)
-                    self.tap.removeAll()
-                    self.stopMeasureStatus.removeAll()
-
                 } else if (status == .back || status == .flip) {
-
                     self.stopMeasureStatus.append(status)
-                    self.tap.removeAll()
-                    self.noTap.removeAll()
                 }
-                self.measurementModel.checkStopStatus(status)
                 
                 switch status {
                 case .tap:
@@ -301,7 +293,7 @@ open class FingerKit: NSObject {
 
                 case .noTap:
                     guard self.tap.count >= 30 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
-//                        print("no tap return")
+                        print("no tap return")
                         return
                     }
                     self.elementInitalize()
@@ -309,7 +301,7 @@ open class FingerKit: NSObject {
 
                 case .back, .flip:
                     guard self.stopMeasureStatus.count >= 30 else {
-//                        print("back, flip return")
+                        print("back, flip return")
                         return
                     }
                     self.turnOnThe(torch: false)

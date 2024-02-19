@@ -67,7 +67,7 @@ class FingerViewController: UIViewController {
     
     func completionMethod() {
         fingerMeasureKit.measuredValue { value in
-            print("value: \(value)")
+//            print("value: \(value)")
         }
         
         fingerMeasureKit.measurementCompleteRatio { ratio in
@@ -75,7 +75,7 @@ class FingerViewController: UIViewController {
         }
         
         fingerMeasureKit.timesLeft { time in
-            print("left time: \(time)")
+//            print("left time: \(time)")
         }
         
         fingerMeasureKit.stopMeasurement { isStop in
