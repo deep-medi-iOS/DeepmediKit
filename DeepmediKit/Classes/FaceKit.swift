@@ -60,7 +60,6 @@ public class FaceKit: NSObject {
     ) {
         let stop = self.measurementModel.measurementStop
         stop
-            .debug()
             .asDriver(onErrorJustReturn: true)
             .distinctUntilChanged()
             .drive(onNext: { stop in
