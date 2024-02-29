@@ -20,8 +20,11 @@ public class FaceKit: NSObject {
     private let makeDocument = Document(),
                 measurementModel = MeasurementModel()
     
+    private let service = Service.manager
+    
     private let dataModel = DataModel.shared,
                 model = Model.shared,
+                recordModel = RecordModel.shared,
                 cameraSetup = CameraSetup.shared
     
     private var lastFrame: CMSampleBuffer?,
@@ -77,6 +80,18 @@ public class FaceKit: NSObject {
             .asDriver(onErrorJustReturn: (false, URL(string: "")))
             .drive(onNext: { result in
                 isSuccess(result.0, result.1)
+            })
+            .disposed(by: bag)
+    }
+    
+    public func resultHealthInfo(
+        _ healthInfo: @escaping(([String: Int]) -> ())
+    ) {
+        let resultHealthInfo = self.measurementModel.resultHeatlInfo
+        resultHealthInfo
+            .asDriver(onErrorJustReturn: ["": 0])
+            .drive(onNext: { result in
+                healthInfo(result)
             })
             .disposed(by: bag)
     }
@@ -180,6 +195,37 @@ public class FaceKit: NSObject {
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
                 if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
                     completion.onNext((result: true, url: rgbPath))
+                    
+                    self.service.facePPG(
+                        secretKey: self.model.secretKey,
+                        apiKey: self.model.apiKey,
+                        rgbPath: rgbPath,
+                        age: self.model.age,
+                        gender: self.model.gender,
+                        weight: self.model.weight,
+                        height: self.model.height
+                    ) { (success, err) in
+                        if success {
+                            //act: 0 = 운동직후
+                            self.service.cardiacRisk(
+                                secretKey: self.model.secretKey,
+                                apiKey: self.model.apiKey,
+                                gender: self.model.gender, 
+                                age: self.model.age,
+                                height: self.model.height, 
+                                weight: self.model.weight,
+                                belly: self.model.belly,
+                                act: self.model.act,
+                                smoke: self.model.smoke,
+                                diabetes: self.model.diabetes,
+                                sys: self.recordModel.sys,
+                                dia: self.recordModel.dia,
+                                result: self.measurementModel.resultHeatlInfo
+                            )
+                        } else {
+                            completion.onNext((result: false, url: URL(string: "")))
+                        }
+                    }
                 } else {
                     completion.onNext((result: false, url: URL(string: "")))
                 }

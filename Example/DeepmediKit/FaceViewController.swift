@@ -87,12 +87,15 @@ class FaceViewController: UIViewController {
         faceMeasureKit.finishedMeasurement { (successed, path) in
             print("face measure state: \(successed)")
             print("face rbg path: \(path)")
+            
+            //https://siigjmw19n.apigw.ntruss.com/face_health_estimate/v1/calculate_face_ppg_dr_bp
+        
             if successed {
                 let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
-                
+                                                  uri: "/face_health_estimate/v1/calculate_face_ppg_dr_bp",
+                                                  secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
+                                                  apiKey: "vkqvcuTCcBtjnErVIgyDtWzdBZPhYJo1VRtUqnx4")
+                print(header)
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
