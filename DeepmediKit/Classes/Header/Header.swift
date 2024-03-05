@@ -23,7 +23,8 @@ open class Header: NSObject {
             timeStamp = String(Int(Date().timeIntervalSince1970 * 1000)),
             signature = self.makeV2Signature(
             method: method.rawValue,
-            uri: uri, timestamp: timeStamp,
+            uri: uri, 
+            timestamp: timeStamp,
             secretKey: secretKey,
             accessKey: accessKey
         ),

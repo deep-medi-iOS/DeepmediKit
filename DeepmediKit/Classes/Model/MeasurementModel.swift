@@ -34,9 +34,9 @@ class MeasurementModel {
     
     //얼굴 전용
     let checkRealFace = BehaviorSubject(value: false)
+    let resultHeatlInfo = PublishSubject<[String: Any]>()
+    let resultCardioRisk = PublishSubject<[String: Any]>()
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
-    let resultHeatlInfo = BehaviorSubject(value: ["hr" : Int(0), "msi" : Float(0.0), "psi" : Float(0.0), "af" : Int(0), "bp" : (Int(0), Int(0)), "cardioRisk" : Int(0)])
-    let anotherHeatlInfo = BehaviorSubject(value: ["hrGraph" : [Float()], "rmssd" : 0, "sdnn" : 0])
     let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     
     //bind

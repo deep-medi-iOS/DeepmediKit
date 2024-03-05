@@ -46,10 +46,4 @@ public class FaceKitModel: NSObject {
     ) {
         self.model.overlappingSec = time ?? 2
     }
-    
-    public func healthInfo(
-        
-    ) {
-        
-    }
 }

@@ -84,14 +84,55 @@ public class FaceKit: NSObject {
             .disposed(by: bag)
     }
     
+    ///hr(심박수), mentalStress(정신적스트레스), physicalStress(육제척스트레스), af(불규칙심박): 0 = 규칙적임, 1 = 불규칙적임, sys(수축기), dia(이완기)
     public func resultHealthInfo(
-        _ healthInfo: @escaping(([String: Int]) -> ())
+        secretKey: String,
+        apiKey: String,
+        gender: Int,
+        age: Int,
+        height: Int,
+        weight: Int,
+        _ healthInfo: @escaping(([String: Any]) -> ())
     ) {
+        
+        self.model.secretKey = secretKey
+        self.model.apiKey = apiKey
+        self.model.age = age
+        self.model.gender = gender
+        self.model.height = height
+        self.model.weight = weight
+        
         let resultHealthInfo = self.measurementModel.resultHeatlInfo
         resultHealthInfo
             .asDriver(onErrorJustReturn: ["": 0])
             .drive(onNext: { result in
                 healthInfo(result)
+            })
+            .disposed(by: bag)
+    }
+    
+    ///act(30분이상 신체활동): 0 = 주 3회 이상, 1 = 주 2회이상 /
+    ///smoke(흡연): 0 = 비흡엽, 1 = 과거흡연, 2 = 현재흡연 /
+    ///diabetes(당뇨 여부): 0 = 아니오, 1 = 예 /
+    ///cardioRisk(심혈관 위험도)
+    public func resultCardioRisk(
+        belly: Int,
+        act: Int,
+        smoke: Int,
+        diabetes: Int,
+        _ cardioRisk: @escaping(([String: Any]) -> ())
+    ) {
+        
+        self.model.belly = belly
+        self.model.act = act
+        self.model.smoke = smoke
+        self.model.diabetes = diabetes
+        
+        let resultCardioRisk = self.measurementModel.resultCardioRisk
+        resultCardioRisk
+            .asDriver(onErrorJustReturn: ["": 0])
+            .drive(onNext: { result in
+                cardioRisk(result)
             })
             .disposed(by: bag)
     }
@@ -146,7 +187,7 @@ public class FaceKit: NSObject {
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
             }
-         
+            
             self.cameraSetup.useSession().startRunning()
         }
     }
@@ -162,7 +203,7 @@ public class FaceKit: NSObject {
         self.checkArr.removeAll()
         
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-
+        
         DispatchQueue.global(qos: .background).async {
             self.cameraSetup.useSession().stopRunning()
         }
@@ -171,9 +212,11 @@ public class FaceKit: NSObject {
     private func collectDatas() {
         self.measurementModel.measurementStop.onNext(false)
         
-        let completion = self.measurementModel.faceMeasurementComplete,
-            secondRemaining = self.measurementModel.secondRemaining,
-            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
+        let secondRemaining = self.measurementModel.secondRemaining,
+            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio,
+            measurementComplete = self.measurementModel.faceMeasurementComplete,
+            facePPGcomplete = self.measurementModel.resultHeatlInfo,
+            cardioRiskComplete = self.measurementModel.resultCardioRisk
         
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
@@ -194,7 +237,7 @@ public class FaceKit: NSObject {
                 timer.invalidate()
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
                 if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
-                    completion.onNext((result: true, url: rgbPath))
+                    measurementComplete.onNext((result: true, url: rgbPath))
                     
                     self.service.facePPG(
                         secretKey: self.model.secretKey,
@@ -204,30 +247,56 @@ public class FaceKit: NSObject {
                         gender: self.model.gender,
                         weight: self.model.weight,
                         height: self.model.height
-                    ) { (success, err) in
-                        if success {
-                            //act: 0 = 운동직후
-                            self.service.cardiacRisk(
-                                secretKey: self.model.secretKey,
-                                apiKey: self.model.apiKey,
-                                gender: self.model.gender, 
-                                age: self.model.age,
-                                height: self.model.height, 
-                                weight: self.model.weight,
-                                belly: self.model.belly,
-                                act: self.model.act,
-                                smoke: self.model.smoke,
-                                diabetes: self.model.diabetes,
-                                sys: self.recordModel.sys,
-                                dia: self.recordModel.dia,
-                                result: self.measurementModel.resultHeatlInfo
-                            )
+                    ) { healthInfoErr in
+                        if let err = healthInfoErr {
+                            facePPGcomplete.onNext(([ "healthInfo response fail": err ]))
                         } else {
-                            completion.onNext((result: false, url: URL(string: "")))
+                            facePPGcomplete.onNext(([
+                                "hr": self.recordModel.hr,
+                                "physicalStress": self.recordModel.physicalStress,
+                                "mentalStress": self.recordModel.mentalStress,
+                                "af": self.recordModel.af,
+                                "sys": self.recordModel.sys,
+                                "dia": self.recordModel.dia
+                            ]))
+                        }
+                        
+                        guard let belly = self.model.belly,
+                              let act = self.model.act,
+                              let smoke = self.model.smoke,
+                              let diabetes = self.model.diabetes else {
+                            print("belly: \(self.model.belly), act: \(self.model.act), smoke: \(self.model.smoke), diabetes: \(self.model.diabetes)")
+                            return
+                        }
+                        
+                        self.service.cardiacRisk(
+                            secretKey: self.model.secretKey,
+                            apiKey: self.model.apiKey,
+                            gender: self.model.gender,
+                            age: self.model.age,
+                            height: self.model.height,
+                            weight: self.model.weight,
+                            belly: belly,
+                            act: act,
+                            smoke: smoke,
+                            diabetes: diabetes,
+                            sys: self.recordModel.sys,
+                            dia: self.recordModel.dia
+                        ) { cardioRiskErr in
+                            if let err = cardioRiskErr {
+                                cardioRiskComplete.onNext([ "cardioRisk fail": err ])
+                            } else {
+                                cardioRiskComplete.onNext([
+                                    "cardioRisk": self.recordModel.cardioRisk
+                                ])
+                            }
                         }
                     }
                 } else {
-                    completion.onNext((result: false, url: URL(string: "")))
+                    measurementComplete.onNext((
+                        result: false,
+                        url: URL(string: "")
+                    ))
                 }
             }
         }

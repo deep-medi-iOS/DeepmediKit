@@ -8,7 +8,7 @@
 import UIKit
 import CoreMotion
 
-open class DataModel {
+class DataModel {
     static let shared = DataModel()
     
     enum RGB {

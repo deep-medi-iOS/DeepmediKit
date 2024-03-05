@@ -49,7 +49,7 @@ class FaceViewController: UIViewController {
         faceMeasureKitModel.setWindowSecond(15)
         faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
-        faceMeasureKitModel.willCheckRealFace(true)
+        faceMeasureKitModel.willCheckRealFace(false)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
@@ -87,19 +87,36 @@ class FaceViewController: UIViewController {
         faceMeasureKit.finishedMeasurement { (successed, path) in
             print("face measure state: \(successed)")
             print("face rbg path: \(path)")
-            
-            //https://siigjmw19n.apigw.ntruss.com/face_health_estimate/v1/calculate_face_ppg_dr_bp
         
             if successed {
                 let header = self.header.v2Header(method: .post,
-                                                  uri: "/face_health_estimate/v1/calculate_face_ppg_dr_bp",
-                                                  secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
-                                                  apiKey: "vkqvcuTCcBtjnErVIgyDtWzdBZPhYJo1VRtUqnx4")
-                print(header)
+                                                  uri: "uri",
+                                                  secretKey: "secretKey",
+                                                  apiKey: "apiKey")
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
             }
+        }
+        
+        faceMeasureKit.resultHealthInfo(
+            secretKey: "secretKey",
+            apiKey: "apiKey",
+            gender: Int(),
+            age: Int(),
+            height: Int(),
+            weight: Int()
+        ) { healthInfo in
+            print(healthInfo)
+        }
+        
+        faceMeasureKit.resultCardioRisk(
+            belly: Int(),
+            act: Int(),
+            smoke: Int(),
+            diabetes: Int()
+        ) { cardioRisk in
+            print(cardioRisk)
         }
     }
 

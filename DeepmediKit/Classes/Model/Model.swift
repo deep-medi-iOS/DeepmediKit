@@ -41,11 +41,12 @@ class Model {
     var overlappingSec: Int
     var age: Int,
         height: Int,
-        weight: Int,
-        belly: Int,
-        act: Int,
-        smoke: Int,
-        diabetes: Int
+        weight: Int
+    
+    var belly: Int?,
+        act: Int?,
+        smoke: Int?,
+        diabetes: Int?
     
     var gender: Int {
         didSet {
@@ -70,11 +71,7 @@ class Model {
         self.gender = 0
         self.height = 160
         self.weight = 60
-        self.belly = 0
-        self.act = 0
-        self.smoke = 0
-        self.diabetes = 0
-        
+
         self.faceMeasurementTime = 30.0
         self.windowSec = 15
         self.overlappingSec = 2
@@ -90,26 +87,20 @@ class RecordModel {
     static let shared = RecordModel()
     
     var hr: Int
-    var hrGraph: [Float]
     var sys: Int, dia: Int
     var af: Int
-    var cardioRisk: [Double]
+    var physicalStress: Float,
+        mentalStress: Float
     
-    var msi: Float, psi: Float
-    var rmssd: Int
-    var sdnn: Int
+    var cardioRisk: Double
     
     init() {
         self.hr = 65
-        self.psi = 0
-        self.msi = 0
+        self.physicalStress = 0
+        self.mentalStress = 0
         self.sys = 100
         self.dia = 50
         self.af = 0
-        self.cardioRisk = []
-    
-        self.hrGraph = []
-        self.rmssd = 0
-        self.sdnn = 0
+        self.cardioRisk = 0
     }
 }

@@ -19,7 +19,7 @@ class Service {
     // MARK: Model
     private let recordModel = RecordModel.shared
     
-    public func facePPG(
+    func facePPG(
         secretKey: String,
         apiKey: String,
         rgbPath: URL,
@@ -27,7 +27,7 @@ class Service {
         gender: Int,
         weight: Int,
         height: Int,
-        completion: @escaping ((Bool, AFError?) -> ())
+        _ com: @escaping((AFError?) -> ())
     ) {
         let parameter = [
             "age" : age,
@@ -35,9 +35,9 @@ class Service {
             "weight" : weight,
             "height" : height
         ] as [String : Int]
-    
+        
         let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com",
-            ppgHealthURI = "/face_health_estimate/vl/calculate_face_ppg_dr_bp",
+            ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp",
             url = ppgHealthURL + ppgHealthURI,
             header = header.v2Header(
                 method: .post,
@@ -61,24 +61,20 @@ class Service {
             
             switch response.result {
             case .success(let res):
-                
+
                 guard res.result == 200 else { return print("ppg stress result return") }
+                let response = res.message
+                self.recordModel.hr = response.hr
+                self.recordModel.sys = response.sys
+                self.recordModel.dia = response.dia
+                self.recordModel.physicalStress = response.physicalStress
+                self.recordModel.mentalStress =   response.mentalStress
+                self.recordModel.af = response.afDetect
                 
-                self.recordModel.hr = res.message.hr
-                self.recordModel.sys = res.message.sys
-                self.recordModel.dia = res.message.dia
-                self.recordModel.msi = res.message.msi
-                self.recordModel.psi = res.message.psi
-                self.recordModel.af = res.message.afDetect == 0 ? true : false
-                self.recordModel.hrGraph = res.message.hrGraph
-                self.recordModel.rmssd = res.message.RMSSD
-                self.recordModel.sdnn = res.message.SDNN
-                
-                completion(true, nil)
-                
+                com(nil)
             case .failure(let err):
-                completion(false, err)
                 print("post stress data err: " + err.localizedDescription)
+                com(err)
             }
         }
     }
@@ -96,10 +92,10 @@ class Service {
         diabetes: Int,
         sys: Int,
         dia: Int,
-        result: BehaviorSubject<[String: Any]>
+        _ com: @escaping((AFError?) -> ())
     ) {
-        let cardiacRiskBaseURL = "https://escv0giloo.apigw.ntruss.com",
-            cardiacRiskBaseURI = "/risk_calculator/v1/cardio_risk"
+        let cardioRiskBaseURL = "https://escv0giloo.apigw.ntruss.com",
+            cardioRiskBaseURI = "/risk_calculator/v1/cardio_risk"
             .appending("?gender=")
             .appending("\(gender)")
             .appending("&age=")
@@ -121,14 +117,14 @@ class Service {
             .appending("&dia=")
             .appending("\(dia)")
         
-        let url = cardiacRiskBaseURL + cardiacRiskBaseURI
+        let url = cardioRiskBaseURL + cardioRiskBaseURI
         
         AF.request(
             url,
             method: .post,
             headers: header.v2Header(
                 method: .post,
-                uri: cardiacRiskBaseURI,
+                uri: cardioRiskBaseURI,
                 secretKey: secretKey,
                 apiKey: apiKey
             )
@@ -136,26 +132,19 @@ class Service {
         .responseDecodable(of: CardiacResult.self) { response in
             switch response.result {
             case .success(let res):
-                self.recordModel.cardioRisk = self.changeDataFormat(
+                let cvdRiskArr = self.changeDataFormat(
                     risk: res.message.cvdRisk
                 )
-                result.onNext(
-                    [
-                        "hr": self.recordModel.hr,
-                        "msi": self.recordModel.msi,
-                        "psi": self.recordModel.psi,
-                        "af": self.recordModel.af,
-                        "bp": (self.recordModel.sys, self.recordModel.dia),
-                        "cardioRisk": self.recordModel.cardioRisk,
-                    ]
-                )
-                
+                self.recordModel.cardioRisk = cvdRiskArr.reduce(0, +) / Double(cvdRiskArr.count)
+                com(nil)
+
             case .failure(let err):
-                print(err.localizedDescription)
+                print("cardio risk fail " + err.localizedDescription)
+                com(err)
             }
         }
     }
-   
+    
     private func changeDataFormat(
         risk: String
     ) -> [Double] {
@@ -178,29 +167,25 @@ struct ResultData: Codable {
     let hr: Int,
         sys: Int,
         dia: Int,
-        psi: Float,
-        msi: Float,
-        hrGraph: [Float],
-        afDetect: Int,
-        RMSSD: Int,
-        SDNN: Int
+        physicalStress: Float,
+        mentalStress: Float,
+        afDetect: Int
     
     enum CodingKeys: String, CodingKey {
-        case hr, msi, psi, sys, dia, afDetect = "af_detect",
-             RMSSD, SDNN, hrGraph = "hr_graph"
+        case hr, sys, dia, mentalStress, physicalStress , afDetect = "af_detect"
     }
 }
 
 struct CardiacResult: Codable {
-  let message: CardiacRisk
-  let result: Int
+    let message: CardiacRisk
+    let result: Int
 }
 
 struct CardiacRisk: Codable {
-  let BMI: String
-  let cvdRisk: String
-  
-  enum CodingKeys: String, CodingKey {
-    case cvdRisk = "cvdrisk", BMI
-  }
+    let BMI: String
+    let cvdRisk: String
+    
+    enum CodingKeys: String, CodingKey {
+        case cvdRisk = "cvdrisk", BMI
+    }
 }
