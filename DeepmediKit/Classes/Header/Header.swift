@@ -8,24 +8,32 @@
 import Foundation
 import Alamofire
 
-public class Header: NSObject {
+open class Header: NSObject {
     public enum method: String {
         case post = "POST", get = "GET", put = "PUT", delete = "DELETE"
     }
 
     public func v2Header(
-        method: method,
+        method: Header.method,
         uri: String,
         secretKey: String,
         apiKey: String
     ) -> HTTPHeaders {
-        let accessKey = "PbDvaXxkTaHf19QGViU1"
-        let timeStamp = String(Int(Date().timeIntervalSince1970 * 1000))
-        let signature = self.makeV2Signature(method: method.rawValue, uri: uri, timestamp: timeStamp, secretKey: secretKey, accesskey: accessKey)
-        let headers: HTTPHeaders = ["x-ncp-apigw-timestamp" : timeStamp,
-                                    "x-ncp-apigw-api-key" : apiKey,
-                                    "x-ncp-iam-access-key" : accessKey,
-                                    "x-ncp-apigw-signature-v2" : signature]
+        let accessKey = "PbDvaXxkTaHf19QGViU1",
+            timeStamp = String(Int(Date().timeIntervalSince1970 * 1000)),
+            signature = self.makeV2Signature(
+            method: method.rawValue,
+            uri: uri, 
+            timestamp: timeStamp,
+            secretKey: secretKey,
+            accessKey: accessKey
+        ),
+            headers: HTTPHeaders = [
+                "x-ncp-apigw-timestamp" : timeStamp,
+                "x-ncp-apigw-api-key" : apiKey,
+                "x-ncp-iam-access-key" : accessKey,
+                "x-ncp-apigw-signature-v2" : signature
+            ]
         return headers
     }
 
@@ -34,7 +42,7 @@ public class Header: NSObject {
         uri: String,
         timestamp: String,
         secretKey: String,
-        accesskey: String
+        accessKey: String
     ) -> String {
         let space = " "
         let newLine = "\n"
@@ -44,7 +52,7 @@ public class Header: NSObject {
             .appending(newLine)
             .appending(timestamp)
             .appending(newLine)
-            .appending(accesskey)
+            .appending(accessKey)
         guard let signature = ObjcMapper.hmacSHA256(secretKey, message: message) else { fatalError("signature error") }
         return signature
     }
