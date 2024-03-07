@@ -102,21 +102,16 @@ class FaceViewController: UIViewController {
         faceMeasureKit.resultHealthInfo(
             secretKey: "secretKey",
             apiKey: "apiKey",
-            gender: Int(),
+            genderType: .male,
             age: Int(),
             height: Int(),
-            weight: Int()
+            weight: Int(),
+            belly: Int(),
+            exerciseType: .none,
+            smokeType: .none,
+            diabetesType: .none
         ) { healthInfo in
             print(healthInfo)
-        }
-        
-        faceMeasureKit.resultCardioRisk(
-            belly: Int(),
-            act: Int(),
-            smoke: Int(),
-            diabetes: Int()
-        ) { cardioRisk in
-            print(cardioRisk)
         }
     }
 

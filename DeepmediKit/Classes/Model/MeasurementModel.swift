@@ -36,6 +36,7 @@ class MeasurementModel {
     let checkRealFace = BehaviorSubject(value: false)
     let resultHeatlInfo = PublishSubject<[String: Any]>()
     let resultCardioRisk = PublishSubject<[String: Any]>()
+    let healthCareInfoResult = PublishSubject<[String: Any]>()
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     

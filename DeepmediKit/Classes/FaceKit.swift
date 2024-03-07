@@ -15,6 +15,25 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
+    public enum HealthCareInfo {
+        
+        public enum genderType: Int {
+            case male = 0, female = 1
+        }
+        
+        public enum exerciseType: Int {
+            case often = 0, sometimes = 1
+        }
+        
+        public enum smokeType: Int {
+            case none = 0, past = 1, now = 2
+        }
+        
+        public enum diabetesType: Int {
+            case none = 0, existence = 1
+        }
+    }
+    
     private let bag = DisposeBag()
     
     private let makeDocument = Document(),
@@ -84,55 +103,43 @@ public class FaceKit: NSObject {
             .disposed(by: bag)
     }
     
+    ///exerciseType(30분이상 신체활동): often = 주 3회 이상, sometimes = 주 2회이상 /
+    ///smoke(흡연): none = 비흡엽, past = 과거흡연, now = 현재흡연 /
+    ///diabetes(당뇨 여부): none = 아니오, existence = 예 /
+    ///return
     ///hr(심박수), mentalStress(정신적스트레스), physicalStress(육제척스트레스), af(불규칙심박): 0 = 규칙적임, 1 = 불규칙적임, sys(수축기), dia(이완기)
+    ///cardioRisk(심혈관 위험도)
     public func resultHealthInfo(
         secretKey: String,
         apiKey: String,
-        gender: Int,
+        genderType: HealthCareInfo.genderType,
         age: Int,
         height: Int,
         weight: Int,
+        belly: Int? = nil,
+        exerciseType: HealthCareInfo.exerciseType? = nil,
+        smokeType: HealthCareInfo.smokeType? = nil,
+        diabetesType: HealthCareInfo.diabetesType? = nil,
         _ healthInfo: @escaping(([String: Any]) -> ())
     ) {
         
         self.model.secretKey = secretKey
         self.model.apiKey = apiKey
         self.model.age = age
-        self.model.gender = gender
+        self.model.gender = genderType.rawValue
         self.model.height = height
         self.model.weight = weight
+        self.model.belly = belly
+        self.model.act = exerciseType?.rawValue
+        self.model.smoke = smokeType?.rawValue
+        self.model.diabetes = diabetesType?.rawValue
         
-        let resultHealthInfo = self.measurementModel.resultHeatlInfo
-        resultHealthInfo
+        let healthCareInfoResult = self.measurementModel.healthCareInfoResult
+        
+        healthCareInfoResult
             .asDriver(onErrorJustReturn: ["": 0])
             .drive(onNext: { result in
                 healthInfo(result)
-            })
-            .disposed(by: bag)
-    }
-    
-    ///act(30분이상 신체활동): 0 = 주 3회 이상, 1 = 주 2회이상 /
-    ///smoke(흡연): 0 = 비흡엽, 1 = 과거흡연, 2 = 현재흡연 /
-    ///diabetes(당뇨 여부): 0 = 아니오, 1 = 예 /
-    ///cardioRisk(심혈관 위험도)
-    public func resultCardioRisk(
-        belly: Int,
-        act: Int,
-        smoke: Int,
-        diabetes: Int,
-        _ cardioRisk: @escaping(([String: Any]) -> ())
-    ) {
-        
-        self.model.belly = belly
-        self.model.act = act
-        self.model.smoke = smoke
-        self.model.diabetes = diabetes
-        
-        let resultCardioRisk = self.measurementModel.resultCardioRisk
-        resultCardioRisk
-            .asDriver(onErrorJustReturn: ["": 0])
-            .drive(onNext: { result in
-                cardioRisk(result)
             })
             .disposed(by: bag)
     }
@@ -215,8 +222,7 @@ public class FaceKit: NSObject {
         let secondRemaining = self.measurementModel.secondRemaining,
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio,
             measurementComplete = self.measurementModel.faceMeasurementComplete,
-            facePPGcomplete = self.measurementModel.resultHeatlInfo,
-            cardioRiskComplete = self.measurementModel.resultCardioRisk
+            healthCareInfoResult = measurementModel.healthCareInfoResult
         
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
@@ -249,54 +255,57 @@ public class FaceKit: NSObject {
                         height: self.model.height
                     ) { healthInfoErr in
                         if let err = healthInfoErr {
-                            facePPGcomplete.onNext(([ "healthInfo response fail": err ]))
+                            healthCareInfoResult.onNext(([ "healthInfo response fail": err ]))
                         } else {
-                            facePPGcomplete.onNext(([
-                                "hr": self.recordModel.hr,
-                                "physicalStress": self.recordModel.physicalStress,
-                                "mentalStress": self.recordModel.mentalStress,
-                                "af": self.recordModel.af,
-                                "sys": self.recordModel.sys,
-                                "dia": self.recordModel.dia
-                            ]))
-                        }
-                        
-                        guard let belly = self.model.belly,
-                              let act = self.model.act,
-                              let smoke = self.model.smoke,
-                              let diabetes = self.model.diabetes else {
-                            print("belly: \(self.model.belly), act: \(self.model.act), smoke: \(self.model.smoke), diabetes: \(self.model.diabetes)")
-                            return
-                        }
-                        
-                        self.service.cardiacRisk(
-                            secretKey: self.model.secretKey,
-                            apiKey: self.model.apiKey,
-                            gender: self.model.gender,
-                            age: self.model.age,
-                            height: self.model.height,
-                            weight: self.model.weight,
-                            belly: belly,
-                            act: act,
-                            smoke: smoke,
-                            diabetes: diabetes,
-                            sys: self.recordModel.sys,
-                            dia: self.recordModel.dia
-                        ) { cardioRiskErr in
-                            if let err = cardioRiskErr {
-                                cardioRiskComplete.onNext([ "cardioRisk fail": err ])
+                            if let belly = self.model.belly,
+                               let act = self.model.act,
+                               let smoke = self.model.smoke,
+                               let diabetes = self.model.diabetes {
+                                
+                                self.service.cardiacRisk(
+                                    secretKey: self.model.secretKey,
+                                    apiKey: self.model.apiKey,
+                                    gender: self.model.gender,
+                                    age: self.model.age,
+                                    height: self.model.height,
+                                    weight: self.model.weight,
+                                    belly: belly,
+                                    act: act,
+                                    smoke: smoke,
+                                    diabetes: diabetes,
+                                    sys: self.recordModel.sys,
+                                    dia: self.recordModel.dia
+                                ) { cardioRiskErr in
+                                    if let err = cardioRiskErr {
+                                        healthCareInfoResult.onNext(([ "cardioRisk fail": err ]))
+                                    } else {
+                                        healthCareInfoResult.onNext(([
+                                            "hr": self.recordModel.hr,
+                                            "physicalStress": self.recordModel.physicalStress,
+                                            "mentalStress": self.recordModel.mentalStress,
+                                            "af": self.recordModel.af,
+                                            "sys": self.recordModel.sys,
+                                            "dia": self.recordModel.dia,
+                                            "cardioRisk": self.recordModel.cardioRisk
+                                        ]))
+                                    }
+                                }
                             } else {
-                                cardioRiskComplete.onNext([
-                                    "cardioRisk": self.recordModel.cardioRisk
-                                ])
+                                print("belly: \(self.model.belly), act: \(self.model.act), smoke: \(self.model.smoke), diabetes: \(self.model.diabetes)")
+                                healthCareInfoResult.onNext(([
+                                    "hr": self.recordModel.hr,
+                                    "physicalStress": self.recordModel.physicalStress,
+                                    "mentalStress": self.recordModel.mentalStress,
+                                    "af": self.recordModel.af,
+                                    "sys": self.recordModel.sys,
+                                    "dia": self.recordModel.dia,
+                                    "cardioRisk": 9999.0
+                                ]))
                             }
                         }
                     }
                 } else {
-                    measurementComplete.onNext((
-                        result: false,
-                        url: URL(string: "")
-                    ))
+                    measurementComplete.onNext((result: false,url: URL(string: "")))
                 }
             }
         }
