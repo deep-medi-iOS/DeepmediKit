@@ -18,19 +18,19 @@ public class FaceKit: NSObject {
     public enum HealthCareInfo {
         
         public enum genderType: Int {
-            case male = 0, female = 1
+            case MALE = 0, FEMALE = 1
         }
         
         public enum exerciseType: Int {
-            case often = 0, sometimes = 1
+            case OFTEN = 0, SOMETIMES = 1
         }
         
         public enum smokeType: Int {
-            case none = 0, past = 1, now = 2
+            case NONE = 0, PAST = 1, NOW = 2
         }
         
         public enum diabetesType: Int {
-            case none = 0, existence = 1
+            case NONE = 0, EXISTENCE = 1
         }
     }
     
@@ -143,6 +143,7 @@ public class FaceKit: NSObject {
             })
             .disposed(by: bag)
     }
+
     
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())

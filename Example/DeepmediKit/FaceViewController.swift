@@ -102,7 +102,7 @@ class FaceViewController: UIViewController {
         faceMeasureKit.resultHealthInfo(
             secretKey: "secretKey",
             apiKey: "apiKey",
-            genderType: .male,
+            genderType: .MALE,
             age: Int(),
             height: Int(),
             weight: Int(),
