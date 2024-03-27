@@ -395,10 +395,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             ).integral
             
             self.chestRect = CGRect(
-                x: face.frame.origin.x + face.frame.size.width,
-                y: face.frame.origin.y + face.frame.size.height * 0.1,
-                width: face.frame.size.width * 0.8 * widthRatio,
-                height: face.frame.size.width * 0.8 * heightRatio
+                x: face.frame.origin.x + face.frame.size.width * 1.2,
+                y: face.frame.origin.y + face.frame.size.height * 0.08,
+                width: face.frame.size.width * 1.2 * widthRatio,
+                height: face.frame.size.height * 1.8 * heightRatio
             ).integral
             
             self.addContours(
@@ -631,7 +631,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                       let faceSampleBuffer = faceCropImage.createCMSampleBuffer() else { fatalError("face crop image return") }
                 
                 self.extractRGBFromDetectFace(sampleBuffer: faceSampleBuffer)
-                                
                 if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect) {
                     self.extractByteFromDetectChest(sampleBuffer: chestBuffer)
                 }

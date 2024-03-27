@@ -23,7 +23,7 @@ class Model {
     
     var tempView = UIView()
     var faceImgView = UIImageView()
-    var chestImgView = UIImageView()
+    var chestImgView: UIImageView?
     
     var faceRecognitionAreaView: UIView?
     var previewLayer: AVCaptureVideoPreviewLayer?
@@ -70,5 +70,7 @@ class Model {
         self.limitNoTapTime = 5
         self.fingerMeasurementTime = 30.0
         self.breathMeasurement = true
+        
+        self.chestImgView = UIImageView()
     }
 }
