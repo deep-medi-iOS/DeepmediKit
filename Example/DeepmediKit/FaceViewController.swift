@@ -83,9 +83,7 @@ class FaceViewController: UIViewController {
             useCornerRadius: true
         )
         faceMeasureKitModel.injectingRecognitionAreaView(
-            faceRecognitionAreaView,
-            face: face,
-            chest: chest
+            faceRecognitionAreaView
         )
     }
     
