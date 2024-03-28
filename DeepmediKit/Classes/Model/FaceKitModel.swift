@@ -12,15 +12,15 @@ public class FaceKitModel: NSObject {
     let model = Model.shared
     
     public func injectingRecognitionAreaView(
-        _ view: UIView
+        _ view: UIView,
 //        temp: UIView,
-//        face: UIImageView,
-//        chest: UIImageView
+        face: UIImageView,
+        chest: UIImageView
     ) {
         self.model.faceRecognitionAreaView = view
 //        self.model.tempView = temp
-//        self.model.faceImgView = face
-//        self.model.chestImgView = chest
+        self.model.faceImgView = face
+        self.model.chestImgView = chest
     }
     
 //    public func willUseFaceRecognitionArea(

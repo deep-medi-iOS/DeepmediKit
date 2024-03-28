@@ -134,8 +134,11 @@ public class FaceKit: NSObject {
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
             if let previewLayer = self.model.previewLayer,
-               let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
+               let faceRecognitionAreaView = self.model.faceRecognitionAreaView,
+               let chestImg = self.model.chestImgView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
+                self.faceImg = self.model.faceImgView
+                self.chestImg = chestImg
                 self.previewLayer = previewLayer
                 self.cameraSetup.useSession().startRunning()
             }
@@ -390,17 +393,26 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.cropFaceRect = CGRect(
                 x: face.frame.origin.x,
                 y: face.frame.origin.y,
-                width: face.frame.width * widthRatio,
-                height: face.frame.height * heightRatio
+                width: face.frame.width,
+                height: face.frame.height
             ).integral
-            
+            let xw = face.frame.origin.x + face.frame.size.width
+            let x2 = face.frame.origin.x * 2.5
+            let xwLow = xw - face.frame.size.width * 0.05
+            let xwHight = xw + face.frame.size.width * 0.2
+            let adapterX = x2 <= xw ? xwLow : xwHight
+//            print(">-------------------------------")
+//            print(">x2: \(x2)")
+//            print(">xw: \(xw)")
+//            print(">xwLow: \(xwLow)")
+//            print(">xwHight: \(xwHight)")
             self.chestRect = CGRect(
-                x: face.frame.origin.x + face.frame.size.width * 1.2,
+                x: adapterX,
                 y: face.frame.origin.y + face.frame.size.height * 0.08,
-                width: face.frame.size.width * 1.2 * widthRatio,
-                height: face.frame.size.height * 1.8 * heightRatio
+                width: face.frame.size.width * 0.7 * widthRatio,
+                height: face.frame.size.height * 1.6 * heightRatio
             ).integral
-            
+//            print("chest Rect: \(self.chestRect)")
             self.addContours(
                 for: face,
                 imageWidth: imageWidth,
@@ -629,9 +641,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 
                 guard let faceCropImage = getMaskedImage(picture: cropImage, cgPath: facePath.cgPath),
                       let faceSampleBuffer = faceCropImage.createCMSampleBuffer() else { fatalError("face crop image return") }
-                
+                self.faceImg.image = faceCropImage
                 self.extractRGBFromDetectFace(sampleBuffer: faceSampleBuffer)
-                if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect) {
+                if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect),
+                   let cropImage = OpenCVWrapper.converting(chestBuffer) {
+                    self.chestImg.image = cropImage
                     self.extractByteFromDetectChest(sampleBuffer: chestBuffer)
                 }
             }

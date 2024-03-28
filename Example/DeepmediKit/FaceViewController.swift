@@ -83,7 +83,9 @@ class FaceViewController: UIViewController {
             useCornerRadius: true
         )
         faceMeasureKitModel.injectingRecognitionAreaView(
-            faceRecognitionAreaView
+            faceRecognitionAreaView,
+            face: face,
+            chest: chest
         )
     }
     
@@ -124,12 +126,37 @@ class FaceViewController: UIViewController {
                     secretKey: "secret key",
                     apiKey: "api key"
                 )
+//                let chestHeader = self.header.v2Header(
+//                    method: .post,
+//                    uri: "chest uri",
+//                    secretKey: "secret key",
+//                    apiKey: "api key"
+//                )
                 let chestHeader = self.header.v2Header(
                     method: .post,
-                    uri: "chest uri",
-                    secretKey: "secret key",
-                    apiKey: "api key"
+                    uri: "/face_health_estimate/v1/calculate_chest_resp",
+                    secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
+                    apiKey: "5Zn4KoKp0a2f91DOh23JTH34iotWbyiGsO5nSv33"
                 )
+                guard let chestPath = chestPath else {
+                    print("chestPath return")
+                    return
+                }
+                AF.upload(multipartFormData: { multipartFormData in
+                    multipartFormData.append(chestPath, withName: "data")
+                },
+                          to: "https://siigjmw19n.apigw.ntruss.com/face_health_estimate/v1/calculate_chest_resp",
+                          method: .post,
+                          headers: chestHeader)
+                .response { response in
+                    if let data = response.data,
+                    let result = String(data: data, encoding: .utf8) {
+                        print("response: \(result)")
+                    } else {
+                        print("response error")
+                    }
+                }
+                
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
@@ -192,15 +219,15 @@ class FaceViewController: UIViewController {
         NSLayoutConstraint.activate([
             face.bottomAnchor.constraint(equalTo: chest.topAnchor),
             face.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            face.widthAnchor.constraint(equalToConstant: width * 0.4),
-            face.heightAnchor.constraint(equalToConstant: width * 0.4)
+            face.widthAnchor.constraint(equalToConstant: width * 0.6),
+            face.heightAnchor.constraint(equalToConstant: width * 0.6)
         ])
         
         NSLayoutConstraint.activate([
-            chest.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            chest.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -50),
             chest.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            chest.widthAnchor.constraint(equalToConstant: width * 0.4),
-            chest.heightAnchor.constraint(equalToConstant: width * 0.4)
+            chest.widthAnchor.constraint(equalToConstant: width * 0.6),
+            chest.heightAnchor.constraint(equalToConstant: width * 0.6)
         ])
         
         NSLayoutConstraint.activate([
