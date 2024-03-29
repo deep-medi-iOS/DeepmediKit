@@ -124,37 +124,12 @@ class FaceViewController: UIViewController {
                     secretKey: "secret key",
                     apiKey: "api key"
                 )
-//                let chestHeader = self.header.v2Header(
-//                    method: .post,
-//                    uri: "chest uri",
-//                    secretKey: "secret key",
-//                    apiKey: "api key"
-//                )
                 let chestHeader = self.header.v2Header(
                     method: .post,
-                    uri: "/face_health_estimate/v1/calculate_chest_resp",
-                    secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
-                    apiKey: "5Zn4KoKp0a2f91DOh23JTH34iotWbyiGsO5nSv33"
+                    uri: "chest uri",
+                    secretKey: "secret key",
+                    apiKey: "api key"
                 )
-                guard let chestPath = chestPath else {
-                    print("chestPath return")
-                    return
-                }
-                AF.upload(multipartFormData: { multipartFormData in
-                    multipartFormData.append(chestPath, withName: "data")
-                },
-                          to: "https://siigjmw19n.apigw.ntruss.com/face_health_estimate/v1/calculate_chest_resp",
-                          method: .post,
-                          headers: chestHeader)
-                .response { response in
-                    if let data = response.data,
-                    let result = String(data: data, encoding: .utf8) {
-                        print("response: \(result)")
-                    } else {
-                        print("response error")
-                    }
-                }
-                
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
@@ -188,6 +163,8 @@ class FaceViewController: UIViewController {
         NSLayoutConstraint.activate([
             preview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             preview.topAnchor.constraint(equalTo: view.topAnchor, constant: height * 0.2),
+//            preview.widthAnchor.constraint(equalToConstant: UIScreen.main.bounds.width),// * 0.8),
+//            preview.heightAnchor.constraint(equalToConstant: UIScreen.main.bounds.width)// * 0.8)
             preview.widthAnchor.constraint(equalToConstant: width),// * 0.8),
             preview.heightAnchor.constraint(equalToConstant: width)// * 0.8)
         ])
@@ -198,22 +175,7 @@ class FaceViewController: UIViewController {
             faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width),// * 0.8),
             faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width)// * 0.8),
         ])
-        
-//        NSLayoutConstraint.activate([
-//            preview.topAnchor.constraint(equalTo: self.view.topAnchor),
-//            preview.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-//            preview.widthAnchor.constraint(equalToConstant: width),
-//            preview.heightAnchor.constraint(equalToConstant: height)
-//        ])
-//
-//        NSLayoutConstraint.activate([
-//            faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
-//            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: preview.centerXAnchor),
-//            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
-//            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
-//        ])
-        
-        
+   
         NSLayoutConstraint.activate([
             face.bottomAnchor.constraint(equalTo: chest.topAnchor),
             face.centerXAnchor.constraint(equalTo: view.centerXAnchor),

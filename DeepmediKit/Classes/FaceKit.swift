@@ -135,6 +135,8 @@ public class FaceKit: NSObject {
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
             if let previewLayer = self.model.previewLayer,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
+//                self.faceImg = self.model.faceImgView
+//                self.chestImg = self.model.chestImgView
                 self.faceRecognitionAreaView = faceRecognitionAreaView
                 self.previewLayer = previewLayer
                 self.cameraSetup.useSession().startRunning()
@@ -381,10 +383,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             superViewFrame: superView.frame,
             faceFrame: face.frame
            ) &&
-            faceRecognitionAreaView.frame.minX <= recognitionStandardizedFaceRect.minX &&
-            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedFaceRect.maxX &&
-            faceRecognitionAreaView.frame.minY <= recognitionStandardizedFaceRect.minY &&
-            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedFaceRect.maxY {
+            faceRecognitionAreaView.frame.minX - 25 <= recognitionStandardizedFaceRect.minX &&
+            faceRecognitionAreaView.frame.maxX - 25 >= recognitionStandardizedFaceRect.maxX &&
+            faceRecognitionAreaView.frame.minY - 25 <= recognitionStandardizedFaceRect.minY &&
+            faceRecognitionAreaView.frame.maxY - 25 >= recognitionStandardizedFaceRect.maxY {
             
             self.measurementModel.measurementStop.onNext(false)
             self.cropFaceRect = CGRect(
@@ -400,9 +402,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             let adapterX = x2 <= xw ? xwLow : xwHight
             self.chestRect = CGRect(
                 x: adapterX,
-                y: face.frame.origin.y + face.frame.size.height * 0.08,
-                width: face.frame.size.width * 0.7 * widthRatio,
-                height: face.frame.size.height * 1.6 * heightRatio
+                y: face.frame.origin.y + face.frame.size.height * 0.02,
+                width: face.frame.size.width * 0.35,
+                height: face.frame.size.height * 0.7
             ).integral
             self.addContours(
                 for: face,
@@ -457,7 +459,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func updatePreviewOverlayViewWithLastFrame() {
         DispatchQueue.main.sync {
-            guard lastFrame != nil else {
+            guard self.lastFrame != nil else {
                 print("lastFrame return")
                 return
             }
@@ -635,6 +637,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //                self.faceImg.image = faceCropImage
                 self.extractRGBFromDetectFace(sampleBuffer: faceSampleBuffer)
                 if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect) {
+//                if let chestBuffer = self.croppedSampleBuffer(lastFrame, with: chestRect),
+//                   let cropImage = OpenCVWrapper.converting(chestBuffer) {
 //                    self.chestImg.image = cropImage
                     self.extractByteFromDetectChest(sampleBuffer: chestBuffer)
                 }
@@ -718,7 +722,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             faceMaxX = faceFrame.maxY,
             faceMaxY = faceFrame.maxX
         
-        return superViewMinX <= faceMinX && faceMaxX <= superViewMaxX && superViewMinY <= faceMinY && faceMaxY <= superViewMaxY
+        return superViewMinX <= faceMinX && faceMaxX <= superViewMaxX &&
+               superViewMinY <= faceMinY && faceMaxY <= superViewMaxY
     }
     
     private func normalizedPoint(
