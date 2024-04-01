@@ -23,8 +23,7 @@ class MeasurementModel {
     //공용
     let secondRemaining = PublishSubject<Int>()
     let measurementCompleteRatio = PublishSubject<String>()
-    let measurementStop = BehaviorSubject(value: true)
-//    let measurementStop = PublishSubject<Bool>()
+    let measurementStop = PublishSubject<Bool>()
     
     //손가락 전용
     let outputFingerStatus = PublishSubject<MeasurementModel.status>()
