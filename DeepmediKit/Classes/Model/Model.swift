@@ -72,3 +72,25 @@ class Model {
         self.breathMeasurement = true
     }
 }
+
+class RecordModel {
+    static let shared = RecordModel()
+    
+    var hr: Int
+    var sys: Int, dia: Int
+    var af: Int
+    var physicalStress: Float,
+        mentalStress: Float
+    
+    var cardioRisk: Double
+    
+    init() {
+        self.hr = 65
+        self.physicalStress = 0
+        self.mentalStress = 0
+        self.sys = 100
+        self.dia = 50
+        self.af = 0
+        self.cardioRisk = 0
+    }
+}

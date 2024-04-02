@@ -73,30 +73,31 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     //  printf("->canny %f / r/255 %f / g/255 %f /  b/255 %f \n",(canny), (r / 255), (g / 255), (b / 255));
     
     BOOL result;
-    
-    if ([device containsString:@"6"]) {
-        if(canny < 7.0 && r > 100.0f && g < 175.0f) {
-            result = true;
-        } else {
-            result = false;
-        }
-    } else if ([device containsString:@"7"] || [device containsString:@"8"]) {
-        if(canny < 3.0 && r > 100.0f && g < 130.0f) {
-            result = true;
-        } else {
-            result = false;
-        }
-    } else if([device containsString:@"X"]) {
-        if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 2.0f) {
+    if ([device containsString:@"Pad"]){
+        if(canny < 3.0 && (r / 255) > 0.07f && (g / 255) < 2.0f) {
             result = true;
         } else {
             result = false;
         }
     } else {
-        if(canny < 3.0 && (r / 255) > 0.4f && (g / 255) < 0.15f) {
-            result = true;
+        if([device containsString:@"X"]) {
+            if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 2.0f) {
+                result = true;
+            } else {
+                result = false;
+            }
+        } else if ([device containsString:@"7"] || [device containsString:@"8"]) {
+            if(canny < 3.0 && (r / 255) > 0.2f && (g / 255) < 0.5f) {
+                result = true;
+            } else {
+                result = false;
+            }
         } else {
-            result = false;
+            if(canny < 3.0 && (r / 255) > 0.4f && (g / 255) < 0.1f) {
+                result = true;
+            } else {
+                result = false;
+            }
         }
     }
     
