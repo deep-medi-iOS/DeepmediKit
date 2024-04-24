@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'DeepmediKit'
-  s.version          = '1.3.0'
+  s.version          = '1.4.0'
   s.summary          = 'Framework for measurement finger Tap or face'
 
 # This description is used to generate tags and improve search results.
@@ -43,10 +43,10 @@ Pod::Spec.new do |s|
   s.dependency 'Then'
   s.dependency 'GoogleMLKit/FaceDetection'
   s.dependency 'Alamofire'
-  # s.dependency 'Alamofire', '~> 5.9.1'
   s.dependency 'OpenCV'
   s.dependency 'RxSwift'
   s.dependency 'RxCocoa'
+  # s.dependency 'Alamofire', '~> 5.9.1'
   # s.dependency 'RxSwift', '~> 6.0.0'
   # s.dependency 'RxCocoa', '~> 6.0.0'
   
