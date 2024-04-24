@@ -43,9 +43,11 @@ Pod::Spec.new do |s|
   s.dependency 'Then'
   s.dependency 'GoogleMLKit/FaceDetection'
   s.dependency 'Alamofire'
-  # s.dependency 'Alamofire', '~> 5.2.0'
+  # s.dependency 'Alamofire', '~> 5.9.1'
   s.dependency 'OpenCV'
-  s.dependency 'RxSwift', '~> 6.0.0'
-  s.dependency 'RxCocoa', '~> 6.0.0'
+  s.dependency 'RxSwift'
+  s.dependency 'RxCocoa'
+  # s.dependency 'RxSwift', '~> 6.0.0'
+  # s.dependency 'RxCocoa', '~> 6.0.0'
   
 end
