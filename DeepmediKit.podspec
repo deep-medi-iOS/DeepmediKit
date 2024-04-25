@@ -26,7 +26,8 @@ Pod::Spec.new do |s|
   s.author           = { 'demianjun' => 'demianjun@gmail.com' }
   s.source           = { :git => 'https://github.com/deep-medi/DeepmediKit.git', :tag => s.version.to_s }
   s.ios.deployment_target = '13.0'
-  s.source_files = 'DeepmediKit','DeepmediKit/Objc/*.{h,mm}', 'DeepmediKit/Classes/**/*.{h,swift}','DeepmediFingerKit/Resources/PrivacyInfo.xcprivacy'
+  s.source_files = 'DeepmediKit','DeepmediKit/Objc/*.{h,mm}', 'DeepmediKit/Classes/**/*.{h,swift}'
+  s.resource_bundles = {'DeepmediKit' => ['Classes/PrivacyInfo.xcprivacy']}
   
   s.swift_versions = '5.0'
   s.static_framework = true
