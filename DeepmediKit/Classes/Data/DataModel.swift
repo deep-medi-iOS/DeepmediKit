@@ -120,7 +120,9 @@ open class DataModel {
             x = Float(accMeasureData.x)
             y = Float(accMeasureData.y)
             z = Float(accMeasureData.z)
-            
+//            print("axis x: \(x)")
+//            print("axis y: \(y)")
+//            print("axis z: \(z)")
             let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
             guard timeStamp > 100 else { return print("acc timeStamp error") }
             let dataFormat = (timeStamp, x, y, z)

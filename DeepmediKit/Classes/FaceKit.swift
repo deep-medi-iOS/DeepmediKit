@@ -34,6 +34,9 @@ public class FaceKit: NSObject {
                 measurementTime = Double(), // 측정하는 시간
                 measurementTimer = Timer()
     
+    private var collectTimeInterval: Double = 1 / 100, // 100 hz
+                motionManager = CMMotionManager()
+    
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
     
@@ -132,6 +135,9 @@ public class FaceKit: NSObject {
         self.measurementTime = self.model.faceMeasurementTime
         self.preparingSec = 1
         
+        self.accTimerAndCollectAccelemeterData()
+        self.gyroTimerAndCollectGyroscopeData()
+        
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
             if let previewLayer = self.model.previewLayer,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
@@ -152,6 +158,8 @@ public class FaceKit: NSObject {
         self.measurementTimer.invalidate()
         
         self.dataModel.initRGBData()
+        self.dataModel.initAccData()
+        self.dataModel.initGyroData()
         self.dataModel.gTempData.removeAll()
         
         self.diffArr.removeAll()
@@ -159,8 +167,40 @@ public class FaceKit: NSObject {
         
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         
+        self.motionManager.stopAccelerometerUpdates()
+        self.motionManager.stopGyroUpdates()
         DispatchQueue.global(qos: .background).async {
             self.cameraSetup.useSession().stopRunning()
+        }
+    }
+    
+    private func accTimerAndCollectAccelemeterData() {
+      self.motionManager.accelerometerUpdateInterval = self.collectTimeInterval // 측정시간 간격
+      self.motionManager.startAccelerometerUpdates(to: OperationQueue.current!) { (acc, err)  in
+          self.dataModel.collectAccelemeterData(acc, err)
+        }
+    }
+
+    // MARK: 자이로스코프 타이머
+    private func gyroTimerAndCollectGyroscopeData() {
+      self.motionManager.gyroUpdateInterval = self.collectTimeInterval
+      self.motionManager.startGyroUpdates(to: OperationQueue.current!) { (gyro, err)  in
+          self.dataModel.collectGyroscopeData(gyro, err)
+        }
+    }
+    
+    private func checkBreathMeasureType() {
+        let tempZ = self.dataModel.accZdata.reduce(0, +) / Float(self.dataModel.accZdata.count)
+        let tempY = self.dataModel.accYdata.reduce(0, +) / Float(self.dataModel.accYdata.count)
+        if let tempZ1 = self.dataModel.accZdata.last,
+           let tempY1 = self.dataModel.accYdata.last {
+            let ratio = tempZ / tempZ1
+            let ratioY = tempY / tempY1
+            print("ratioZ: \(ratio)")
+            print("ratioY: \(ratioY)")
+        } else {
+            print("ratio: \(0)")
+            
         }
     }
     
@@ -171,6 +211,9 @@ public class FaceKit: NSObject {
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
         
         self.dataModel.initRGBData()
+        self.dataModel.initAccData()
+        self.dataModel.initGyroData()
+        
         self.dataModel.gTempData.removeAll()
         self.diffArr.removeAll()
         self.checkArr.removeAll()
@@ -188,6 +231,8 @@ public class FaceKit: NSObject {
             if self.measurementTime <= 0 {
                 timer.invalidate()
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
+                self.makeDocument.makeDocument(data: .acc) //측정한 데이터 파일로 변환
+                self.makeDocument.makeDocument(data: .gyro) //측정한 데이터 파일로 변환
                 self.makeDocument.makeDocuFromChestData()
                 if let rgbPath = self.dataModel.rgbDataPath,
                    let filePath = self.dataModel.chestDataPath { //파일이 존재할때 api호출 시도
@@ -363,6 +408,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.chestRect = nil
                 self.dataModel.gTempData.removeAll()
                 self.dataModel.initRGBData()
+                self.dataModel.initAccData()
+                self.dataModel.initGyroData()
                 self.measurementTimer.invalidate()
                 self.measurementModel.measurementStop.onNext(true)
             }
@@ -383,10 +430,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             superViewFrame: superView.frame,
             faceFrame: face.frame
            ) &&
-            faceRecognitionAreaView.frame.minX - 25 <= recognitionStandardizedFaceRect.minX &&
-            faceRecognitionAreaView.frame.maxX - 25 >= recognitionStandardizedFaceRect.maxX &&
-            faceRecognitionAreaView.frame.minY - 25 <= recognitionStandardizedFaceRect.minY &&
-            faceRecognitionAreaView.frame.maxY - 25 >= recognitionStandardizedFaceRect.maxY {
+            faceRecognitionAreaView.frame.minX + 10 <= recognitionStandardizedFaceRect.minX &&
+            faceRecognitionAreaView.frame.maxX - 10 >= recognitionStandardizedFaceRect.maxX &&
+            faceRecognitionAreaView.frame.minY + 10 <= recognitionStandardizedFaceRect.minY &&
+            faceRecognitionAreaView.frame.maxY - 10 >= recognitionStandardizedFaceRect.maxY {
             
             self.measurementModel.measurementStop.onNext(false)
             self.cropFaceRect = CGRect(
@@ -416,7 +463,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.chestRect = nil
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
+            self.dataModel.initAccData()
+            self.dataModel.initGyroData()
             self.measurementTimer.invalidate()
+
             self.diffArr.removeAll()
             self.checkArr.removeAll()
             self.measurementModel.measurementStop.onNext(true)
@@ -476,7 +526,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             if self.dataModel.gTempData.count >= self.preparingSec * 30 && self.isReal {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
-                self.collectDatas()
+//                self.collectDatas()
             }
         } else {
             self.measurementModel.checkRealFace.onNext(false)
@@ -484,6 +534,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.checkArr.removeAll()
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData()
+            self.dataModel.initAccData()
+            self.dataModel.initGyroData()
             self.measurementTimer.invalidate()
         }
     }
@@ -660,6 +712,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             print("objc rgb casting error")
             return
         }
+        self.checkBreathMeasureType()
         
         let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
         
