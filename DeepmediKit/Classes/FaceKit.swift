@@ -15,13 +15,34 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
+    public enum HealthCareInfo {
+        public enum genderType: Int {
+            case MALE = 0, FEMALE = 1
+        }
+        
+        public enum exerciseType: Int {
+            case OFTEN = 0, SOMETIMES = 1
+        }
+        
+        public enum smokeType: Int {
+            case NONE = 0, PAST = 1, NOW = 2
+        }
+        
+        public enum diabetesType: Int {
+            case NONE = 0, EXISTENCE = 1
+        }
+    }
+    
     private let bag = DisposeBag()
     
     private let makeDocument = Document(),
                 measurementModel = MeasurementModel()
     
+    private let service = Service.manager
+    
     private let dataModel = DataModel.shared,
                 model = Model.shared,
+                recordModel = RecordModel.shared,
                 cameraSetup = CameraSetup.shared
     
     private var lastFrame: CMSampleBuffer?,
@@ -32,10 +53,11 @@ public class FaceKit: NSObject {
     // MARK: Property
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                 measurementTime = Double(), // 측정하는 시간
-                measurementTimer = Timer()
+                measurementTimer = Timer(),
+                prepareTimer = Timer()
     
-    private var collectTimeInterval: Double = 1 / 100, // 100 hz
-                motionManager = CMMotionManager()
+//    private var collectTimeInterval: Double = 1 / 100, // 100 hz
+//                motionManager = CMMotionManager()
     
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
@@ -46,6 +68,7 @@ public class FaceKit: NSObject {
     
     private var notDetectFace: Bool = true,
                 isReal:Bool = false ,
+                isPrePare:Bool = false,
                 diffArr:[CGFloat] = [],
                 checkArr:[Bool] = []
     
@@ -93,6 +116,33 @@ public class FaceKit: NSObject {
             })
             .disposed(by: bag)
     }
+    ///hr(심박수), mentalStress(정신적스트레스), physicalStress(육제척스트레스), af(불규칙심박): 0 = 규칙적임, 1 = 불규칙적임, sys(수축기), dia(이완기)
+    public func resultHealthInfo(
+        secretKey: String,
+        apiKey: String,
+        genderType: HealthCareInfo.genderType,
+        age: Int,
+        height: Int,
+        weight: Int,
+        _ healthInfo: @escaping(([String: Any]) -> ())
+    ) {
+        
+        self.model.secretKey = secretKey
+        self.model.apiKey = apiKey
+        self.model.age = age
+        self.model.gender = genderType.rawValue
+        self.model.height = height
+        self.model.weight = weight
+        
+        let healthCareInfoResult = self.measurementModel.healthCareInfoResult
+        
+        healthCareInfoResult
+            .asDriver(onErrorJustReturn: ["": 0])
+            .drive(onNext: { result in
+                healthInfo(result)
+            })
+            .disposed(by: bag)
+    }
     
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())
@@ -133,10 +183,8 @@ public class FaceKit: NSObject {
     
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
-        self.preparingSec = 1
-        
-        self.accTimerAndCollectAccelemeterData()
-        self.gyroTimerAndCollectGyroscopeData()
+        self.preparingSec = self.model.prepareTime
+        self.isPrePare = true
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
             if let previewLayer = self.model.previewLayer,
@@ -154,12 +202,13 @@ public class FaceKit: NSObject {
         self.lastFrame = nil
         self.cropFaceRect = nil
         self.chestRect = nil
+        self.isReal = false
+        self.isPrePare = false
         
         self.measurementTimer.invalidate()
+        self.prepareTimer.invalidate()
         
-        self.dataModel.initRGBData()
-        self.dataModel.initAccData()
-        self.dataModel.initGyroData()
+//        self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
         
         self.diffArr.removeAll()
@@ -167,58 +216,27 @@ public class FaceKit: NSObject {
         
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         
-        self.motionManager.stopAccelerometerUpdates()
-        self.motionManager.stopGyroUpdates()
         DispatchQueue.global(qos: .background).async {
             self.cameraSetup.useSession().stopRunning()
         }
     }
     
-    private func accTimerAndCollectAccelemeterData() {
-      self.motionManager.accelerometerUpdateInterval = self.collectTimeInterval // 측정시간 간격
-      self.motionManager.startAccelerometerUpdates(to: OperationQueue.current!) { (acc, err)  in
-          self.dataModel.collectAccelemeterData(acc, err)
-        }
-    }
-
-    // MARK: 자이로스코프 타이머
-    private func gyroTimerAndCollectGyroscopeData() {
-      self.motionManager.gyroUpdateInterval = self.collectTimeInterval
-      self.motionManager.startGyroUpdates(to: OperationQueue.current!) { (gyro, err)  in
-          self.dataModel.collectGyroscopeData(gyro, err)
-        }
-    }
-    
-    private func checkBreathMeasureType() {
-        let tempZ = self.dataModel.accZdata.reduce(0, +) / Float(self.dataModel.accZdata.count)
-        let tempY = self.dataModel.accYdata.reduce(0, +) / Float(self.dataModel.accYdata.count)
-        if let tempZ1 = self.dataModel.accZdata.last,
-           let tempY1 = self.dataModel.accYdata.last {
-            let ratio = tempZ / tempZ1
-            let ratioY = tempY / tempY1
-            print("ratioZ: \(ratio)")
-            print("ratioY: \(ratioY)")
-        } else {
-            print("ratio: \(0)")
-            
-        }
-    }
-    
     private func collectDatas() {
+        self.measurementModel.measurementStop.onNext(false)
+        
         let faceCompletion = self.measurementModel.faceMeasurementComplete,
             chestCompletion = self.measurementModel.chestMeasurementComplete,
             secondRemaining = self.measurementModel.secondRemaining,
-            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
+            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio,
+            healthCareInfoResult = self.measurementModel.healthCareInfoResult
         
+        self.isPrePare = false
         self.dataModel.initRGBData()
-        self.dataModel.initAccData()
-        self.dataModel.initGyroData()
-        
         self.dataModel.gTempData.removeAll()
         self.diffArr.removeAll()
         self.checkArr.removeAll()
         
-        self.preparingSec = 1
+        self.preparingSec = self.model.prepareTime
         self.measurementTime = self.model.faceMeasurementTime
         self.measurementTimer = Timer.scheduledTimer(
             withTimeInterval: 0.1,
@@ -226,23 +244,69 @@ public class FaceKit: NSObject {
         ) { timer in
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.faceMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
-            secondRemaining.onNext(Int(self.measurementTime))
-            self.measurementTime -= 0.1
-            if self.measurementTime <= 0 {
+            secondRemaining.onNext(Int((self.model.faceMeasurementTime - self.measurementTime).rounded(.down)))
+            if self.measurementTime <= 0.1 {
                 timer.invalidate()
+                secondRemaining.onNext(Int(self.model.faceMeasurementTime))
+                                
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-                self.makeDocument.makeDocument(data: .acc) //측정한 데이터 파일로 변환
-                self.makeDocument.makeDocument(data: .gyro) //측정한 데이터 파일로 변환
                 self.makeDocument.makeDocuFromChestData()
                 if let rgbPath = self.dataModel.rgbDataPath,
                    let filePath = self.dataModel.chestDataPath { //파일이 존재할때 api호출 시도
                     faceCompletion.onNext((result: true, url: rgbPath))
                     chestCompletion.onNext((result: true, url: filePath))
+                    self.service.facePPG(
+                        secretKey: self.model.secretKey,
+                        apiKey: self.model.apiKey,
+                        rgbPath: rgbPath,
+                        age: self.model.age,
+                        gender: self.model.gender,
+                        weight: self.model.weight,
+                        height: self.model.height
+                    ) { healthInfoErr in
+                        if let err = healthInfoErr {
+                            healthCareInfoResult.onNext(([ "healthInfo response fail": err ]))
+                        } else {
+                            self.service.spo2(
+                                red:  self.dataModel.rData,
+                                blue: self.dataModel.bData,
+                                hr: self.recordModel.hr
+                            ) { spo2Err in
+                                if let err = spo2Err {
+                                    healthCareInfoResult.onNext(([ "breath response fail": err ]))
+                                } else {
+                                    self.service.userBreathFromChest(
+                                        secretKey: self.model.secretKey,
+                                        apiKey: self.model.apiKey,
+                                        data: filePath
+                                    ) { breathErr in
+                                        if let err = breathErr {
+                                            healthCareInfoResult.onNext(([ "breath response fail": err ]))
+                                        } else {
+                                            healthCareInfoResult.onNext(
+                                                [
+                                                    "hr": self.recordModel.hr,
+                                                    "physicalStress": self.recordModel.physicalStress,
+                                                    "mentalStress": self.recordModel.mentalStress,
+//                                                    "af": self.recordModel.af,
+//                                                    "sys": self.recordModel.sys,
+//                                                    "dia": self.recordModel.dia,
+                                                    "breath": self.recordModel.breath,
+                                                    "spo2": self.recordModel.spo2
+                                                ]
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else {
                     faceCompletion.onNext((result: false, url: URL(string: "")))
-                    chestCompletion.onNext((result: true, url: URL(string: "")))
+                    chestCompletion.onNext((result: false, url: URL(string: "")))
                 }
             }
+            self.measurementTime -= 0.1
         }
     }
 }
@@ -344,24 +408,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                                 height: standardizedRect.height
                             )
                         // MARK: 가슴측정 부위 위치
-//                        let chestX = face.frame.origin.x + face.frame.size.width,
-//                            chestY = face.frame.origin.y + face.frame.size.height * 0.1,
-//                            chestWidth =  face.frame.size.width * 0.8 * wRatio,
-//                            chestHeight = face.frame.size.height * 0.8 * hRatio
-//                        let normalizedChestRect = CGRect(
-//                            x: chestX / imageWidth,
-//                            y: chestY / imageHeight,
-//                            width: chestWidth / imageWidth,
-//                            height: chestHeight / imageHeight
-//                        )
-//                        let standardizedChestRect = self.previewLayer.layerRectConverted(fromMetadataOutputRect: normalizedChestRect).standardized,
-//                            recognitionStandardizedChestRect = CGRect(
-//                                x: standardizedChestRect.origin.x + previewBounds.origin.x,
-//                                y: standardizedChestRect.origin.y + previewBounds.origin.y,
-//                                width: standardizedChestRect.width,
-//                                height: standardizedChestRect.height
-//                        )
-                        
                         self.recognitionArea(
                             face: face,
                             widthRatio: wRatio,
@@ -408,9 +454,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.chestRect = nil
                 self.dataModel.gTempData.removeAll()
                 self.dataModel.initRGBData()
-                self.dataModel.initAccData()
-                self.dataModel.initGyroData()
                 self.measurementTimer.invalidate()
+                self.prepareTimer.invalidate()
                 self.measurementModel.measurementStop.onNext(true)
             }
         }
@@ -433,7 +478,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             faceRecognitionAreaView.frame.minX + 10 <= recognitionStandardizedFaceRect.minX &&
             faceRecognitionAreaView.frame.maxX - 10 >= recognitionStandardizedFaceRect.maxX &&
             faceRecognitionAreaView.frame.minY + 10 <= recognitionStandardizedFaceRect.minY &&
-            faceRecognitionAreaView.frame.maxY - 10 >= recognitionStandardizedFaceRect.maxY {
+            faceRecognitionAreaView.frame.maxY - 10 >= recognitionStandardizedFaceRect.maxY 
+        {
             
             self.measurementModel.measurementStop.onNext(false)
             self.cropFaceRect = CGRect(
@@ -463,12 +509,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.chestRect = nil
             self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
-            self.dataModel.initAccData()
-            self.dataModel.initGyroData()
             self.measurementTimer.invalidate()
+            self.prepareTimer.invalidate()
 
-            self.diffArr.removeAll()
-            self.checkArr.removeAll()
+            self.preparingSec = self.model.prepareTime
+            self.measurementTime = self.model.faceMeasurementTime
+            
             self.measurementModel.measurementStop.onNext(true)
         }
     }
@@ -522,21 +568,31 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func useRecogntionFace() {
-        if self.cropFaceRect != nil && self.chestRect != nil {
-            if self.dataModel.gTempData.count >= self.preparingSec * 30 && self.isReal {
-                self.measurementModel.checkRealFace.onNext(true)
-                self.cameraSetup.setUpCatureDevice()
-//                self.collectDatas()
+        if self.cropFaceRect != nil && self.chestRect != nil && self.isReal {
+            guard self.dataModel.gTempData.count == 15 && self.isPrePare else {
+                return
             }
+            self.measurementModel.checkRealFace.onNext(true)
+            self.dataModel.gTempData.removeAll()
+            self.isPrePare = false
+                self.prepareTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                    self.measurementModel.secondRemaining.onNext(self.preparingSec)
+                    if self.preparingSec == 0 {
+                        timer.invalidate()
+                        self.cameraSetup.setUpCatureDevice()
+                        self.collectDatas()
+                    }
+                    self.preparingSec -= 1
+                }
         } else {
             self.measurementModel.checkRealFace.onNext(false)
-            self.diffArr.removeAll()
-            self.checkArr.removeAll()
-            self.dataModel.gTempData.removeAll()
             self.dataModel.initRGBData()
-            self.dataModel.initAccData()
-            self.dataModel.initGyroData()
+            self.dataModel.gTempData.removeAll()
+//            self.diffArr.removeAll()
+//            self.checkArr.removeAll()
             self.measurementTimer.invalidate()
+            self.prepareTimer.invalidate()
+            self.isPrePare = true
         }
     }
     
@@ -712,7 +768,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             print("objc rgb casting error")
             return
         }
-        self.checkBreathMeasureType()
         
         let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
         
@@ -722,7 +777,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 timeStamp: timeStamp,
                 r: r, g: g, b: b
             )
-        } else {
+        } else if self.isReal {
+            print("collect gTemp")
             self.dataModel.gTempData.append(g)
         }
     }
@@ -751,7 +807,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             let ratio = diff / avg
             let standardRatio = diff < 26 ? 0.8 : 0.6
             let check = ratio < standardRatio ? true : false
-            if self.checkArr.count < 150 {
+            if self.checkArr.count < 150 {//30 * self.model.prepareTime {
                 self.checkArr.append(check)
             } else {
                 self.checkArr.removeFirst()

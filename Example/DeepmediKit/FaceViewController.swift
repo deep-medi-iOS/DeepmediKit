@@ -45,6 +45,11 @@ class FaceViewController: UIViewController {
         l.clipsToBounds = true
     }
     
+    let resultLabel = UILabel().then { l in
+        l.numberOfLines = 0
+        l.font = UIFont.systemFont(ofSize: 15)
+    }
+    
     let temp = UIView()
     let face = UIImageView().then { v in
         v.contentMode = .scaleAspectFit
@@ -65,8 +70,9 @@ class FaceViewController: UIViewController {
             captureDevice: captureDevice
         )
         faceMeasureKitModel.setMeasurementTime(30)
-        faceMeasureKitModel.setWindowSecond(15)
-        faceMeasureKitModel.setOverlappingSecond(2)
+        faceMeasureKitModel.setPrepareTime(2)
+//        faceMeasureKitModel.setWindowSecond(15)
+//        faceMeasureKitModel.setOverlappingSecond(2)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
@@ -135,6 +141,18 @@ class FaceViewController: UIViewController {
                 print("error")
             }
         }
+        
+        faceMeasureKit.resultHealthInfo(
+            secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
+            apiKey: "akJZud67cVWbXk0zkYWDs3Kit5S0kbcNPqX6HOoW",
+            genderType: .MALE,
+            age: 20,
+            height: 170,
+            weight: 70
+        ) {healthInfo in
+            print(5)
+            print(healthInfo)
+        }
     }
 
     func setupUI() {
@@ -145,6 +163,7 @@ class FaceViewController: UIViewController {
         self.view.addSubview(faceRecognitionAreaView)
         self.view.addSubview(leftTimeLabel)
         self.view.addSubview(checkLabel)
+        self.view.addSubview(resultLabel)
         self.view.addSubview(previousButton)
         
         self.view.addSubview(temp)
@@ -155,6 +174,7 @@ class FaceViewController: UIViewController {
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         leftTimeLabel.translatesAutoresizingMaskIntoConstraints = false
         checkLabel.translatesAutoresizingMaskIntoConstraints = false
+        resultLabel.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         
         face.translatesAutoresizingMaskIntoConstraints = false
@@ -198,6 +218,11 @@ class FaceViewController: UIViewController {
         NSLayoutConstraint.activate([
             leftTimeLabel.topAnchor.constraint(equalTo: checkLabel.bottomAnchor, constant: 5),
             leftTimeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+        ])
+        
+        NSLayoutConstraint.activate([
+            resultLabel.topAnchor.constraint(equalTo: leftTimeLabel.bottomAnchor, constant: 30),
+            resultLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
    
         NSLayoutConstraint.activate([

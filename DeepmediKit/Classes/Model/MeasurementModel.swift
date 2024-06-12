@@ -34,6 +34,7 @@ class MeasurementModel {
     
     //얼굴 전용
     let checkRealFace = BehaviorSubject(value: false)
+    let healthCareInfoResult = PublishSubject<[String: Any]>()
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     

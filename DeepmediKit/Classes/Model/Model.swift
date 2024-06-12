@@ -14,6 +14,9 @@ class Model {
     
     var measurePart: CameraObject.Part = .face
     
+    var secretKey: String
+    var apiKey: String
+    
     var limitTapTime: Int
     var limitNoTapTime: Int
     var fingerMeasurementTime: Double
@@ -37,6 +40,8 @@ class Model {
         }
     }
     
+    var prepareTime: Int
+    
     var windowSec: Int
     var overlappingSec: Int
     var age: Int,
@@ -57,12 +62,16 @@ class Model {
         
         self.useFaceRecognitionArea = true
         
+        self.secretKey = "secretKey"
+        self.apiKey = "apiKey"
+        
         self.age = 20
         self.gender = 0
         self.height = 160
         self.weight = 60
         
         self.faceMeasurementTime = 30.0
+        self.prepareTime = 1
         self.windowSec = 15
         self.overlappingSec = 2
         
@@ -82,15 +91,20 @@ class RecordModel {
     var physicalStress: Float,
         mentalStress: Float
     
+    var breath: Int
+    var spo2: Int
+    
     var cardioRisk: Double
     
     init() {
         self.hr = 65
         self.physicalStress = 0
         self.mentalStress = 0
-        self.sys = 100
-        self.dia = 50
+        self.sys = 10
+        self.dia = 10
         self.af = 0
         self.cardioRisk = 0
+        self.breath = 10
+        self.spo2 = 10
     }
 }

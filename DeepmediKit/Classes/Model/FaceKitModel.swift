@@ -35,6 +35,12 @@ public class FaceKitModel: NSObject {
         self.model.faceMeasurementTime = time ?? 30.0
     }
     
+    public func setPrepareTime(
+        _ time: Int?
+    ) {
+        self.model.prepareTime = time ?? 1
+    }
+    
     public func setWindowSecond(
         _ time: Int?
     ) {
