@@ -143,14 +143,13 @@ class FaceViewController: UIViewController {
         }
         
         faceMeasureKit.resultHealthInfo(
-            secretKey: "HOAg4vr7bjzHr4OvMeAvw70Ae8nNKa6ctudDJuJy",
-            apiKey: "akJZud67cVWbXk0zkYWDs3Kit5S0kbcNPqX6HOoW",
+            secretKey: "secretKey",
+            apiKey: "apiKey",
             genderType: .MALE,
             age: 20,
             height: 170,
             weight: 70
         ) {healthInfo in
-            print(5)
             print(healthInfo)
         }
     }
