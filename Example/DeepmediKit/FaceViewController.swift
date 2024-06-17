@@ -71,6 +71,7 @@ class FaceViewController: UIViewController {
         )
         faceMeasureKitModel.setMeasurementTime(30)
         faceMeasureKitModel.setPrepareTime(2)
+        faceMeasureKitModel.willCheckRealFace(true)
 //        faceMeasureKitModel.setWindowSecond(15)
 //        faceMeasureKitModel.setOverlappingSecond(2)
         

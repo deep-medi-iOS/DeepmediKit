@@ -69,6 +69,7 @@ public class FaceKit: NSObject {
     private var notDetectFace: Bool = true,
                 isReal:Bool = false ,
                 isPreparing:Bool = false,
+                willCheckRealFace = false,
                 diffArr:[CGFloat] = [],
                 checkArr:[Bool] = []
     
@@ -692,7 +693,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     return
                 }
                 
-                checkReal(eyePoints: leftEyePoints)
+                if self.model.willCheckRealFace {
+                    checkReal(eyePoints: leftEyePoints)
+                } else {
+                    self.isReal = true
+                }
                 
                 gridPath(
                     previewLayer: previewLayer,

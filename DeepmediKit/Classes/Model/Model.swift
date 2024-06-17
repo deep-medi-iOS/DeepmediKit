@@ -23,6 +23,7 @@ class Model {
     var breathMeasurement: Bool
         
     var useFaceRecognitionArea: Bool
+    var willCheckRealFace: Bool
     
     var tempView = UIView()
     var faceImgView = UIImageView()
@@ -79,6 +80,7 @@ class Model {
         self.limitNoTapTime = 5
         self.fingerMeasurementTime = 30.0
         self.breathMeasurement = true
+        self.willCheckRealFace = true
     }
 }
 
