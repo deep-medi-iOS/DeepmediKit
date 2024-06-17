@@ -68,7 +68,7 @@ public class FaceKit: NSObject {
     
     private var notDetectFace: Bool = true,
                 isReal:Bool = false ,
-                isPrePare:Bool = false,
+                isPreparing:Bool = false,
                 diffArr:[CGFloat] = [],
                 checkArr:[Bool] = []
     
@@ -184,7 +184,7 @@ public class FaceKit: NSObject {
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
         self.preparingSec = self.model.prepareTime
-        self.isPrePare = true
+        self.isPreparing = true
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
             if let previewLayer = self.model.previewLayer,
@@ -203,7 +203,7 @@ public class FaceKit: NSObject {
         self.cropFaceRect = nil
         self.chestRect = nil
         self.isReal = false
-        self.isPrePare = false
+        self.isPreparing = false
         
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
@@ -230,7 +230,7 @@ public class FaceKit: NSObject {
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio,
             healthCareInfoResult = self.measurementModel.healthCareInfoResult
         
-        self.isPrePare = false
+        self.isPreparing = false
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
         self.diffArr.removeAll()
@@ -569,12 +569,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func useRecogntionFace() {
         if self.cropFaceRect != nil && self.chestRect != nil && self.isReal {
-            guard self.dataModel.gTempData.count == 15 && self.isPrePare else {
+            guard self.dataModel.gTempData.count >= 20 && self.isPreparing else {
                 return
             }
             self.measurementModel.checkRealFace.onNext(true)
             self.dataModel.gTempData.removeAll()
-            self.isPrePare = false
+            self.isPreparing = false
                 self.prepareTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
                     self.measurementModel.secondRemaining.onNext(self.preparingSec)
                     if self.preparingSec == 0 {
@@ -592,7 +592,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //            self.checkArr.removeAll()
             self.measurementTimer.invalidate()
             self.prepareTimer.invalidate()
-            self.isPrePare = true
+            self.isPreparing = true
         }
     }
     
@@ -777,8 +777,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 timeStamp: timeStamp,
                 r: r, g: g, b: b
             )
-        } else if self.isReal {
-            print("collect gTemp")
+        } else if self.isPreparing {
             self.dataModel.gTempData.append(g)
         }
     }
