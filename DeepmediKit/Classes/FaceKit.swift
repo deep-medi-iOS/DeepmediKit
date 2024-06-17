@@ -515,6 +515,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.preparingSec = self.model.prepareTime
             self.measurementTime = self.model.faceMeasurementTime
             
+            self.diffArr.removeAll()
+            self.checkArr.removeAll()
+            self.isPreparing = true
+            
+            self.measurementModel.checkRealFace.onNext(false)
             self.measurementModel.measurementStop.onNext(true)
         }
     }
