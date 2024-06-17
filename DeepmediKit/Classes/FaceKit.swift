@@ -555,8 +555,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func updatePreviewOverlayViewWithLastFrame() {
         DispatchQueue.main.sync {
-            guard self.lastFrame != nil else {
-                print("lastFrame return")
+            guard self.lastFrame != nil && self.isPreparing else {
+//                print("lastFrame return")
                 return
             }
             if self.model.useFaceRecognitionArea {
@@ -568,10 +568,37 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func useRecogntionFace() {
-        if self.cropFaceRect != nil && self.chestRect != nil && self.isReal {
-            guard self.dataModel.gTempData.count >= 20 && self.isPreparing else {
-                return
-            }
+//        if self.cropFaceRect != nil && self.chestRect != nil && self.isReal {
+//            guard self.dataModel.gTempData.count >= 20 && self.isPreparing else {
+//                return
+//            }
+//            self.measurementModel.checkRealFace.onNext(true)
+//            self.dataModel.gTempData.removeAll()
+//            self.isPreparing = false
+//                self.prepareTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+//                    self.measurementModel.secondRemaining.onNext(self.preparingSec)
+//                    if self.preparingSec == 0 {
+//                        timer.invalidate()
+//                        self.cameraSetup.setUpCatureDevice()
+//                        self.collectDatas()
+//                    }
+//                    self.preparingSec -= 1
+//                }
+//        } else {
+//            self.measurementModel.checkRealFace.onNext(false)
+//            self.dataModel.initRGBData()
+//            self.dataModel.gTempData.removeAll()
+////            self.diffArr.removeAll()
+////            self.checkArr.removeAll()
+//            self.measurementTimer.invalidate()
+//            self.prepareTimer.invalidate()
+//            self.isPreparing = true
+//        }
+        guard self.cropFaceRect != nil && self.chestRect != nil && self.isReal else {
+            print("face out")
+            return
+        }
+        if self.dataModel.gTempData.count >= 20 {
             self.measurementModel.checkRealFace.onNext(true)
             self.dataModel.gTempData.removeAll()
             self.isPreparing = false
@@ -587,7 +614,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         } else {
             self.measurementModel.checkRealFace.onNext(false)
             self.dataModel.initRGBData()
-            self.dataModel.gTempData.removeAll()
+//            self.dataModel.gTempData.removeAll()
 //            self.diffArr.removeAll()
 //            self.checkArr.removeAll()
             self.measurementTimer.invalidate()
