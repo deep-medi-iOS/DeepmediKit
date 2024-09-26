@@ -35,8 +35,8 @@ class Model {
 
     var faceMeasurementTime: Double {
         didSet {
-            if self.faceMeasurementTime < 30.0 {
-                self.faceMeasurementTime = 30.0
+            if self.faceMeasurementTime < 15.0 {
+                self.faceMeasurementTime = 15.0
             }
         }
     }
@@ -71,7 +71,7 @@ class Model {
         self.height = 160
         self.weight = 60
         
-        self.faceMeasurementTime = 30.0
+        self.faceMeasurementTime = 15.0
         self.prepareTime = 1
         self.windowSec = 15
         self.overlappingSec = 2
