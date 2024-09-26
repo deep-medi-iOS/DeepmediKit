@@ -289,9 +289,9 @@ public class FaceKit: NSObject {
                                                     "hr": self.recordModel.hr,
                                                     "physicalStress": self.recordModel.physicalStress,
                                                     "mentalStress": self.recordModel.mentalStress,
-//                                                    "af": self.recordModel.af,
-//                                                    "sys": self.recordModel.sys,
-//                                                    "dia": self.recordModel.dia,
+                                                    "af": self.recordModel.af,
+                                                    "sys": self.recordModel.sys,
+                                                    "dia": self.recordModel.dia,
                                                     "breath": self.recordModel.breath,
                                                     "spo2": self.recordModel.spo2
                                                 ]
