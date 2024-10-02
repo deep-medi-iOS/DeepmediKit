@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'DeepmediKit'
-  s.version          = '1.2.3'
+  s.version          = '1.3.0'
   s.summary          = 'Framework for measurement finger Tap or face'
 
 # This description is used to generate tags and improve search results.
@@ -32,19 +32,17 @@ Pod::Spec.new do |s|
   s.static_framework = true
   s.pod_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
+  s.resource_bundles = {'DeepmediKit' => ['DeepmediKit/Classes/PrivacyInfo.xcprivacy']}
   
-  # s.resource_bundles = {
-  #   'DeepmediFingerKit' => ['DeepmediFingerKit/Assets/*.png']
-  # }
   # s.public_header_files = 'Pod/Classes/**/*.h'
   # s.frameworks = 'UIKit', 'MapKit'
   # s.dependency 'AFNetworking', '~> 2.3'
   
   s.dependency 'Then'
   s.dependency 'GoogleMLKit/FaceDetection'
-  s.dependency 'Alamofire', '~> 5.2.0'
+  s.dependency 'Alamofire'
   s.dependency 'OpenCV'
-  s.dependency 'RxSwift', '~> 6.0.0'
-  s.dependency 'RxCocoa', '~> 6.0.0'
+  s.dependency 'RxSwift'
+  s.dependency 'RxCocoa'
   
 end
