@@ -39,7 +39,7 @@ Pod::Spec.new do |s|
   # s.dependency 'AFNetworking', '~> 2.3'
   
   s.dependency 'Then', '3.0.0'
-  s.dependency 'GoogleMLKit/FaceDetection'
+  s.dependency 'GoogleMLKit/FaceDetection', '5.0.0'
   s.dependency 'Alamofire', '5.10.0'
   s.dependency 'OpenCV', '4.3.0'
   s.dependency 'RxSwift', '6.8.0'
