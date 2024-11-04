@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		126FC268A09D469A7CE21592 /* Pods_DeepmediKit_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 38876B23EFABA375105AF80D /* Pods_DeepmediKit_Example.framework */; };
+		45C29ABAAAD4CC7FA046335C /* Pods_DeepmediKit_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DAFA22DA1E37EACC60A84429 /* Pods_DeepmediKit_Tests.framework */; };
 		5C77C30E2A404C0A00AF4D0D /* FaceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */; };
 		5C77C3102A404C1100AF4D0D /* FingerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C77C30F2A404C1100AF4D0D /* FingerViewController.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
@@ -15,8 +17,6 @@
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
-		94664E0B20EBE64EAC493487 /* Pods_DeepmediKit_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E4284052BF66BA0BAF2157FF /* Pods_DeepmediKit_Example.framework */; };
-		C0A3D6BEF034930902EC2B92 /* Pods_DeepmediKit_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 33AA990F493F7EF71BDDD22C /* Pods_DeepmediKit_Tests.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,8 +30,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1DD6A4DF1952E4075FC40426 /* Pods-DeepmediKit_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.release.xcconfig"; sourceTree = "<group>"; };
 		2A1A6163EA28494021E07A0C /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
-		33AA990F493F7EF71BDDD22C /* Pods_DeepmediKit_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		38876B23EFABA375105AF80D /* Pods_DeepmediKit_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		531183F51119575460A2D797 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceViewController.swift; sourceTree = "<group>"; };
 		5C77C30F2A404C1100AF4D0D /* FingerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FingerViewController.swift; sourceTree = "<group>"; };
@@ -45,12 +46,11 @@
 		607FACE51AFB9204008FA782 /* DeepmediKit_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepmediKit_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
-		7AB18034F6B4C0BA22C606E1 /* Pods-DeepmediKit_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.release.xcconfig"; sourceTree = "<group>"; };
-		7E34B47F38A2AB0240104011 /* Pods-DeepmediKit_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.debug.xcconfig"; sourceTree = "<group>"; };
-		828C571B37433E53070C251B /* DeepmediKit.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = DeepmediKit.podspec; path = ../DeepmediKit.podspec; sourceTree = "<group>"; };
-		DCD1F2333FC04C40D2525752 /* Pods-DeepmediKit_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.release.xcconfig"; sourceTree = "<group>"; };
-		E3D70583919D01A7D7D302F2 /* Pods-DeepmediKit_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.debug.xcconfig"; sourceTree = "<group>"; };
-		E4284052BF66BA0BAF2157FF /* Pods_DeepmediKit_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		828C571B37433E53070C251B /* DeepmediKit.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = DeepmediKit.podspec; path = ../DeepmediKit.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		9A4C5D8B368D4C8D02F09BA3 /* Pods-DeepmediKit_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.debug.xcconfig"; sourceTree = "<group>"; };
+		BDC3FD4216455446093C2694 /* Pods-DeepmediKit_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.release.xcconfig"; sourceTree = "<group>"; };
+		DAFA22DA1E37EACC60A84429 /* Pods_DeepmediKit_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E8CF0134A584DB380ECE3C83 /* Pods-DeepmediKit_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,7 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				94664E0B20EBE64EAC493487 /* Pods_DeepmediKit_Example.framework in Frameworks */,
+				126FC268A09D469A7CE21592 /* Pods_DeepmediKit_Example.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,7 +66,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0A3D6BEF034930902EC2B92 /* Pods_DeepmediKit_Tests.framework in Frameworks */,
+				45C29ABAAAD4CC7FA046335C /* Pods_DeepmediKit_Tests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,7 +81,7 @@
 				607FACE81AFB9204008FA782 /* Tests */,
 				607FACD11AFB9204008FA782 /* Products */,
 				A885C943FA9742E8E1679C65 /* Pods */,
-				E6029D12DB2B4269CD7934C9 /* Frameworks */,
+				EDAD9AC25EA01944BCB31D73 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -148,19 +148,19 @@
 		A885C943FA9742E8E1679C65 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				7E34B47F38A2AB0240104011 /* Pods-DeepmediKit_Example.debug.xcconfig */,
-				DCD1F2333FC04C40D2525752 /* Pods-DeepmediKit_Example.release.xcconfig */,
-				E3D70583919D01A7D7D302F2 /* Pods-DeepmediKit_Tests.debug.xcconfig */,
-				7AB18034F6B4C0BA22C606E1 /* Pods-DeepmediKit_Tests.release.xcconfig */,
+				9A4C5D8B368D4C8D02F09BA3 /* Pods-DeepmediKit_Example.debug.xcconfig */,
+				1DD6A4DF1952E4075FC40426 /* Pods-DeepmediKit_Example.release.xcconfig */,
+				E8CF0134A584DB380ECE3C83 /* Pods-DeepmediKit_Tests.debug.xcconfig */,
+				BDC3FD4216455446093C2694 /* Pods-DeepmediKit_Tests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
 		};
-		E6029D12DB2B4269CD7934C9 /* Frameworks */ = {
+		EDAD9AC25EA01944BCB31D73 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				E4284052BF66BA0BAF2157FF /* Pods_DeepmediKit_Example.framework */,
-				33AA990F493F7EF71BDDD22C /* Pods_DeepmediKit_Tests.framework */,
+				38876B23EFABA375105AF80D /* Pods_DeepmediKit_Example.framework */,
+				DAFA22DA1E37EACC60A84429 /* Pods_DeepmediKit_Tests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -172,12 +172,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACEF1AFB9204008FA782 /* Build configuration list for PBXNativeTarget "DeepmediKit_Example" */;
 			buildPhases = (
-				7C667E466E2526CD2896376E /* [CP] Check Pods Manifest.lock */,
+				A6B6F55480AD5F5253801359 /* [CP] Check Pods Manifest.lock */,
 				607FACCC1AFB9204008FA782 /* Sources */,
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
-				4EFDB954448015837F8333DB /* [CP] Embed Pods Frameworks */,
-				868A74264283502FCEAFDD3F /* [CP] Copy Pods Resources */,
+				F7ECBA0D75E41D39C07CD7BE /* [CP] Embed Pods Frameworks */,
+				300889E44B93510D9569C713 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -192,7 +192,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACF21AFB9204008FA782 /* Build configuration list for PBXNativeTarget "DeepmediKit_Tests" */;
 			buildPhases = (
-				78C0BE508A90DD2B9C781C16 /* [CP] Check Pods Manifest.lock */,
+				17552ECD0D86A5FD5F0E0772 /* [CP] Check Pods Manifest.lock */,
 				607FACE11AFB9204008FA782 /* Sources */,
 				607FACE21AFB9204008FA782 /* Frameworks */,
 				607FACE31AFB9204008FA782 /* Resources */,
@@ -271,47 +271,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		4EFDB954448015837F8333DB /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework",
-				"${BUILT_PRODUCTS_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework",
-				"${BUILT_PRODUCTS_DIR}/GoogleDataTransport/GoogleDataTransport.framework",
-				"${BUILT_PRODUCTS_DIR}/GoogleToolboxForMac/GoogleToolboxForMac.framework",
-				"${BUILT_PRODUCTS_DIR}/GoogleUtilities/GoogleUtilities.framework",
-				"${BUILT_PRODUCTS_DIR}/PromisesObjC/FBLPromises.framework",
-				"${BUILT_PRODUCTS_DIR}/Protobuf/Protobuf.framework",
-				"${BUILT_PRODUCTS_DIR}/RxCocoa/RxCocoa.framework",
-				"${BUILT_PRODUCTS_DIR}/RxRelay/RxRelay.framework",
-				"${BUILT_PRODUCTS_DIR}/RxSwift/RxSwift.framework",
-				"${BUILT_PRODUCTS_DIR}/Then/Then.framework",
-				"${BUILT_PRODUCTS_DIR}/nanopb/nanopb.framework",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Alamofire.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GTMSessionFetcher.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleDataTransport.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleToolboxForMac.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleUtilities.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/FBLPromises.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Protobuf.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxCocoa.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxRelay.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxSwift.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Then.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/nanopb.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		78C0BE508A90DD2B9C781C16 /* [CP] Check Pods Manifest.lock */ = {
+		17552ECD0D86A5FD5F0E0772 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -333,7 +293,27 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		7C667E466E2526CD2896376E /* [CP] Check Pods Manifest.lock */ = {
+		300889E44B93510D9569C713 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-resources.sh",
+				"${PODS_CONFIGURATION_BUILD_DIR}/DeepmediKit/DeepmediKit.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/MLKitFaceDetection/GoogleMVFaceDetectorResources.bundle",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/DeepmediKit.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleMVFaceDetectorResources.bundle",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A6B6F55480AD5F5253801359 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -355,22 +335,42 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		868A74264283502FCEAFDD3F /* [CP] Copy Pods Resources */ = {
+		F7ECBA0D75E41D39C07CD7BE /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-resources.sh",
-				"${PODS_CONFIGURATION_BUILD_DIR}/MLKitFaceDetection/GoogleMVFaceDetectorResources.bundle",
+				"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework",
+				"${BUILT_PRODUCTS_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework",
+				"${BUILT_PRODUCTS_DIR}/GoogleDataTransport/GoogleDataTransport.framework",
+				"${BUILT_PRODUCTS_DIR}/GoogleToolboxForMac/GoogleToolboxForMac.framework",
+				"${BUILT_PRODUCTS_DIR}/GoogleUtilities/GoogleUtilities.framework",
+				"${BUILT_PRODUCTS_DIR}/PromisesObjC/FBLPromises.framework",
+				"${BUILT_PRODUCTS_DIR}/RxCocoa/RxCocoa.framework",
+				"${BUILT_PRODUCTS_DIR}/RxRelay/RxRelay.framework",
+				"${BUILT_PRODUCTS_DIR}/RxSwift/RxSwift.framework",
+				"${BUILT_PRODUCTS_DIR}/Then/Then.framework",
+				"${BUILT_PRODUCTS_DIR}/nanopb/nanopb.framework",
 			);
-			name = "[CP] Copy Pods Resources";
+			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleMVFaceDetectorResources.bundle",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Alamofire.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GTMSessionFetcher.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleDataTransport.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleToolboxForMac.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleUtilities.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/FBLPromises.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxCocoa.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxRelay.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RxSwift.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Then.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/nanopb.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -526,7 +526,7 @@
 		};
 		607FACF01AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7E34B47F38A2AB0240104011 /* Pods-DeepmediKit_Example.debug.xcconfig */;
+			baseConfigurationReference = 9A4C5D8B368D4C8D02F09BA3 /* Pods-DeepmediKit_Example.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				DEVELOPMENT_TEAM = ALL2F32G29;
@@ -543,7 +543,7 @@
 		};
 		607FACF11AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = DCD1F2333FC04C40D2525752 /* Pods-DeepmediKit_Example.release.xcconfig */;
+			baseConfigurationReference = 1DD6A4DF1952E4075FC40426 /* Pods-DeepmediKit_Example.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				DEVELOPMENT_TEAM = ALL2F32G29;
@@ -560,7 +560,7 @@
 		};
 		607FACF31AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E3D70583919D01A7D7D302F2 /* Pods-DeepmediKit_Tests.debug.xcconfig */;
+			baseConfigurationReference = E8CF0134A584DB380ECE3C83 /* Pods-DeepmediKit_Tests.debug.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = ALL2F32G29;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -572,6 +572,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -583,7 +584,7 @@
 		};
 		607FACF41AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7AB18034F6B4C0BA22C606E1 /* Pods-DeepmediKit_Tests.release.xcconfig */;
+			baseConfigurationReference = BDC3FD4216455446093C2694 /* Pods-DeepmediKit_Tests.release.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = ALL2F32G29;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -591,6 +592,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
