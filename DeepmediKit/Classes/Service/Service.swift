@@ -37,7 +37,7 @@ class Service {
         ] as [String : Int]
         
         let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com",
-            ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp",
+            ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3",
             url = ppgHealthURL + ppgHealthURI,
             header = header.v2Header(
                 method: .post,
