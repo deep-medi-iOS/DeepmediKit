@@ -64,30 +64,14 @@ public class FaceKit: NSObject {
     public func captureImage(
         _ capture: @escaping((UIImage?) -> ())
     ) {
-        
-    }
-    
-    public func rgbDataSet(
-        _ dataSet: @escaping(([Double], [Float], [Float], [Float]) -> ())
-    ) {
-        let timeStamp = measurementModel.timeStamp,
-            sigR = measurementModel.sigR,
-            sigB = measurementModel.sigB,
-            sigG = measurementModel.sigG
-        
-        Observable
-            .combineLatest(
-            timeStamp,
-            sigR,
-            sigG,
-            sigB
-        )
-        .observe(on: MainScheduler.instance)
-        .asDriver(onErrorJustReturn: ([], [], [], []))
-        .drive(onNext: { (ts, r, g, b) in
-            dataSet(ts, r, g, b)
-        })
-        .disposed(by: bag)
+        let captureImage = measurementModel.captureImage
+        captureImage
+            .observe(on: MainScheduler.instance)
+            .asDriver(onErrorJustReturn: UIImage())
+            .drive(onNext: { image in
+                capture(image)
+            })
+            .disposed(by: bag)
     }
     
     public func stopMeasurement(
@@ -389,6 +373,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
             faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
             faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+            
+            if let capture = OpenCVWrapper.converting(self.lastFrame),
+               let faceImage = self.flipImage(capture) {
+                self.measurementModel.captureImage.onNext(faceImage)
+            }
             
             self.cropFaceRect = CGRect(x: face.frame.origin.x,
                                        y: face.frame.origin.y,
