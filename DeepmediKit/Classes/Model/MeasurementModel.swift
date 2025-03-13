@@ -39,6 +39,12 @@ class MeasurementModel {
     let healthCareInfoResult = PublishSubject<[String: Any]>()
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
+    let measurementComplete = PublishSubject<Bool>()
+    let captureImage = PublishSubject<UIImage?>()
+    let timeStamp = PublishSubject<[Double]>()
+    let sigR = PublishSubject<[Float]>()
+    let sigG = PublishSubject<[Float]>()
+    let sigB = PublishSubject<[Float]>()
     
     //bind
     func bindFingerTap() {

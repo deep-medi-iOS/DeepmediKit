@@ -15,25 +15,9 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
-    public enum HealthCareInfo {
-        
-        public enum genderType: Int {
-            case MALE = 0, FEMALE = 1
-        }
-        
-        public enum exerciseType: Int {
-            case OFTEN = 0, SOMETIMES = 1
-        }
-        
-        public enum smokeType: Int {
-            case NONE = 0, PAST = 1, NOW = 2
-        }
-        
-        public enum diabetesType: Int {
-            case NONE = 0, EXISTENCE = 1
-        }
+    enum MeasurementErr: Error {
+        case message(String)
     }
-    
     private let bag = DisposeBag()
     
     private let makeDocument = Document(),
@@ -77,6 +61,35 @@ public class FaceKit: NSObject {
             .disposed(by: bag)
     }
     
+    public func captureImage(
+        _ capture: @escaping((UIImage?) -> ())
+    ) {
+        
+    }
+    
+    public func rgbDataSet(
+        _ dataSet: @escaping(([Double], [Float], [Float], [Float]) -> ())
+    ) {
+        let timeStamp = measurementModel.timeStamp,
+            sigR = measurementModel.sigR,
+            sigB = measurementModel.sigB,
+            sigG = measurementModel.sigG
+        
+        Observable
+            .combineLatest(
+            timeStamp,
+            sigR,
+            sigG,
+            sigB
+        )
+        .observe(on: MainScheduler.instance)
+        .asDriver(onErrorJustReturn: ([], [], [], []))
+        .drive(onNext: { (ts, r, g, b) in
+            dataSet(ts, r, g, b)
+        })
+        .disposed(by: bag)
+    }
+    
     public func stopMeasurement(
         _ isStop: @escaping((Bool) -> ())
     ) {
@@ -92,58 +105,28 @@ public class FaceKit: NSObject {
     }
     
     public func finishedMeasurement(
-        _ isSuccess: @escaping((Bool, URL?) -> ())
+        _ isSuccess: @escaping((Bool, ([Double], [Float], [Float], [Float])) -> ())
     ) {
-        let completion = self.measurementModel.faceMeasurementComplete
-        completion
-            .asDriver(onErrorJustReturn: (false, URL(string: "")))
-            .drive(onNext: { result in
-                isSuccess(result.0, result.1)
-            })
-            .disposed(by: bag)
+        let completion = measurementModel.measurementComplete
+        let timeStamp = measurementModel.timeStamp,
+            sigR = measurementModel.sigR,
+            sigB = measurementModel.sigB,
+            sigG = measurementModel.sigG
+        
+        Observable.combineLatest(
+            completion,
+            timeStamp,
+            sigR,
+            sigG,
+            sigB
+        )
+        .observe(on: MainScheduler.instance)
+        .asDriver(onErrorJustReturn: (false, [], [], [], []))
+        .drive(onNext: { (res, ts, r, g, b) in
+            isSuccess(res, (ts, r, g, b))
+        })
+        .disposed(by: bag)
     }
-    
-    ///exerciseType(30분이상 신체활동): often = 주 3회 이상, sometimes = 주 2회이상 /
-    ///smoke(흡연): none = 비흡엽, past = 과거흡연, now = 현재흡연 /
-    ///diabetes(당뇨 여부): none = 아니오, existence = 예 /
-    ///return
-    ///hr(심박수), mentalStress(정신적스트레스), physicalStress(육제척스트레스), af(불규칙심박): 0 = 규칙적임, 1 = 불규칙적임, sys(수축기), dia(이완기)
-    ///cardioRisk(심혈관 위험도)
-    public func resultHealthInfo(
-        secretKey: String,
-        apiKey: String,
-        genderType: HealthCareInfo.genderType,
-        age: Int,
-        height: Int,
-        weight: Int,
-        belly: Int? = nil,
-        exerciseType: HealthCareInfo.exerciseType? = nil,
-        smokeType: HealthCareInfo.smokeType? = nil,
-        diabetesType: HealthCareInfo.diabetesType? = nil,
-        _ healthInfo: @escaping(([String: Any]) -> ())
-    ) {
-        
-        self.model.secretKey = secretKey
-        self.model.apiKey = apiKey
-        self.model.age = age
-        self.model.gender = genderType.rawValue
-        self.model.height = height
-        self.model.weight = weight
-        self.model.belly = belly
-        self.model.act = exerciseType?.rawValue
-        self.model.smoke = smokeType?.rawValue
-        self.model.diabetes = diabetesType?.rawValue
-        
-        let healthCareInfoResult = self.measurementModel.healthCareInfoResult
-        
-        healthCareInfoResult
-            .asDriver(onErrorJustReturn: ["": 0])
-            .drive(onNext: { result in
-                healthInfo(result)
-            })
-            .disposed(by: bag)
-    }
-
     
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())
@@ -220,9 +203,13 @@ public class FaceKit: NSObject {
     private func collectDatas() {
         self.measurementModel.measurementStop.onNext(false)
         
-        let secondRemaining = self.measurementModel.secondRemaining,
-            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio,
-            measurementComplete = self.measurementModel.faceMeasurementComplete,
+        let secondRemaining = measurementModel.secondRemaining,
+            measurementCompleteRatio = measurementModel.measurementCompleteRatio,
+            measurementComplete = measurementModel.measurementComplete,
+            timeStamp = measurementModel.timeStamp,
+            sigR = measurementModel.sigR,
+            sigB = measurementModel.sigB,
+            sigG = measurementModel.sigG,
             healthCareInfoResult = measurementModel.healthCareInfoResult
         
         self.dataModel.initRGBData()
@@ -240,73 +227,22 @@ public class FaceKit: NSObject {
             measurementCompleteRatio.onNext("\(ratio)%")
             secondRemaining.onNext(Int(self.measurementTime))
             self.measurementTime -= 0.1
+            // MARK: 측정완료
             if self.measurementTime <= 0 {
                 timer.invalidate()
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
                 if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
-                    measurementComplete.onNext((result: true, url: rgbPath))
-                    
-                    self.service.facePPG(
-                        secretKey: self.model.secretKey,
-                        apiKey: self.model.apiKey,
-                        rgbPath: rgbPath,
-                        age: self.model.age,
-                        gender: self.model.gender,
-                        weight: self.model.weight,
-                        height: self.model.height
-                    ) { healthInfoErr in
-                        if let err = healthInfoErr {
-                            healthCareInfoResult.onNext(([ "healthInfo response fail": err ]))
-                        } else {
-                            if let belly = self.model.belly,
-                               let act = self.model.act,
-                               let smoke = self.model.smoke,
-                               let diabetes = self.model.diabetes {
-                                
-                                self.service.cardiacRisk(
-                                    secretKey: self.model.secretKey,
-                                    apiKey: self.model.apiKey,
-                                    gender: self.model.gender,
-                                    age: self.model.age,
-                                    height: self.model.height,
-                                    weight: self.model.weight,
-                                    belly: belly,
-                                    act: act,
-                                    smoke: smoke,
-                                    diabetes: diabetes,
-                                    sys: self.recordModel.sys,
-                                    dia: self.recordModel.dia
-                                ) { cardioRiskErr in
-                                    if let err = cardioRiskErr {
-                                        healthCareInfoResult.onNext(([ "cardioRisk fail": err ]))
-                                    } else {
-                                        healthCareInfoResult.onNext(([
-                                            "hr": self.recordModel.hr,
-                                            "physicalStress": self.recordModel.physicalStress,
-                                            "mentalStress": self.recordModel.mentalStress,
-                                            "af": self.recordModel.af,
-                                            "sys": self.recordModel.sys,
-                                            "dia": self.recordModel.dia,
-                                            "cardioRisk": self.recordModel.cardioRisk
-                                        ]))
-                                    }
-                                }
-                            } else {
-                                print("belly: \(self.model.belly), act: \(self.model.act), smoke: \(self.model.smoke), diabetes: \(self.model.diabetes)")
-                                healthCareInfoResult.onNext(([
-                                    "hr": self.recordModel.hr,
-                                    "physicalStress": self.recordModel.physicalStress,
-                                    "mentalStress": self.recordModel.mentalStress,
-                                    "af": self.recordModel.af,
-                                    "sys": self.recordModel.sys,
-                                    "dia": self.recordModel.dia,
-                                    "cardioRisk": 9999.0
-                                ]))
-                            }
-                        }
-                    }
+                    measurementComplete.onNext(true)
+                    timeStamp.onNext(self.dataModel.timeStamp)
+                    sigR.onNext(self.dataModel.rData)
+                    sigG.onNext(self.dataModel.gData)
+                    sigB.onNext(self.dataModel.bData)
                 } else {
-                    measurementComplete.onNext((result: false,url: URL(string: "")))
+                    measurementComplete.onNext(false)
+                    timeStamp.onNext([])
+                    sigR.onNext([])
+                    sigG.onNext([])
+                    sigB.onNext([])
                 }
             }
         }

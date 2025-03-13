@@ -31,8 +31,8 @@ class Model {
     
     var faceMeasurementTime: Double {
         didSet {
-            if self.faceMeasurementTime < 30.0 {
-                self.faceMeasurementTime = 30.0
+            if self.faceMeasurementTime < 15.0 {
+                self.faceMeasurementTime = 15.0
             }
         }
     }

@@ -45,9 +45,9 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(30)
-        faceMeasureKitModel.setWindowSecond(15)
-        faceMeasureKitModel.setOverlappingSecond(2)
+        faceMeasureKitModel.setMeasurementTime(15)
+//        faceMeasureKitModel.setWindowSecond(15)
+//        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
         
@@ -84,34 +84,30 @@ class FaceViewController: UIViewController {
             print("stop state: \(stop)")
         }
         
-        faceMeasureKit.finishedMeasurement { (successed, path) in
+        faceMeasureKit.finishedMeasurement { (successed, dataSet) in
             print("face measure state: \(successed)")
-            print("face rbg path: \(path)")
-        
+            print("fac measure data set: \(dataSet)")
+            
             if successed {
+                let ts = dataSet.0,
+                    sigR = dataSet.1,
+                    sigB = dataSet.2,
+                    sigG = dataSet.3
                 let header = self.header.v2Header(method: .post,
                                                   uri: "uri",
                                                   secretKey: "secretKey",
                                                   apiKey: "apiKey")
-                self.faceMeasureKit.stopSession()
-            } else {
-                print("error")
+                
+                if ts.count > 0
+                    && sigR.count > 0
+                    && sigG.count > 0
+                    && sigB.count > 0 {
+                    print("data set: \(ts, sigR, sigB, sigG)")
+                } else {
+                    print("data error")
+                }                
             }
-        }
-        
-        faceMeasureKit.resultHealthInfo(
-            secretKey: "secretKey",
-            apiKey: "apiKey",
-            genderType: .MALE,
-            age: Int(),
-            height: Int(),
-            weight: Int(),
-            belly: Int(),
-            exerciseType: .none,
-            smokeType: .none,
-            diabetesType: .none
-        ) { healthInfo in
-            print(healthInfo)
+            self.faceMeasureKit.stopSession()
         }
     }
 
