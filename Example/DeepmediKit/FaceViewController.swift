@@ -86,23 +86,25 @@ class FaceViewController: UIViewController {
         
         faceMeasureKit.finishedMeasurement { (successed, dataSet) in
             print("face measure state: \(successed)")
-            print("fac measure data set: \(dataSet)")
+//            print("fac measure data set: \(dataSet)")
             
             if successed {
                 let ts = dataSet.0,
                     sigR = dataSet.1,
                     sigB = dataSet.2,
                     sigG = dataSet.3
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
+                let header = self.header.v2Header(
+                    method: .post,
+                    uri: "uri",
+                    secretKey: "secretKey",
+                    apiKey: "apiKey"
+                )
                 
                 if ts.count > 0
                     && sigR.count > 0
                     && sigG.count > 0
                     && sigB.count > 0 {
-                    print("data set: \(ts, sigR, sigB, sigG)")
+                    print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
                 } else {
                     print("data error")
                 }                

@@ -36,7 +36,7 @@ class Model {
             }
         }
     }
-    
+    var prepareTime: Int
     var windowSec: Int
     var overlappingSec: Int
     var age: Int,
@@ -73,6 +73,7 @@ class Model {
         self.weight = 60
 
         self.faceMeasurementTime = 30.0
+        self.prepareTime = 1
         self.windowSec = 15
         self.overlappingSec = 2
         
@@ -80,27 +81,5 @@ class Model {
         self.limitNoTapTime = 5
         self.fingerMeasurementTime = 30.0
         self.breathMeasurement = true
-    }
-}
-
-class RecordModel {
-    static let shared = RecordModel()
-    
-    var hr: Int
-    var sys: Int, dia: Int
-    var af: Int
-    var physicalStress: Float,
-        mentalStress: Float
-    
-    var cardioRisk: Double
-    
-    init() {
-        self.hr = 65
-        self.physicalStress = 0
-        self.mentalStress = 0
-        self.sys = 100
-        self.dia = 50
-        self.af = 0
-        self.cardioRisk = 0
     }
 }
