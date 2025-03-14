@@ -493,8 +493,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                         self.cameraSetup.setUpCatureDevice()
                         self.collectDatas()
                     }
+                    self.preparingSec -= 1
                 }
-                self.preparingSec -= 1
             }
         } else {
             self.measurementModel.checkRealFace.onNext(false)

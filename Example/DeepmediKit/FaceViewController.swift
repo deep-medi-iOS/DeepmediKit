@@ -46,6 +46,7 @@ class FaceViewController: UIViewController {
             captureDevice: captureDevice
         )
         faceMeasureKitModel.setMeasurementTime(15)
+        faceMeasureKitModel.setPrepareTime(0)
 //        faceMeasureKitModel.setWindowSecond(15)
 //        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
