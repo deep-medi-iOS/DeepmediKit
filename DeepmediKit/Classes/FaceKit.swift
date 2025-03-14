@@ -487,6 +487,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     withTimeInterval: 1,
                     repeats: true
                 ) { prepareTimer in
+                    self.measurementModel.secondRemaining.onNext(self.preparingSec)
                     if self.preparingSec == 0 {
                         prepareTimer.invalidate()
                         self.cameraSetup.setUpCatureDevice()
