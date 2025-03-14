@@ -371,6 +371,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.lastFrame = nil
                 self.cropFaceRect = nil
                 self.dataModel.gTempData.removeAll()
+                self.measurementTimer.invalidate()
+                self.prepareTimer.invalidate()
                 self.measurementModel.measurementStop.onNext(true)
             }
         }
@@ -394,6 +396,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.measurementModel.captureImage.onNext(faceImage)
             }
             
+            self.measurementModel.measurementStop.onNext(false)
             self.cropFaceRect = CGRect(
                 x: face.frame.origin.x,
                 y: face.frame.origin.y,
