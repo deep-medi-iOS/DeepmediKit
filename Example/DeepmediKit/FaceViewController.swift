@@ -33,6 +33,8 @@ class FaceViewController: UIViewController {
         b.setTitleColor(.white, for: .normal)
         b.backgroundColor = .black
     }
+    
+    let tempView = UIView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,7 +52,7 @@ class FaceViewController: UIViewController {
 //        faceMeasureKitModel.setWindowSecond(15)
 //        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
-        faceMeasureKitModel.willCheckRealFace(false)
+        faceMeasureKitModel.willCheckRealFace(true)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
@@ -71,6 +73,11 @@ class FaceViewController: UIViewController {
     func completionMethod() {
         faceMeasureKit.checkRealFace { check in
             print("face is real: \(check)")
+            if check {
+                self.tempView.backgroundColor = .green
+            } else {
+                self.tempView.backgroundColor = .red
+            }
         }
         
         faceMeasureKit.measurementCompleteRatio { ratio in
@@ -115,16 +122,18 @@ class FaceViewController: UIViewController {
     }
 
     func setupUI() {
-        let width = UIScreen.main.bounds.width * 0.8,
-            height = UIScreen.main.bounds.height * 0.8
+        let width = UIScreen.main.bounds.width,// * 0.8,
+            height = UIScreen.main.bounds.height// * 0.8
         
         self.view.addSubview(preview)
         self.view.addSubview(faceRecognitionAreaView)
         self.view.addSubview(previousButton)
+        self.view.addSubview(tempView)
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
+        tempView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             preview.topAnchor.constraint(equalTo: self.view.topAnchor),
@@ -132,7 +141,7 @@ class FaceViewController: UIViewController {
             preview.widthAnchor.constraint(equalToConstant: width),
             preview.heightAnchor.constraint(equalToConstant: height)
         ])
-
+        
         NSLayoutConstraint.activate([
             faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
             faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
@@ -146,6 +155,9 @@ class FaceViewController: UIViewController {
             previousButton.widthAnchor.constraint(equalToConstant: width * 0.3),
             previousButton.heightAnchor.constraint(equalToConstant: width * 0.3)
         ])
+        
+        tempView.frame = CGRect(x: 0, y: 100, width: 100, height: 100)
+        tempView.layer.cornerRadius = 50
 
         previousButton.layer.cornerRadius = (width * 0.3) / 2
         previousButton.addTarget(
