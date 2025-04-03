@@ -44,10 +44,15 @@ public class FaceKit: NSObject {
                 faceRecognitionAreaView = UIView()
     
     private var notDetectFace = true,
-                isReal = false ,
                 isPreparing = false,
-                diffArr:[CGFloat] = [],
-                checkArr:[Bool] = []
+                isLeftEyeReal = false ,
+                isRightEyeReal = false ,
+                diffLeftArr:[CGFloat] = [],
+                diffRightArr:[CGFloat] = [],
+                checkLeftArr:[Bool] = [],
+                checkRightArr:[Bool] = []
+    
+    private var selectedFace: Face?
     
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
@@ -172,15 +177,18 @@ public class FaceKit: NSObject {
     open func stopSession() {
         self.lastFrame = nil
         self.cropFaceRect = nil
-        self.isReal = false
+        self.isLeftEyeReal = false
+        self.isRightEyeReal = false
         self.isPreparing = false
         
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
 //        self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
-        self.diffArr.removeAll()
-        self.checkArr.removeAll()
+        self.diffLeftArr.removeAll()
+        self.diffRightArr.removeAll()
+        self.checkLeftArr.removeAll()
+        self.checkRightArr.removeAll()
         
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         
@@ -203,8 +211,6 @@ public class FaceKit: NSObject {
         self.isPreparing = false
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
-        self.diffArr.removeAll()
-        self.checkArr.removeAll()
         
         self.preparingSec = self.model.prepareTime
         self.measurementTime = self.model.faceMeasurementTime
@@ -212,6 +218,15 @@ public class FaceKit: NSObject {
             withTimeInterval: 0.1,
             repeats: true
         ) { timer in
+            guard self.isLeftEyeReal && self.isRightEyeReal else {
+                self.diffLeftArr.removeAll()
+                self.diffRightArr.removeAll()
+                self.checkLeftArr.removeAll()
+                self.checkRightArr.removeAll()
+                self.dataModel.gTempData.removeAll()
+                timer.invalidate()
+                return
+            }
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.faceMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
             secondRemaining.onNext(Int(self.measurementTime))
@@ -287,7 +302,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let options = FaceDetectorOptions()
         options.landmarkMode = .none
         options.contourMode = .all
-        options.classificationMode = .none
+        options.classificationMode = .all
         options.performanceMode = .fast
         
         let faceDetector = FaceDetector.faceDetector(options: options)
@@ -298,7 +313,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             print("Failed to detect faces with error: \(error.localizedDescription).")
             return
         }
-        
+
         self.updatePreviewOverlayViewWithLastFrame()
         
         DispatchQueue.main.sync {
@@ -306,7 +321,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             if !faces.isEmpty {
                 
                 for face in faces {
-                    
+                    guard face.contours.count != 0 else {
+//                        print("[++\(#fileID):\(#line)]- face frame: ", face.frame)
+                        return
+                    }
                     let previewBounds = self.model.previewLayerBounds
                     
                     if self.model.useFaceRecognitionArea {
@@ -368,11 +386,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     }
                 }
             } else {
+                print("On-Device face detector returned no results.")
+                self.isPreparing = false
+                
                 self.lastFrame = nil
                 self.cropFaceRect = nil
                 self.dataModel.gTempData.removeAll()
                 self.measurementTimer.invalidate()
                 self.prepareTimer.invalidate()
+                
+                self.measurementModel.checkRealFace.onNext(false)
                 self.measurementModel.measurementStop.onNext(true)
             }
         }
@@ -420,8 +443,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.preparingSec = self.model.prepareTime
             self.measurementTime = self.model.faceMeasurementTime
             
-            self.diffArr.removeAll()
-            self.checkArr.removeAll()
+            self.diffLeftArr.removeAll()
+            self.diffRightArr.removeAll()
+            self.checkLeftArr.removeAll()
+            self.checkRightArr.removeAll()
             self.isPreparing = true
             self.measurementModel.measurementStop.onNext(true)
         }
@@ -461,8 +486,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.lastFrame = nil
             self.cropFaceRect = nil
             self.dataModel.gTempData.removeAll()
-            self.diffArr.removeAll()
-            self.checkArr.removeAll()
+            self.diffLeftArr.removeAll()
+            self.diffRightArr.removeAll()
+            self.checkLeftArr.removeAll()
+            self.checkRightArr.removeAll()
         }
     }
     
@@ -481,7 +508,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func useRecogntionFace() {
-        if self.cropFaceRect != nil && self.isReal {
+        if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
             if self.dataModel.gTempData.count >= 20 {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.dataModel.gTempData.removeAll()
@@ -512,7 +539,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func noneUseRecognitionFace() {
-        if self.cropFaceRect != nil && self.isReal {
+        if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
             if self.dataModel.gTempData.count >= 20 && !self.measurementTimer.isValid {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
@@ -520,8 +547,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
         } else {
             self.measurementModel.checkRealFace.onNext(false)
-            self.diffArr.removeAll()
-            self.checkArr.removeAll()
+            self.diffLeftArr.removeAll()
+            self.diffRightArr.removeAll()
+            self.checkLeftArr.removeAll()
+            self.checkRightArr.removeAll()
         }
     }
     
@@ -595,9 +624,18 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                       let cropImage = cropImage else { return print("crop image return") }
                 
                 if self.model.willCheckRealFace {
-                    checkReal(eyePoints: leftEyePoints)
+                    checkRealLeftEye(
+                        face: face,
+                        eyePoints: leftEyePoints
+                    )
+                    checkRealRightEye(
+                        face: face,
+                        eyePoints: rightEyePoints
+                    )
+                    
                 } else {
-                    self.isReal = true
+                    self.isLeftEyeReal = true
+                    self.isRightEyeReal = true
                 }
                 
                 gridPath(
@@ -688,27 +726,50 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
     }
     
-    private func checkReal(
+    private func checkRealLeftEye(
+        face: Face,
         eyePoints: [VisionPoint]
     ) {
-        if !self.measurementTimer.isValid {
-            let eyeXpoints = eyePoints.map { $0.x },
-                maxXpoint = eyeXpoints.max() ?? 0,
-                minXpoint = eyeXpoints.min() ?? 0,
-                diff = maxXpoint - minXpoint
-            self.diffArr.append(diff)
-            let avg = self.diffArr.reduce(CGFloat(0), +) / CGFloat(self.diffArr.count)
-            let ratio = diff / avg
-            let standardRatio = diff < 26 ? 0.8 : 0.6
-            let check = ratio < standardRatio ? true : false
-            if self.checkArr.count < 150 {
-                self.checkArr.append(check)
-            } else {
-                self.checkArr.removeFirst()
-                self.checkArr.append(check)
-            }
-            self.isReal = self.checkArr.contains(true)
+        let leftEyeOpen = face.leftEyeOpenProbability
+        print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
+        guard leftEyeOpen != 1.0 else {
+            self.isLeftEyeReal = false
+            self.checkLeftArr.removeAll()
+            self.diffLeftArr.removeAll()
+            return
         }
+        let check = leftEyeOpen < 0.1
+        
+        if self.checkLeftArr.count <= 90 {
+            self.checkLeftArr.append(check)
+        } else {
+            self.checkLeftArr.removeFirst()
+            self.checkLeftArr.append(check)
+        }
+        self.isLeftEyeReal = self.checkLeftArr.contains(true)
+    }
+    
+    private func checkRealRightEye(
+        face: Face,
+        eyePoints: [VisionPoint]
+    ) {
+        let rightEyeOpen = face.rightEyeOpenProbability
+        print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
+        guard rightEyeOpen != 1.0 else {
+            self.isRightEyeReal = false
+            self.checkRightArr.removeAll()
+            self.diffRightArr.removeAll()
+            return
+        }
+        let check = rightEyeOpen < 0.1
+        
+        if self.checkRightArr.count <= 90 {
+            self.checkRightArr.append(check)
+        } else {
+            self.checkRightArr.removeFirst()
+            self.checkRightArr.append(check)
+        }
+        self.isRightEyeReal = self.checkRightArr.contains(true)
     }
     
     private func checkFacePostion(
