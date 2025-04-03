@@ -52,8 +52,6 @@ public class FaceKit: NSObject {
                 checkLeftArr:[Bool] = [],
                 checkRightArr:[Bool] = []
     
-    private var selectedFace: Face?
-    
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
     ) {
@@ -155,6 +153,10 @@ public class FaceKit: NSObject {
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
+    private var tempView = UIView()
+    private var tempView1 = UIView()
+    private var tempView2 = UIView()
+
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
         self.preparingSec = self.model.prepareTime
@@ -168,6 +170,13 @@ public class FaceKit: NSObject {
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
+                DispatchQueue.main.async {
+                    print("[++\(#fileID):\(#line)]- kit in area view : ", self.faceRecognitionAreaView.frame)
+                    self.faceRecognitionAreaView.addSubview(self.tempView)
+                    self.faceRecognitionAreaView.addSubview(self.tempView1)
+                    self.faceRecognitionAreaView.addSubview(self.tempView2)
+//                    self.tempView = self.faceRecognitionAreaView
+                }
             }
             
             self.cameraSetup.useSession().startRunning()
@@ -223,7 +232,7 @@ public class FaceKit: NSObject {
                 self.diffRightArr.removeAll()
                 self.checkLeftArr.removeAll()
                 self.checkRightArr.removeAll()
-                self.dataModel.gTempData.removeAll()
+//                self.dataModel.gTempData.removeAll()
                 timer.invalidate()
                 return
             }
@@ -303,7 +312,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         options.landmarkMode = .none
         options.contourMode = .all
         options.classificationMode = .all
-        options.performanceMode = .fast
+        options.isTrackingEnabled = true
+        options.performanceMode = .accurate
         
         let faceDetector = FaceDetector.faceDetector(options: options)
         
@@ -321,6 +331,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             if !faces.isEmpty {
                 
                 for face in faces {
+                    
                     guard face.contours.count != 0 else {
 //                        print("[++\(#fileID):\(#line)]- face frame: ", face.frame)
                         return
@@ -337,6 +348,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                                                     y: y / imageHeight,
                                                     width: w / imageWidth,
                                                     height: h / imageHeight)
+                        
                         let standardizedRect = self.previewLayer.layerRectConverted(
                             fromMetadataOutputRect: normalizedRect
                         ).standardized,
@@ -351,7 +363,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                             face: face,
                             imageWidth: imageWidth,
                             imageHeight: imageHeight,
-                            standardizedRect: recognitionStandardizedRect,
+                            recognitionStandardizedRect: recognitionStandardizedRect,
                             faceRecognitionAreaView: faceRecognitionAreaView
                         )
                         
@@ -401,17 +413,62 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
     }
     
+    func faceDetectAreaCondition(
+        recognitionArea: CGRect,
+        faceFrame: CGRect
+    ) -> Bool {
+        let minX = recognitionArea.minX
+        let maxX = recognitionArea.maxX
+        let minY = recognitionArea.minY
+        let maxY = recognitionArea.maxY
+        
+        let smallMinX = recognitionArea.minX + (recognitionArea.width / 3.5)
+        let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 3.5)
+        let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.9)
+        let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.9)
+        
+        let faceMinX = faceFrame.minX
+        let faceMaxX = faceFrame.maxX
+        let faceMinY = faceFrame.minY
+        let faceMaxY = faceFrame.maxY
+                
+        self.tempView.layer.borderColor = UIColor.red.cgColor
+        self.tempView.layer.borderWidth = 5
+        
+        self.tempView1.layer.borderColor = UIColor.blue.cgColor
+        self.tempView1.layer.borderWidth = 1
+        
+        self.tempView2.layer.borderColor = UIColor.green.cgColor
+        self.tempView2.layer.borderWidth = 1
+
+        self.tempView.frame = recognitionArea
+        self.tempView1.frame = faceFrame
+        self.tempView2.frame = CGRect(
+            x: smallMinX, y: smallMinY, width: smallMaxX - smallMinX, height: smallMaxY - smallMinY)
+        
+        return (minX <= faceMinX && faceMinX <= smallMinX)
+        && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
+        && (minY <= faceMinY && faceMinY <= smallMinY)
+        && (smallMaxY <= faceMaxY && faceMaxY <= maxY)
+    }
+    
     private func recognitionArea(
         face: Face,
         imageWidth: CGFloat,
         imageHeight: CGFloat,
-        standardizedRect: CGRect,
+        recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
         faceRecognitionAreaView: UIView
     ) {
-        if faceRecognitionAreaView.frame.minX <= standardizedRect.minX &&
-            faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
-            faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
-            faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+//        if faceRecognitionAreaView.frame.minX <= standardizedRect.minX &&
+//            faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
+//            faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
+//            faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
+        let betweenFaceFrame = self.faceDetectAreaCondition(
+            recognitionArea: faceRecognitionAreaView.frame,
+            faceFrame: recognitionStandardizedRect
+        )
+        
+        if betweenFaceFrame {
 
             if self.lastFrame != nil,
                let capture = OpenCVWrapper.converting(self.lastFrame),
@@ -731,16 +788,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         eyePoints: [VisionPoint]
     ) {
         let leftEyeOpen = face.leftEyeOpenProbability
-        print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
+//        print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
         guard leftEyeOpen != 1.0 else {
             self.isLeftEyeReal = false
             self.checkLeftArr.removeAll()
             self.diffLeftArr.removeAll()
             return
         }
-        let check = leftEyeOpen < 0.1
+        let check = leftEyeOpen < 0.3
         
-        if self.checkLeftArr.count <= 90 {
+        if self.checkLeftArr.count <= 150 {
             self.checkLeftArr.append(check)
         } else {
             self.checkLeftArr.removeFirst()
@@ -754,16 +811,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         eyePoints: [VisionPoint]
     ) {
         let rightEyeOpen = face.rightEyeOpenProbability
-        print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
+//        print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
         guard rightEyeOpen != 1.0 else {
             self.isRightEyeReal = false
             self.checkRightArr.removeAll()
             self.diffRightArr.removeAll()
             return
         }
-        let check = rightEyeOpen < 0.1
+        let check = rightEyeOpen < 0.3
         
-        if self.checkRightArr.count <= 90 {
+        if self.checkRightArr.count <= 150 {
             self.checkRightArr.append(check)
         } else {
             self.checkRightArr.removeFirst()

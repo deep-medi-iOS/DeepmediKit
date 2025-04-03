@@ -148,6 +148,8 @@ class FaceViewController: UIViewController {
             faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
             faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
         ])
+        faceRecognitionAreaView.layer.borderColor = UIColor.blue.cgColor
+        faceRecognitionAreaView.layer.borderWidth = 2
 
         NSLayoutConstraint.activate([
             previousButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
@@ -165,6 +167,11 @@ class FaceViewController: UIViewController {
             action: #selector(prev),
             for: .touchUpInside
         )
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("[++\(#fileID):\(#line)]- vc in area view : ", faceRecognitionAreaView.frame)
     }
     
     @objc func prev() {
