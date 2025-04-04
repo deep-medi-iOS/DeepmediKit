@@ -153,9 +153,9 @@ public class FaceKit: NSObject {
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
-    private var tempView = UIView()
-    private var tempView1 = UIView()
-    private var tempView2 = UIView()
+//    private var tempView = UIView()
+//    private var tempView1 = UIView()
+//    private var tempView2 = UIView()
 
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
@@ -170,13 +170,12 @@ public class FaceKit: NSObject {
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
-                DispatchQueue.main.async {
-                    print("[++\(#fileID):\(#line)]- kit in area view : ", self.faceRecognitionAreaView.frame)
-                    self.faceRecognitionAreaView.addSubview(self.tempView)
-                    self.faceRecognitionAreaView.addSubview(self.tempView1)
-                    self.faceRecognitionAreaView.addSubview(self.tempView2)
+//                DispatchQueue.main.async {
+//                    self.faceRecognitionAreaView.addSubview(self.tempView)
+//                    self.faceRecognitionAreaView.addSubview(self.tempView1)
+//                    self.faceRecognitionAreaView.addSubview(self.tempView2)
 //                    self.tempView = self.faceRecognitionAreaView
-                }
+//                }
             }
             
             self.cameraSetup.useSession().startRunning()
@@ -238,8 +237,8 @@ public class FaceKit: NSObject {
             }
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.faceMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
-//            secondRemaining.onNext(Int(self.measurementTime))
-            print("[++\(#fileID):\(#line)]- data count : ", self.dataModel.gData.count)
+            secondRemaining.onNext(Int(self.measurementTime))
+//            print("[++\(#fileID):\(#line)]- data count : ", self.dataModel.gData.count)
             // MARK: 측정완료
             if self.measurementTime <= 0.0 {
                 timer.invalidate()
@@ -424,31 +423,31 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let minY = recognitionArea.minY
         let maxY = recognitionArea.maxY
         
-        let smallMinX = recognitionArea.minX + (recognitionArea.width / 2.6)
-        let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 2.6)
-        let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.6)
-        let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.6)
+        let smallMinX = recognitionArea.minX + (recognitionArea.width / 2.2)
+        let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 2.2)
+        let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.2)
+        let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.2)
         
         let faceMinX = faceFrame.minX
         let faceMaxX = faceFrame.maxX
         let faceMinY = faceFrame.minY
         let faceMaxY = faceFrame.maxY
                 
-        DispatchQueue.main.async {
-            self.tempView.layer.borderColor = UIColor.red.cgColor
-            self.tempView.layer.borderWidth = 5
-            
-            self.tempView1.layer.borderColor = UIColor.blue.cgColor
-            self.tempView1.layer.borderWidth = 1
-            
-            self.tempView2.layer.borderColor = UIColor.green.cgColor
-            self.tempView2.layer.borderWidth = 1
-            
-            self.tempView.frame = recognitionArea
-            self.tempView1.frame = faceFrame
-            self.tempView2.frame = CGRect(
-                x: smallMinX, y: smallMinY, width: smallMaxX - smallMinX, height: smallMaxY - smallMinY)
-        }
+//        DispatchQueue.main.async {
+//            self.tempView.layer.borderColor = UIColor.red.cgColor
+//            self.tempView.layer.borderWidth = 5
+//            
+//            self.tempView1.layer.borderColor = UIColor.blue.cgColor
+//            self.tempView1.layer.borderWidth = 1
+//            
+//            self.tempView2.layer.borderColor = UIColor.green.cgColor
+//            self.tempView2.layer.borderWidth = 1
+//            
+//            self.tempView.frame = recognitionArea
+//            self.tempView1.frame = faceFrame
+//            self.tempView2.frame = CGRect(
+//                x: smallMinX, y: smallMinY, width: smallMaxX - smallMinX, height: smallMaxY - smallMinY)
+//        }
         return (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
         && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
@@ -468,10 +467,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             )
             if betweenFaceFrame {
                 
-                //        if faceRecognitionAreaView.frame.minX <= recognitionStandardizedRect.minX &&
-                //            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedRect.maxX &&
-                //            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
-                //            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
+//        if faceRecognitionAreaView.frame.minX <= recognitionStandardizedRect.minX &&
+//            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedRect.maxX &&
+//            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
+//            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
                 
                 if self.lastFrame != nil,
                    let capture = OpenCVWrapper.converting(self.lastFrame),
