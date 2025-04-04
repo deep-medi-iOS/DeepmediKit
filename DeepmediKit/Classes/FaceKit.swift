@@ -238,7 +238,8 @@ public class FaceKit: NSObject {
             }
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.faceMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
-            secondRemaining.onNext(Int(self.measurementTime))
+//            secondRemaining.onNext(Int(self.measurementTime))
+            print("[++\(#fileID):\(#line)]- data count : ", self.dataModel.gData.count)
             // MARK: 측정완료
             if self.measurementTime <= 0.0 {
                 timer.invalidate()
@@ -422,10 +423,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let minY = recognitionArea.minY
         let maxY = recognitionArea.maxY
         
-        let smallMinX = recognitionArea.minX + (recognitionArea.width / 3.5)
-        let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 3.5)
-        let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.9)
-        let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.9)
+        let smallMinX = recognitionArea.minX + (recognitionArea.width / 2.6)
+        let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 2.6)
+        let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.6)
+        let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.6)
         
         let faceMinX = faceFrame.minX
         let faceMaxX = faceFrame.maxX
@@ -448,8 +449,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         
         return (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
-        && (minY <= faceMinY && faceMinY <= smallMinY)
-        && (smallMaxY <= faceMaxY && faceMaxY <= maxY)
+        && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
     }
     
     private func recognitionArea(
@@ -459,16 +459,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
         faceRecognitionAreaView: UIView
     ) {
-//        if faceRecognitionAreaView.frame.minX <= standardizedRect.minX &&
-//            faceRecognitionAreaView.frame.maxX >= standardizedRect.maxX &&
-//            faceRecognitionAreaView.frame.minY <= standardizedRect.minY &&
-//            faceRecognitionAreaView.frame.maxY >= standardizedRect.maxY {
         let betweenFaceFrame = self.faceDetectAreaCondition(
             recognitionArea: faceRecognitionAreaView.frame,
             faceFrame: recognitionStandardizedRect
         )
-        
         if betweenFaceFrame {
+        
+//        if faceRecognitionAreaView.frame.minX <= recognitionStandardizedRect.minX &&
+//            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedRect.maxX &&
+//            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
+//            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
 
             if self.lastFrame != nil,
                let capture = OpenCVWrapper.converting(self.lastFrame),
@@ -787,46 +787,50 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         face: Face,
         eyePoints: [VisionPoint]
     ) {
-        let leftEyeOpen = face.leftEyeOpenProbability
-//        print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
-        guard leftEyeOpen != 1.0 else {
-            self.isLeftEyeReal = false
-            self.checkLeftArr.removeAll()
-            self.diffLeftArr.removeAll()
-            return
+        if !measurementTimer.isValid {
+            let leftEyeOpen = face.leftEyeOpenProbability
+            //        print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
+            guard leftEyeOpen != 1.0 else {
+                self.isLeftEyeReal = false
+                self.checkLeftArr.removeAll()
+                self.diffLeftArr.removeAll()
+                return
+            }
+            let check = leftEyeOpen < 0.3
+            
+            if self.checkLeftArr.count <= 90 {
+                self.checkLeftArr.append(check)
+            } else {
+                self.checkLeftArr.removeFirst()
+                self.checkLeftArr.append(check)
+            }
+            self.isLeftEyeReal = self.checkLeftArr.contains(true)
         }
-        let check = leftEyeOpen < 0.3
-        
-        if self.checkLeftArr.count <= 150 {
-            self.checkLeftArr.append(check)
-        } else {
-            self.checkLeftArr.removeFirst()
-            self.checkLeftArr.append(check)
-        }
-        self.isLeftEyeReal = self.checkLeftArr.contains(true)
     }
     
     private func checkRealRightEye(
         face: Face,
         eyePoints: [VisionPoint]
     ) {
-        let rightEyeOpen = face.rightEyeOpenProbability
-//        print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
-        guard rightEyeOpen != 1.0 else {
-            self.isRightEyeReal = false
-            self.checkRightArr.removeAll()
-            self.diffRightArr.removeAll()
-            return
+        if !measurementTimer.isValid {
+            let rightEyeOpen = face.rightEyeOpenProbability
+            //        print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
+            guard rightEyeOpen != 1.0 else {
+                self.isRightEyeReal = false
+                self.checkRightArr.removeAll()
+                self.diffRightArr.removeAll()
+                return
+            }
+            let check = rightEyeOpen < 0.3
+            
+            if self.checkRightArr.count <= 90 {
+                self.checkRightArr.append(check)
+            } else {
+                self.checkRightArr.removeFirst()
+                self.checkRightArr.append(check)
+            }
+            self.isRightEyeReal = self.checkRightArr.contains(true)
         }
-        let check = rightEyeOpen < 0.3
-        
-        if self.checkRightArr.count <= 150 {
-            self.checkRightArr.append(check)
-        } else {
-            self.checkRightArr.removeFirst()
-            self.checkRightArr.append(check)
-        }
-        self.isRightEyeReal = self.checkRightArr.contains(true)
     }
     
     private func checkFacePostion(

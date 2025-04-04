@@ -90,19 +90,19 @@ class CameraSetup: NSObject {
             let frameRates = ranges[0]
             let videoFormatDimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             
-            if (frameRates.maxFrameRate == framePerSec) {
-                if part == .face {
-                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
-                        currentFormat = format
-                        tempFramePerSec = 30.0
-                    }
-                } else {
-                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
-                        currentFormat = format
-                        tempFramePerSec = framePerSec
-                    }
-                }
-            } else {
+//            if (frameRates.maxFrameRate == framePerSec) {
+//                if part == .face {
+//                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
+//                        currentFormat = format
+//                        tempFramePerSec = 30.0
+//                    }
+//                } else {
+//                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
+//                        currentFormat = format
+//                        tempFramePerSec = framePerSec
+//                    }
+//                }
+//            } else {
                 tempFramePerSec = 30.0
                 if part == .face {
                     if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100)  {
@@ -113,7 +113,7 @@ class CameraSetup: NSObject {
                         currentFormat = format
                     }
                 }
-            }
+//            }
         }
         
         guard let tempCurrentFormat = currentFormat,

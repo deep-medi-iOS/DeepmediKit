@@ -169,11 +169,6 @@ class FaceViewController: UIViewController {
         )
     }
     
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        print("[++\(#fileID):\(#line)]- vc in area view : ", faceRecognitionAreaView.frame)
-    }
-    
     @objc func prev() {
         self.faceMeasureKit.stopSession()
         self.dismiss(animated: true)
