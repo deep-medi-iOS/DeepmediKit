@@ -56,8 +56,8 @@ class CameraSetup: NSObject {
             
             if let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
                 self.detection(captureDevice)
-            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
-                self.detection(captureDevice1)
+//            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
+//                self.detection(captureDevice1)
             } else { // iOS version 13.0 이하
                 guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
                 self.detection(captureDevice)
@@ -90,19 +90,19 @@ class CameraSetup: NSObject {
             let frameRates = ranges[0]
             let videoFormatDimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             
-//            if (frameRates.maxFrameRate == framePerSec) {
-//                if part == .face {
-//                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
-//                        currentFormat = format
-//                        tempFramePerSec = 30.0
-//                    }
-//                } else {
-//                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
-//                        currentFormat = format
-//                        tempFramePerSec = framePerSec
-//                    }
-//                }
-//            } else {
+            if (frameRates.maxFrameRate == framePerSec) {
+                if part == .face {
+                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
+                        currentFormat = format
+                        tempFramePerSec = 30.0
+                    }
+                } else {
+                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
+                        currentFormat = format
+                        tempFramePerSec = framePerSec
+                    }
+                }
+            } else {
                 tempFramePerSec = 30.0
                 if part == .face {
                     if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100)  {
@@ -113,16 +113,17 @@ class CameraSetup: NSObject {
                         currentFormat = format
                     }
                 }
-//            }
+            }
         }
         
         guard let tempCurrentFormat = currentFormat,
               try! self.captureDevice?.lockForConfiguration() != nil else { return print("current format")}
-        
         try! self.captureDevice?.lockForConfiguration()
         self.captureDevice?.activeFormat = tempCurrentFormat
-        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
-        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(30))
+        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(30))
+//        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+//        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
         self.captureDevice?.unlockForConfiguration()
         
         guard part == .finger, self.captureDevice?.hasTorch ?? false else { return }
