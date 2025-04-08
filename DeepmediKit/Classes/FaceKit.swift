@@ -472,9 +472,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
 //            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
                 
-                if self.lastFrame != nil,
-                   let capture = OpenCVWrapper.converting(self.lastFrame),
+                if let frame = self.lastFrame,
+                   let capture = OpenCVWrapper.converting(frame),
                    let faceImage = self.flipImage(capture) {
+//                    print("[++\(#fileID):\(#line)]- capture ")
                     self.measurementModel.captureImage.onNext(faceImage)
                 }
                 
@@ -800,7 +801,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
             let check = leftEyeOpen < 0.3
             
-            if self.checkLeftArr.count <= 120 {
+            if self.checkLeftArr.count <= 150 {
                 self.checkLeftArr.append(check)
             } else {
                 self.checkLeftArr.removeFirst()
@@ -825,7 +826,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
             let check = rightEyeOpen < 0.3
             
-            if self.checkRightArr.count <= 120 {
+            if self.checkRightArr.count <= 150 {
                 self.checkRightArr.append(check)
             } else {
                 self.checkRightArr.removeFirst()

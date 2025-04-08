@@ -195,7 +195,7 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
   return buf;
 }
 
-+ (UIImage *)convertingBuffer:(CMSampleBufferRef)sampleBuffer {
++ (UIImage * _Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer {
   
   CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
   CVPixelBufferLockBaseAddress(imageBuffer, 0);

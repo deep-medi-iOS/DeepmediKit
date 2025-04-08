@@ -17,5 +17,5 @@
 + (NSArray *)detectFaceSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 + (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 
-+ (UIImage *)convertingBuffer:(CMSampleBufferRef)sampleBuffer;
++ (UIImage *_Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer;
 @end
