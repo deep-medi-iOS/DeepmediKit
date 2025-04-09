@@ -196,30 +196,47 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
 }
 
 + (UIImage * _Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer {
-  
-  CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-  CVPixelBufferLockBaseAddress(imageBuffer, 0);
-  
-  size_t width;
-  size_t height;
-  size_t bytesPerRow;
-  
-  width = CVPixelBufferGetWidth(imageBuffer);
-  height = CVPixelBufferGetHeight(imageBuffer);
-  bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-  unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-  
-  cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
-  cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
-  cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
+    
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
+//    printf("width %zu \n", width);
+//        printf("height %zu \n", height);
+    
+    cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
+    cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
+    cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
 
-  UIImage* outcome = MatToUIImage(imgMat);
-  
-  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  
-  imgMat.release();
-  
-  return outcome;
+    UIImage* outcome = MatToUIImage(imgMat);
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    
+    return outcome;
+}
+
++ (UIImage * _Nullable)convertingBufferToImage:(CMSampleBufferRef)sampleBuffer {
+    
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
+    
+    cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
+    cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
+    cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
+
+    UIImage* outcome = MatToUIImage(imgMat);
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    
+    return outcome;
 }
 
 @end

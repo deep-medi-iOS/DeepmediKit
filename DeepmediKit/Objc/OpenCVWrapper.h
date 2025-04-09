@@ -18,4 +18,5 @@
 + (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 
 + (UIImage *_Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer;
++ (UIImage *_Nullable)convertingBufferToImage:(CMSampleBufferRef)sampleBuffer;
 @end
