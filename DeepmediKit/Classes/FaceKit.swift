@@ -545,7 +545,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedRect.maxX &&
 //            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
 //            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
-                ㅇ
+                
                 self.measurementModel.measurementStop.onNext(false)
                 self.cropFaceRect = CGRect(
                     x: face.frame.origin.x,
