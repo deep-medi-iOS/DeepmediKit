@@ -233,8 +233,8 @@ public class FaceKit: NSObject {
         
         self.preparingSec = self.model.prepareTime
         self.measurementTime = self.model.faceMeasurementTime
+        
         self.dispatchTimer = DispatchSource.makeTimerSource()
-
         self.dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
         self.dispatchTimer?.setEventHandler {
             self.isTimerRunning = true
@@ -639,9 +639,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func useRecogntionFace() {
         if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
-            if self.dataModel.gTempData.count >= 60 {
+            if self.dataModel.gTempData.count >= 30 {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.dataModel.gTempData.removeAll()
+                self.isTimerRunning = true
 //                self.isPreparing = false
                 self.prepareTimer = Timer.scheduledTimer(
                     withTimeInterval: 1,
@@ -672,7 +673,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     
     private func noneUseRecognitionFace() {
         if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
-            if self.dataModel.gTempData.count >= 60 && !self.isTimerRunning {
+            if self.dataModel.gTempData.count >= 30 && !self.isTimerRunning {
 //            if self.dataModel.gTempData.count >= 20 && !self.measurementTimer.isValid {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
