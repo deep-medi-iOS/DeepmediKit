@@ -53,6 +53,7 @@ public class FaceKit: NSObject {
                 checkRightArr:[Bool] = []
     
     private var lastValue: Int? = nil
+    private var lastImage: UIImage?
     private var dispatchTimer: DispatchSourceTimer?
     private var isTimerRunning = false
     
@@ -74,10 +75,12 @@ public class FaceKit: NSObject {
     ) {
         let captureImage = measurementModel.captureImage
         captureImage
-            .observe(on: MainScheduler.instance)
+            .observe(on: MainScheduler.asyncInstance)
             .asDriver(onErrorJustReturn: UIImage())
             .drive(onNext: { image in
-                capture(image)
+                let resizeImg = self.resizeImage(image: image)
+                capture(resizeImg)
+//                capture(image)
             })
             .disposed(by: bag)
     }
@@ -139,6 +142,7 @@ public class FaceKit: NSObject {
         let secondRemaining = self.measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
+            .filter { $0 != 0 }
             .drive(onNext: { remaining in
                 com(remaining)
             })
@@ -157,14 +161,15 @@ public class FaceKit: NSObject {
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
-//    private var tempView = UIView()
+//    private var tempView = UIImageView().then { imv in
+//        imv.contentMode = .scaleAspectFit
+//    }
 //    private var tempView1 = UIView()
 //    private var tempView2 = UIView()
 
     open func startSession() {
         self.measurementTime = self.model.faceMeasurementTime
         self.preparingSec = self.model.prepareTime
-//        self.isPreparing = true
         self.isTimerRunning = false
         self.dispatchTimer?.cancel()
         self.measurementTimer.invalidate()
@@ -182,10 +187,8 @@ public class FaceKit: NSObject {
 //                    self.faceRecognitionAreaView.addSubview(self.tempView)
 //                    self.faceRecognitionAreaView.addSubview(self.tempView1)
 //                    self.faceRecognitionAreaView.addSubview(self.tempView2)
-////                    self.tempView = self.faceRecognitionAreaView
 //                }
             }
-            
             self.cameraSetup.useSession().startRunning()
         }
     }
@@ -196,13 +199,12 @@ public class FaceKit: NSObject {
         
         self.isLeftEyeReal = false
         self.isRightEyeReal = false
-//        self.isPreparing = false
         self.isTimerRunning = false
         
         self.dispatchTimer?.cancel()
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
-//        self.dataModel.initRGBData()
+
         self.dataModel.gTempData.removeAll()
         self.diffLeftArr.removeAll()
         self.diffRightArr.removeAll()
@@ -227,7 +229,6 @@ public class FaceKit: NSObject {
             sigB = measurementModel.sigB,
             sigG = measurementModel.sigG
         
-//        self.isPreparing = false
         self.dataModel.initRGBData()
         self.dataModel.gTempData.removeAll()
         
@@ -237,21 +238,26 @@ public class FaceKit: NSObject {
         self.dispatchTimer = DispatchSource.makeTimerSource()
         self.dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
         self.dispatchTimer?.setEventHandler {
+            
             self.isTimerRunning = true
+            
             guard self.isLeftEyeReal && self.isRightEyeReal else {
                 self.lastValue = nil
                 self.diffLeftArr.removeAll()
                 self.diffRightArr.removeAll()
                 self.checkLeftArr.removeAll()
                 self.checkRightArr.removeAll()
-//                self.isTimerRunning = false
                 self.dispatchTimer?.cancel()
                 return
             }
+            
             if let ratio = self.completionRate(
                 second: self.measurementTime
             ) {
                 measurementCompleteRatio.onNext("\(ratio)%")
+            }
+            if Int(self.measurementTime) == 1 {
+                self.screenCapture()
             }
             secondRemaining.onNext(Int(self.measurementTime))
             // MARK: 측정완료
@@ -276,46 +282,6 @@ public class FaceKit: NSObject {
             }
         }
         self.dispatchTimer?.resume()
-//        self.measurementTimer = Timer.scheduledTimer(
-//            withTimeInterval: 0.1,
-//            repeats: true
-//        ) { timer in
-//            guard self.isLeftEyeReal && self.isRightEyeReal else {
-//                self.lastValue = nil
-//                self.diffLeftArr.removeAll()
-//                self.diffRightArr.removeAll()
-//                self.checkLeftArr.removeAll()
-//                self.checkRightArr.removeAll()
-//                timer.invalidate()
-//                return
-//            }
-////                let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.faceMeasurementTime)
-//                if let ratio = self.completionRate(
-//                    second: self.measurementTime
-//                ) {
-//                    measurementCompleteRatio.onNext("\(ratio)%")
-//                }
-//                secondRemaining.onNext(Int(self.measurementTime))
-//                // MARK: 측정완료
-//                if self.measurementTime <= 0.0 {
-//                    timer.invalidate()
-//                    self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-//                    if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
-//                        measurementComplete.onNext(true)
-//                        timeStamp.onNext(self.dataModel.timeStamp)
-//                        sigR.onNext(self.dataModel.rData)
-//                        sigG.onNext(self.dataModel.gData)
-//                        sigB.onNext(self.dataModel.bData)
-//                    } else {
-//                        measurementComplete.onNext(false)
-//                        timeStamp.onNext([])
-//                        sigR.onNext([])
-//                        sigG.onNext([])
-//                        sigB.onNext([])
-//                    }
-//                }
-//                self.measurementTime -= 0.1
-//        }
     }
     
     func completionRate(
@@ -393,98 +359,96 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
         
         DispatchQueue.global(qos: .background).async {
+            
             self.updatePreviewOverlayViewWithLastFrame()
-//            DispatchQueue.main.sync {
+            
             if !faces.isEmpty {
                 
                 for face in faces {
                     
                     guard face.contours.count != 0 else {
-//                        print("[++\(#fileID):\(#line)]- face frame: ", face.frame)
-                            return
-                        }
-                        let previewBounds = self.model.previewLayerBounds
-                        
-                        if self.model.useFaceRecognitionArea {
-                            
-                            let x = (face.frame.origin.x + face.frame.size.width * 0.3),
-                                y = (face.frame.origin.y + face.frame.size.height * 0.2),
-                                w = (face.frame.size.width * 0.4),
-                                h = (face.frame.size.height * 0.6)
-                            let normalizedRect = CGRect(x: x / imageWidth,
-                                                        y: y / imageHeight,
-                                                        width: w / imageWidth,
-                                                        height: h / imageHeight)
-                            
-                            let standardizedRect = self.previewLayer.layerRectConverted(
-                                fromMetadataOutputRect: normalizedRect
-                            ).standardized,
-                                recognitionStandardizedRect = CGRect(
-                                    x: standardizedRect.origin.x + previewBounds.origin.x,
-                                    y: standardizedRect.origin.y + previewBounds.origin.y,
-                                    width: standardizedRect.width,
-                                    height: standardizedRect.height
-                                )
-                            
-                            self.recognitionArea(
-                                face: face,
-                                imageWidth: imageWidth,
-                                imageHeight: imageHeight,
-                                recognitionStandardizedRect: recognitionStandardizedRect,
-                                faceRecognitionAreaView: self.faceRecognitionAreaView
-                            )
-                            
-                        } else {
-                            
-                            let x1 = (face.frame.origin.x + face.frame.size.width * 0.1),
-                                y1 = (face.frame.origin.y + face.frame.size.height * 0.1),
-                                w1 = (face.frame.size.width * 0.8),
-                                h1 = (face.frame.size.height * 0.8)// 얼굴인식 위치 설정
-                            let noneRecognitionNormalizedRect = CGRect(
-                                x: x1 / imageWidth,
-                                y: y1 / imageHeight,
-                                width: w1 / imageWidth,
-                                height: h1 / imageHeight
-                            )
-                            let standardizedRect1 = self.previewLayer.layerRectConverted(
-                                fromMetadataOutputRect: noneRecognitionNormalizedRect
-                            ).standardized,
-                                noneRecgnitionStandardizedRect = CGRect(
-                                    x: standardizedRect1.origin.x + previewBounds.origin.x,
-                                    y: standardizedRect1.origin.y + previewBounds.origin.y,
-                                    width: standardizedRect1.width,
-                                    height: standardizedRect1.height
-                                )
-                            
-                            self.noneRecognitionArea(
-                                face: face,
-                                imageWidth: imageWidth,
-                                imageHeight: imageHeight,
-                                standardizedRect: noneRecgnitionStandardizedRect
-                            )
-                        }
+                        print("[++\(#fileID):\(#line)]- face frame: ", face.frame)
+                        return
                     }
-                } else {
-                    print("On-Device face detector returned no results.")
-//                    self.isPreparing = false
+                    let previewBounds = self.model.previewLayerBounds
                     
-                    self.lastFrame = nil
-                    self.cropFaceRect = nil
-                    
-                    self.checkLeftArr.removeAll()
-                    self.checkRightArr.removeAll()
-                    
-                    self.dataModel.gTempData.removeAll()
-                    self.isTimerRunning = false
-                    self.dispatchTimer?.cancel()
-                    self.measurementTimer.invalidate()
-                    self.prepareTimer.invalidate()
-                    
-                    self.measurementModel.checkRealFace.onNext(false)
-                    self.measurementModel.measurementStop.onNext(true)
+                    if self.model.useFaceRecognitionArea {
+                        
+                        let x = (face.frame.origin.x + face.frame.size.width * 0.3),
+                            y = (face.frame.origin.y + face.frame.size.height * 0.2),
+                            w = (face.frame.size.width * 0.4),
+                            h = (face.frame.size.height * 0.6)
+                        let normalizedRect = CGRect(x: x / imageWidth,
+                                                    y: y / imageHeight,
+                                                    width: w / imageWidth,
+                                                    height: h / imageHeight)
+                        
+                        let standardizedRect = self.previewLayer.layerRectConverted(
+                            fromMetadataOutputRect: normalizedRect
+                        ).standardized,
+                            recognitionStandardizedRect = CGRect(
+                                x: standardizedRect.origin.x + previewBounds.origin.x,
+                                y: standardizedRect.origin.y + previewBounds.origin.y,
+                                width: standardizedRect.width,
+                                height: standardizedRect.height
+                            )
+                        
+                        self.recognitionArea(
+                            face: face,
+                            imageWidth: imageWidth,
+                            imageHeight: imageHeight,
+                            recognitionStandardizedRect: recognitionStandardizedRect,
+                            faceRecognitionAreaView: self.faceRecognitionAreaView
+                        )
+                        
+                    } else {
+                        
+                        let x1 = (face.frame.origin.x + face.frame.size.width * 0.1),
+                            y1 = (face.frame.origin.y + face.frame.size.height * 0.1),
+                            w1 = (face.frame.size.width * 0.8),
+                            h1 = (face.frame.size.height * 0.8)// 얼굴인식 위치 설정
+                        let noneRecognitionNormalizedRect = CGRect(
+                            x: x1 / imageWidth,
+                            y: y1 / imageHeight,
+                            width: w1 / imageWidth,
+                            height: h1 / imageHeight
+                        )
+                        let standardizedRect1 = self.previewLayer.layerRectConverted(
+                            fromMetadataOutputRect: noneRecognitionNormalizedRect
+                        ).standardized,
+                            noneRecgnitionStandardizedRect = CGRect(
+                                x: standardizedRect1.origin.x + previewBounds.origin.x,
+                                y: standardizedRect1.origin.y + previewBounds.origin.y,
+                                width: standardizedRect1.width,
+                                height: standardizedRect1.height
+                            )
+                        
+                        self.noneRecognitionArea(
+                            face: face,
+                            imageWidth: imageWidth,
+                            imageHeight: imageHeight,
+                            standardizedRect: noneRecgnitionStandardizedRect
+                        )
+                    }
                 }
+            } else {
+                print("On-Device face detector returned no results.")
+                self.lastFrame = nil
+                self.cropFaceRect = nil
+                
+                self.checkLeftArr.removeAll()
+                self.checkRightArr.removeAll()
+                
+                self.dataModel.gTempData.removeAll()
+                self.isTimerRunning = false
+                self.dispatchTimer?.cancel()
+                self.measurementTimer.invalidate()
+                self.prepareTimer.invalidate()
+                
+                self.measurementModel.checkRealFace.onNext(false)
+                self.measurementModel.measurementStop.onNext(true)
             }
-//        }
+        }
     }
     
     func faceDetectAreaCondition(
@@ -506,21 +470,22 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let faceMinY = faceFrame.minY
         let faceMaxY = faceFrame.maxY
         
-        //        DispatchQueue.main.async {
-        //            self.tempView.layer.borderColor = UIColor.red.cgColor
-        //            self.tempView.layer.borderWidth = 5
-        //
-        //            self.tempView1.layer.borderColor = UIColor.blue.cgColor
-        //            self.tempView1.layer.borderWidth = 3
-        //
-        //            self.tempView2.layer.borderColor = UIColor.green.cgColor
-        //            self.tempView2.layer.borderWidth = 1
-        //
-        //            self.tempView.frame = recognitionArea
-        //            self.tempView1.frame = faceFrame
-        //            self.tempView2.frame = CGRect(
-        //                x: smallMinX, y: smallMinY, width: smallMaxX - smallMinX, height: smallMaxY - smallMinY)
-        //        }
+//                DispatchQueue.main.async {
+//                    self.tempView.frame = recognitionArea
+//                    self.tempView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+//                    self.tempView.layer.borderColor = UIColor.red.cgColor
+//                    self.tempView.layer.borderWidth = 5
+//        
+//                    self.tempView1.layer.borderColor = UIColor.blue.cgColor
+//                    self.tempView1.layer.borderWidth = 3
+//
+//                    self.tempView2.layer.borderColor = UIColor.green.cgColor
+//                    self.tempView2.layer.borderWidth = 1
+//
+//                    self.tempView1.frame = faceFrame
+//                    self.tempView2.frame = CGRect(
+//                        x: smallMinX, y: smallMinY, width: smallMaxX - smallMinX, height: smallMaxY - smallMinY)
+//                }
         
         return (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
@@ -576,7 +541,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.diffRightArr.removeAll()
                 self.checkLeftArr.removeAll()
                 self.checkRightArr.removeAll()
-//                self.isPreparing = true
                 self.measurementModel.measurementStop.onNext(true)
             }
         }
@@ -643,12 +607,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 self.measurementModel.checkRealFace.onNext(true)
                 self.dataModel.gTempData.removeAll()
                 self.isTimerRunning = true
-//                self.isPreparing = false
                 self.prepareTimer = Timer.scheduledTimer(
                     withTimeInterval: 1,
                     repeats: true
                 ) { prepareTimer in
                     self.measurementModel.secondRemaining.onNext(self.preparingSec)
+                    self.screenCapture()
                     if self.preparingSec == 0 {
                         prepareTimer.invalidate()
                         self.cameraSetup.setUpCatureDevice()
@@ -667,7 +631,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             self.dispatchTimer?.cancel()
             self.measurementTimer.invalidate()
             self.prepareTimer.invalidate()
-//            self.isPreparing = true
         }
     }
     
@@ -743,12 +706,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 imageWidth: imageWidth,
                 imageHeight: imageHeight
             )
-            
-            if let capture = OpenCVWrapper.convertingBuffer(toImage: lastFrame),
-               let faceImage = self.flipImage(capture),
-               Int(self.measurementTime) % 4 == 0 {
-                self.measurementModel.captureImage.onNext(faceImage)
-            }
             
             func draw(
                 previewLayer: AVCaptureVideoPreviewLayer?,
@@ -842,6 +799,15 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
     }
     
+    private func screenCapture() {
+        DispatchQueue.main.async {        
+            if let capture = OpenCVWrapper.convertingBuffer(toImage: self.lastFrame),
+               let faceImage = self.flipImage(capture) {
+                self.measurementModel.captureImage.onNext(faceImage)
+            }
+        }
+    }
+    
     private func extractRGBFromDetectFace(
         sampleBuffer: CMSampleBuffer
     ) {
@@ -857,14 +823,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
         
         let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-//        if self.measurementTimer.isValid {
         if self.isTimerRunning {
             guard timeStamp > 100 else { return }
             self.dataModel.collectRGB(
                 timeStamp: timeStamp,
                 r: r, g: g, b: b
             )
-//        } else if self.isPreparing {
         } else if !self.isTimerRunning {
             self.dataModel.gTempData.append(g)
         }
@@ -874,7 +838,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         face: Face,
         eyePoints: [VisionPoint]
     ) {
-//        if !measurementTimer.isValid {
         if !isTimerRunning {
             let leftEyeOpen = face.leftEyeOpenProbability
 //                    print("[++\(#fileID):\(#line)]- left eye open: ", leftEyeOpen)
@@ -886,13 +849,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
             let check = leftEyeOpen < 0.3
             
-            if self.checkLeftArr.count <= 600 {
+            if self.checkLeftArr.count <= 450 {
                 self.checkLeftArr.append(check)
             } else {
                 self.checkLeftArr.removeFirst()
                 self.checkLeftArr.append(check)
             }
-//            self.isLeftEyeReal = self.checkLeftArr.contains(true)
             self.isLeftEyeReal = self.containsPatternTwice(in: self.checkLeftArr)
         }
     }
@@ -901,10 +863,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         face: Face,
         eyePoints: [VisionPoint]
     ) {
-//        if !measurementTimer.isValid {
         if !isTimerRunning {
             let rightEyeOpen = face.rightEyeOpenProbability
-//                    print("[++\(#fileID):\(#line)]- right eye open: ", rightEyeOpen)
             guard rightEyeOpen != 1.0 else {
                 self.checkRightArr.removeAll()
                 self.diffRightArr.removeAll()
@@ -912,13 +872,12 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
             let check = rightEyeOpen < 0.3
             
-            if self.checkRightArr.count <= 600 {
+            if self.checkRightArr.count <= 450 {
                 self.checkRightArr.append(check)
             } else {
                 self.checkRightArr.removeFirst()
                 self.checkRightArr.append(check)
             }
-//            self.isRightEyeReal = self.checkRightArr.contains(true)
             self.isRightEyeReal = self.containsPatternTwice(in: self.checkRightArr)
         }
     }
@@ -941,7 +900,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                superViewMinY <= faceMinY && faceMaxY <= superViewMaxY
     }
     
-    func containsPatternTwice(in array: [Bool]) -> Bool {
+    private func containsPatternTwice(in array: [Bool]) -> Bool {
         var count = 0
         // 배열을 반복해서 false, true 패턴을 찾습니다.
         for i in 0..<array.count - 1 {
@@ -954,6 +913,33 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
         }
         return false // 패턴이 2개 이상 없으면 false 반환
+    }
+    
+    private func resizeImage(
+        image: UIImage?
+    ) -> UIImage {
+        guard let image = image else {
+            return UIImage()
+        }
+        let size = image.size
+        let widthRatio  = 480 / size.width
+        let heightRatio = 640 / size.height
+        
+        // 비율에 따라 축소될 크기 설정
+        let newSize: CGSize
+        if (widthRatio > heightRatio) {
+            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+        } else {
+            newSize = CGSize(width: size.width * widthRatio, height: size.height * widthRatio)
+        }
+
+        // 그림으로 변환
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return newImage!
     }
     
     private func normalizedPoint(

@@ -80,8 +80,12 @@ class FaceViewController: UIViewController {
             }
         }
         
+        faceMeasureKit.captureImage { img in
+            print("[++\(#fileID):\(#line)]- image ")
+        }
+        
         faceMeasureKit.measurementCompleteRatio { ratio in
-            print("complete ratio: \(ratio)")
+//            print("complete ratio: \(ratio)")
         }
 
         faceMeasureKit.timesLeft { second in
@@ -144,9 +148,11 @@ class FaceViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
-            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
-            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
+            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor), 
+            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: (width / 390) * 230),
+            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: (height / 844) * 320),
+//            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
+//            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
         ])
         faceRecognitionAreaView.layer.borderColor = UIColor.blue.cgColor
         faceRecognitionAreaView.layer.borderWidth = 2
