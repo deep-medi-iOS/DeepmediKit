@@ -89,7 +89,7 @@ class FaceViewController: UIViewController {
         }
 
         faceMeasureKit.timesLeft { second in
-//            print("second: \(second)")
+            print("second: \(second)")
         }
         
         faceMeasureKit.stopMeasurement { stop in

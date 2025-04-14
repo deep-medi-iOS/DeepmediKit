@@ -57,6 +57,8 @@ public class FaceKit: NSObject {
     private var dispatchTimer: DispatchSourceTimer?
     private var isTimerRunning = false
     
+    var imgArr = [UIImage]()
+    
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
     ) {
@@ -256,7 +258,7 @@ public class FaceKit: NSObject {
             ) {
                 measurementCompleteRatio.onNext("\(ratio)%")
             }
-            if Int(self.measurementTime) == 1 {
+            if 1.05 <= self.measurementTime && self.measurementTime <= 1.09 {
                 self.screenCapture()
             }
             secondRemaining.onNext(Int(self.measurementTime))
@@ -367,7 +369,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 for face in faces {
                     
                     guard face.contours.count != 0 else {
-                        print("[++\(#fileID):\(#line)]- face frame: ", face.frame)
+                        print("[++\(#fileID):\(#line)]- face have not contours")
                         return
                     }
                     let previewBounds = self.model.previewLayerBounds
@@ -803,6 +805,13 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         DispatchQueue.main.async {        
             if let capture = OpenCVWrapper.convertingBuffer(toImage: self.lastFrame),
                let faceImage = self.flipImage(capture) {
+                if self.imgArr.count < 3 {
+                    self.imgArr.append(faceImage)
+                } else {
+                    self.imgArr.removeFirst()
+                    self.imgArr.append(faceImage)
+                }
+                
                 self.measurementModel.captureImage.onNext(faceImage)
             }
         }
