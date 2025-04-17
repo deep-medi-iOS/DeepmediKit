@@ -177,7 +177,8 @@ public class FaceKit: NSObject {
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
         
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
             if let previewLayer = self.model.previewLayer {
                 self.previewLayer = previewLayer
             }
@@ -189,6 +190,7 @@ public class FaceKit: NSObject {
 //                    self.faceRecognitionAreaView.addSubview(self.tempView)
 //                    self.faceRecognitionAreaView.addSubview(self.tempView1)
 //                    self.faceRecognitionAreaView.addSubview(self.tempView2)
+//                    self.tempView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
 //                }
             }
             self.cameraSetup.useSession().startRunning()
@@ -215,7 +217,8 @@ public class FaceKit: NSObject {
         
         self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
             self.cameraSetup.useSession().stopRunning()
         }
     }
@@ -258,7 +261,7 @@ public class FaceKit: NSObject {
             ) {
                 measurementCompleteRatio.onNext("\(ratio)%")
             }
-            if 1.05 <= self.measurementTime && self.measurementTime <= 1.09 {
+            if 0.55 <= self.measurementTime && self.measurementTime <= 0.59 {
                 self.screenCapture()
             }
             secondRemaining.onNext(Int(self.measurementTime))
@@ -266,7 +269,7 @@ public class FaceKit: NSObject {
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-                if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
+                if let _ = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
                     measurementComplete.onNext(true)
                     timeStamp.onNext(self.dataModel.timeStamp)
                     sigR.onNext(self.dataModel.rData)
@@ -459,8 +462,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     ) -> Bool {
         let minX = recognitionArea.minX
         let maxX = recognitionArea.maxX
-        let minY = recognitionArea.minY
-        let maxY = recognitionArea.maxY
+//        let minY = recognitionArea.minY
+//        let maxY = recognitionArea.maxY
         
         let smallMinX = recognitionArea.minX + (recognitionArea.width / 2.2)
         let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 2.2)
@@ -477,7 +480,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //                    self.tempView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
 //                    self.tempView.layer.borderColor = UIColor.red.cgColor
 //                    self.tempView.layer.borderWidth = 5
-//        
+//
 //                    self.tempView1.layer.borderColor = UIColor.blue.cgColor
 //                    self.tempView1.layer.borderWidth = 3
 //
@@ -501,18 +504,14 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
         faceRecognitionAreaView: UIView
     ) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             let betweenFaceFrame = self.faceDetectAreaCondition(
                 faceFrame: recognitionStandardizedRect,
                 recognitionArea: faceRecognitionAreaView.frame
             )
             
             if betweenFaceFrame {
-//        if faceRecognitionAreaView.frame.minX <= recognitionStandardizedRect.minX &&
-//            faceRecognitionAreaView.frame.maxX >= recognitionStandardizedRect.maxX &&
-//            faceRecognitionAreaView.frame.minY <= recognitionStandardizedRect.minY &&
-//            faceRecognitionAreaView.frame.maxY >= recognitionStandardizedRect.maxY {
-                
                 self.measurementModel.measurementStop.onNext(false)
                 self.cropFaceRect = CGRect(
                     x: face.frame.origin.x,
@@ -590,7 +589,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func updatePreviewOverlayViewWithLastFrame() {
-        DispatchQueue.main.sync {
+        DispatchQueue.main.sync { [weak self] in
+            guard let self = self else { return }
             guard lastFrame != nil else {
                 print("sample buffer error")
                 return
@@ -625,9 +625,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
         } else {
             self.measurementModel.checkRealFace.onNext(false)
-//            self.dataModel.gTempData.removeAll()
-//            self.diffArr.removeAll()
-//            self.checkArr.removeAll()
             self.dataModel.initRGBData()
             self.isTimerRunning = false
             self.dispatchTimer?.cancel()
@@ -639,7 +636,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     private func noneUseRecognitionFace() {
         if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
             if self.dataModel.gTempData.count >= 30 && !self.isTimerRunning {
-//            if self.dataModel.gTempData.count >= 20 && !self.measurementTimer.isValid {
                 self.measurementModel.checkRealFace.onNext(true)
                 self.cameraSetup.setUpCatureDevice()
                 self.collectDatas()
@@ -664,7 +660,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             return
         }
            
-        if let lastFrame = self.lastFrame,
+        if let frame = self.lastFrame,
            let faceContour = face.contour(ofType: .face),
            let leftEyeContour = face.contour(ofType: .leftEye),
            let leftEyeBrowTopContour = face.contour(ofType: .leftEyebrowTop),
@@ -673,10 +669,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
            let rightEyeBrowTopContour = face.contour(ofType: .rightEyebrowTop),
            let rightEyeBrowBottomContour = face.contour(ofType: .rightEyebrowBottom),
            let upperLipContour = face.contour(ofType: .upperLipTop),
-           let lowerLipContour = face.contour(ofType: .lowerLipBottom),
-           let faceCropBuffer = self.croppedSampleBuffer(lastFrame, with: rect),
-           let cropImage = OpenCVWrapper.converting(faceCropBuffer) {
-                
+           let lowerLipContour = face.contour(ofType: .lowerLipBottom) {
+           
             var facePath = UIBezierPath().then { p in
                 p.lineWidth = 2
             }
@@ -695,6 +689,26 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             var lipsPath = UIBezierPath().then { p in
                 p.lineWidth = 2
             }
+            
+            if self.model.willCheckRealFace {
+                checkRealLeftEye(
+                    face: face,
+                    eyePoints: leftEyeContour.points
+                )
+                checkRealRightEye(
+                    face: face,
+                    eyePoints: rightEyeContour.points
+                )
+            } else {
+                self.isLeftEyeReal = true
+                self.isRightEyeReal = true
+            }
+            
+            guard let faceCropBuffer = self.croppedSampleBuffer(frame, with: rect) else {
+                print("[++\(#fileID):\(#line)]- crop face error")
+                return
+            }
+            let cropImage = OpenCVWrapper.converting(faceCropBuffer) ?? UIImage()
             
             draw(
                 previewLayer: previewLayer,
@@ -726,20 +740,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 
                 guard let previewLayer = previewLayer,
                       let cropImage = cropImage else { return print("crop image return") }
-                
-                if self.model.willCheckRealFace {
-                    checkRealLeftEye(
-                        face: face,
-                        eyePoints: leftEyePoints
-                    )
-                    checkRealRightEye(
-                        face: face,
-                        eyePoints: rightEyePoints
-                    )
-                } else {
-                    self.isLeftEyeReal = true
-                    self.isRightEyeReal = true
-                }
                 
                 gridPath(
                     previewLayer: previewLayer,
@@ -802,8 +802,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     }
     
     private func screenCapture() {
-        DispatchQueue.main.async {        
-            if let capture = OpenCVWrapper.convertingBuffer(toImage: self.lastFrame),
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let frame = self.lastFrame,
+               let capture = OpenCVWrapper.convertingBuffer(toImage: frame),
                let faceImage = self.flipImage(capture) {
                 if self.imgArr.count < 3 {
                     self.imgArr.append(faceImage)
@@ -811,7 +813,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     self.imgArr.removeFirst()
                     self.imgArr.append(faceImage)
                 }
-                
                 self.measurementModel.captureImage.onNext(faceImage)
             }
         }

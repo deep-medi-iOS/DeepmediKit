@@ -204,8 +204,6 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     size_t height = CVPixelBufferGetHeight(imageBuffer);
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
     unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-//    printf("width %zu \n", width);
-//        printf("height %zu \n", height);
     
     cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
     cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
