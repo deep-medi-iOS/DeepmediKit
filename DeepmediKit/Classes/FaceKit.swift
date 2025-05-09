@@ -57,8 +57,6 @@ public class FaceKit: NSObject {
     private var dispatchTimer: DispatchSourceTimer?
     private var isTimerRunning = false
     
-    var imgArr = [UIImage]()
-    
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
     ) {
@@ -614,8 +612,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     repeats: true
                 ) { prepareTimer in
                     self.measurementModel.secondRemaining.onNext(self.preparingSec)
-                    self.screenCapture()
                     if self.preparingSec == 0 {
+                        self.screenCapture()
                         prepareTimer.invalidate()
                         self.cameraSetup.setUpCatureDevice()
                         self.collectDatas()
@@ -804,16 +802,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
     private func screenCapture() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            if let frame = self.lastFrame,
+            if let frame = lastFrame,
                let capture = OpenCVWrapper.convertingBuffer(toImage: frame),
-               let faceImage = self.flipImage(capture) {
-                if self.imgArr.count < 3 {
-                    self.imgArr.append(faceImage)
-                } else {
-                    self.imgArr.removeFirst()
-                    self.imgArr.append(faceImage)
-                }
-                self.measurementModel.captureImage.onNext(faceImage)
+               let faceImage = flipImage(capture) {
+                measurementModel.captureImage.onNext(faceImage)
             }
         }
     }
