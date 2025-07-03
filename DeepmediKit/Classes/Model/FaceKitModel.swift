@@ -40,16 +40,4 @@ public class FaceKitModel: NSObject {
     ) {
         self.model.prepareTime = time ?? 1
     }
-    
-    public func setWindowSecond(
-        _ time: Int?
-    ) {
-        self.model.windowSec = time ?? 15
-    }
-    
-    public func setOverlappingSecond(
-        _ time: Int?
-    ) {
-        self.model.overlappingSec = time ?? 2
-    }
 }

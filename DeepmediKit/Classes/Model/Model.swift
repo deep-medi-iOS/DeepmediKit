@@ -14,9 +14,6 @@ class Model {
     
     var measurePart: CameraObject.Part = .face
     
-    var secretKey: String
-    var apiKey: String
-    
     var limitTapTime: Int
     var limitNoTapTime: Int
     var fingerMeasurementTime: Double
@@ -37,24 +34,6 @@ class Model {
         }
     }
     var prepareTime: Int
-    var windowSec: Int
-    var overlappingSec: Int
-    var age: Int,
-        height: Int,
-        weight: Int
-    
-    var belly: Int?,
-        act: Int?,
-        smoke: Int?,
-        diabetes: Int?
-    
-    var gender: Int {
-        didSet {
-            if self.gender != 0 || self.gender != 1 {
-                self.gender = 0
-            }
-        }
-    }
     
     init() {
         self.faceRecognitionAreaView = UIView()
@@ -64,18 +43,8 @@ class Model {
         self.useFaceRecognitionArea = true
         self.willCheckRealFace = true
         
-        self.secretKey = "secretKey"
-        self.apiKey = "apiKey"
-        
-        self.age = 20
-        self.gender = 0
-        self.height = 160
-        self.weight = 60
-
-        self.faceMeasurementTime = 30.0
+        self.faceMeasurementTime = 15.0
         self.prepareTime = 1
-        self.windowSec = 15
-        self.overlappingSec = 2
         
         self.limitTapTime = 3
         self.limitNoTapTime = 5

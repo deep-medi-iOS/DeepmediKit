@@ -21,7 +21,6 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
-    let header = Header()
     let camera = CameraObject()
     
     let faceMeasureKit = FaceKit()
@@ -49,8 +48,6 @@ class FaceViewController: UIViewController {
         )
         faceMeasureKitModel.setMeasurementTime(15)
         faceMeasureKitModel.setPrepareTime(3)
-//        faceMeasureKitModel.setWindowSecond(15)
-//        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(true)
         
@@ -105,12 +102,6 @@ class FaceViewController: UIViewController {
                     sigR = dataSet.1,
                     sigB = dataSet.2,
                     sigG = dataSet.3
-                let header = self.header.v2Header(
-                    method: .post,
-                    uri: "uri",
-                    secretKey: "secretKey",
-                    apiKey: "apiKey"
-                )
                 
                 if ts.count > 0
                     && sigR.count > 0
