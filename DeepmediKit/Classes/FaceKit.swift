@@ -142,7 +142,6 @@ public class FaceKit: NSObject {
         let secondRemaining = self.measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
-            .filter { $0 != 0 }
             .drive(onNext: { remaining in
                 com(remaining)
             })
