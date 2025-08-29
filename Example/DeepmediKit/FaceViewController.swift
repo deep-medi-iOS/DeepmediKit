@@ -96,7 +96,7 @@ class FaceViewController: UIViewController {
         faceMeasureKit.finishedMeasurement(for: .filePath) { result in
             if case let .filePath(result, path) = result {
                 if result {
-                    
+                    print("file path: \(path)")
                 }
             } else if case let .rawData(result, dataSet) = result {
                 if result {

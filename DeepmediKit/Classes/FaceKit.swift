@@ -110,7 +110,6 @@ public class FaceKit: NSObject {
     public func finishedMeasurement(
         for kind: Result,
         _ isSuccess: @escaping(ResultSelector) -> ()
-//        _ isSuccess: @escaping((Bool, ([Double], [Float], [Float], [Float])) -> ())
     ) {
         let completion = measurementModel.measurementComplete
         let filePath = measurementModel.rgbFilePath
@@ -138,7 +137,6 @@ public class FaceKit: NSObject {
                     output = .rawData(result: res, dataSet: (ts, r, g, b))
             }
             isSuccess(output)
-//            isSuccess(res, (ts, r, g, b))
         })
         .disposed(by: bag)
     }
