@@ -15,6 +15,14 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
+    public enum Result {
+        case filePath, rawData
+    }
+    
+    public enum ResultSelector {
+        case filePath(result: Bool, path: URL)
+        case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
+    }
     enum MeasurementErr: Error {
         case message(String)
     }
@@ -100,9 +108,12 @@ public class FaceKit: NSObject {
     }
     
     public func finishedMeasurement(
-        _ isSuccess: @escaping((Bool, ([Double], [Float], [Float], [Float])) -> ())
+        for kind: Result,
+        _ isSuccess: @escaping(ResultSelector) -> ()
+//        _ isSuccess: @escaping((Bool, ([Double], [Float], [Float], [Float])) -> ())
     ) {
         let completion = measurementModel.measurementComplete
+        let filePath = measurementModel.rgbFilePath
         let timeStamp = measurementModel.timeStamp,
             sigR = measurementModel.sigR,
             sigB = measurementModel.sigB,
@@ -110,15 +121,24 @@ public class FaceKit: NSObject {
         
         Observable.combineLatest(
             completion,
+            filePath,
             timeStamp,
             sigR,
             sigG,
             sigB
         )
         .observe(on: MainScheduler.instance)
-        .asDriver(onErrorJustReturn: (false, [], [], [], []))
-        .drive(onNext: { (res, ts, r, g, b) in
-            isSuccess(res, (ts, r, g, b))
+        .asDriver(onErrorJustReturn: (false, URL(fileURLWithPath: ""), [], [], [], []))
+        .drive(onNext: { (res, path, ts, r, g, b) in
+            let output: ResultSelector
+            switch kind {
+                case .filePath:
+                    output = .filePath(result: res, path: path)
+                case .rawData:
+                    output = .rawData(result: res, dataSet: (ts, r, g, b))
+            }
+            isSuccess(output)
+//            isSuccess(res, (ts, r, g, b))
         })
         .disposed(by: bag)
     }
@@ -226,6 +246,7 @@ public class FaceKit: NSObject {
         let secondRemaining = measurementModel.secondRemaining,
             measurementCompleteRatio = measurementModel.measurementCompleteRatio,
             measurementComplete = measurementModel.measurementComplete,
+            rgbFilePath = measurementModel.rgbFilePath,
             timeStamp = measurementModel.timeStamp,
             sigR = measurementModel.sigR,
             sigB = measurementModel.sigB,
@@ -239,8 +260,8 @@ public class FaceKit: NSObject {
         
         self.dispatchTimer = DispatchSource.makeTimerSource()
         self.dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
-        self.dispatchTimer?.setEventHandler {
-            
+        self.dispatchTimer?.setEventHandler { [weak self] in
+            guard let self = self else { return }
             self.isTimerRunning = true
             
             guard self.isLeftEyeReal && self.isRightEyeReal else {
@@ -266,14 +287,16 @@ public class FaceKit: NSObject {
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
                 self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-                if let _ = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
+                if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
                     measurementComplete.onNext(true)
+                    rgbFilePath.onNext(rgbPath)
                     timeStamp.onNext(self.dataModel.timeStamp)
                     sigR.onNext(self.dataModel.rData)
                     sigG.onNext(self.dataModel.gData)
                     sigB.onNext(self.dataModel.bData)
                 } else {
                     measurementComplete.onNext(false)
+                    rgbFilePath.onNext(URL(fileURLWithPath: ""))
                     timeStamp.onNext([])
                     sigR.onNext([])
                     sigG.onNext([])

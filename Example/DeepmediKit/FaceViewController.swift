@@ -93,24 +93,27 @@ class FaceViewController: UIViewController {
             print("stop state: \(stop)")
         }
         
-        faceMeasureKit.finishedMeasurement { (successed, dataSet) in
-            print("face measure state: \(successed)")
-//            print("fac measure data set: \(dataSet)")
-            
-            if successed {
-                let ts = dataSet.0,
-                    sigR = dataSet.1,
-                    sigB = dataSet.2,
-                    sigG = dataSet.3
-                
-                if ts.count > 0
-                    && sigR.count > 0
-                    && sigG.count > 0
-                    && sigB.count > 0 {
-                    print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
-                } else {
-                    print("data error")
-                }                
+        faceMeasureKit.finishedMeasurement(for: .filePath) { result in
+            if case let .filePath(result, path) = result {
+                if result {
+                    
+                }
+            } else if case let .rawData(result, dataSet) = result {
+                if result {
+                    let ts = dataSet.0,
+                        sigR = dataSet.1,
+                        sigB = dataSet.2,
+                        sigG = dataSet.3
+                    
+                    if ts.count > 0
+                        && sigR.count > 0
+                        && sigG.count > 0
+                        && sigB.count > 0 {
+                        print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
+                    } else {
+                        print("data error")
+                    }
+                }
             }
             self.faceMeasureKit.stopSession()
         }
