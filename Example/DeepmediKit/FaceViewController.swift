@@ -21,7 +21,6 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
-    let header = Header()
     let camera = CameraObject()
     
     let faceMeasureKit = FaceKit()
@@ -46,8 +45,8 @@ class FaceViewController: UIViewController {
             captureDevice: captureDevice
         )
         faceMeasureKitModel.setMeasurementTime(30)
-        faceMeasureKitModel.setWindowSecond(15)
-        faceMeasureKitModel.setOverlappingSecond(2)
+//        faceMeasureKitModel.setWindowSecond(15)
+//        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
         
@@ -89,10 +88,6 @@ class FaceViewController: UIViewController {
             print("face rbg path: \(path)")
         
             if successed {
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
