@@ -1,6 +1,6 @@
 PODS:
   - Alamofire (5.10.0)
-  - DeepmediKit (1.3.2):
+  - DeepmediKit (1.3.4):
     - Alamofire (= 5.10.0)
     - GoogleMLKit/FaceDetection (= 6.0.0)
     - OpenCV (= 4.3.0)
@@ -96,7 +96,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: cd0b98508df05796dd2ff278f3bb055a631b5390
-  DeepmediKit: c122b6f99a6ae1525a65fec757b424982a791ac8
+  DeepmediKit: 1e7e717fb25bc03b0338a32f1e04f4cb7c53bd96
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 97ac7af399057e99182ee8edfa8249e3226a4065
   GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8

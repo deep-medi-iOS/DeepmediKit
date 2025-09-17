@@ -37,8 +37,8 @@ class Model {
         }
     }
     
-    var windowSec: Int
-    var overlappingSec: Int
+//    var windowSec: Int
+//    var overlappingSec: Int
     var age: Int,
         height: Int,
         weight: Int
@@ -73,8 +73,8 @@ class Model {
         self.weight = 60
 
         self.faceMeasurementTime = 15.0
-        self.windowSec = 15
-        self.overlappingSec = 2
+//        self.windowSec = 15
+//        self.overlappingSec = 2
         
         self.limitTapTime = 3
         self.limitNoTapTime = 5

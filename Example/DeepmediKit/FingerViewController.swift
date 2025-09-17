@@ -9,6 +9,7 @@
 import UIKit
 import AVKit
 import DeepmediKit
+import Alamofire
 
 class FingerViewController: UIViewController {
     
@@ -16,6 +17,7 @@ class FingerViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FingerCapture")
     
+    let header = Header()
     let camera = CameraObject()
     
     let fingerMeasureKit = FingerKit()
@@ -105,9 +107,23 @@ class FingerViewController: UIViewController {
             print("finger acc path:", accPath)
             print("finger gyr pPath:", gyroPath)
             if success {
-                DispatchQueue.global(qos: .background).async {
-                    self.fingerMeasureKit.stopSession()
+                Task {
+                    do {
+                        let headerElement = try await self.header.getHeader(
+                            uri   : "uri",
+                            apiKey: "apikey"
+                        )
+                        let  headers: HTTPHeaders = [
+                            "x-ncp-apigw-api-key"      : "apiKey",
+                            "x-ncp-apigw-timestamp"    : headerElement.timestamp,
+                            "x-ncp-iam-access-key"     : headerElement.accessKey,
+                            "x-ncp-apigw-signature-v1" : headerElement.signature
+                        ]
+                    } catch let error {
+                        print("header error: \(error.localizedDescription)")
+                    }
                 }
+                self.fingerMeasureKit.stopSession()
             } else {
                 print("error")
             }

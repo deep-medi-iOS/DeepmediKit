@@ -9,6 +9,7 @@
 import UIKit
 import AVKit
 import DeepmediKit
+import Alamofire
 
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
@@ -21,6 +22,7 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
+    let header = Header()
     let camera = CameraObject()
     
     let faceMeasureKit = FaceKit()
@@ -44,7 +46,7 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(30)
+        faceMeasureKitModel.setMeasurementTime(15)
 //        faceMeasureKitModel.setWindowSecond(15)
 //        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
@@ -88,6 +90,23 @@ class FaceViewController: UIViewController {
             print("face rbg path: \(path)")
         
             if successed {
+                Task {
+                    do {
+                        let headerElement = try await self.header.getHeader(
+                            uri   : "uri",
+                            apiKey: "apikey"
+                        )
+                        let  headers: HTTPHeaders = [
+                            "x-ncp-apigw-api-key"      : "apiKey",
+                            "x-ncp-apigw-timestamp"    : headerElement.timestamp,
+                            "x-ncp-iam-access-key"     : headerElement.accessKey,
+                            "x-ncp-apigw-signature-v1" : headerElement.signature
+                        ]
+                        
+                    } catch let error {
+                        print("header error: \(error.localizedDescription)")
+                    }
+                }
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
@@ -96,11 +115,11 @@ class FaceViewController: UIViewController {
         
         faceMeasureKit.resultHealthInfo(
             secretKey: "secretKey",
-            apiKey: "apiKey",
+            apiKey: "apikey",
             genderType: .MALE,
-            age: Int(),
-            height: Int(),
-            weight: Int(),
+            age: 20,
+            height: 170,
+            weight: 70,
             belly: Int(),
             exerciseType: .none,
             smokeType: .none,

@@ -38,43 +38,52 @@ class Service {
         
         let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com",
             ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3",
-            url = ppgHealthURL + ppgHealthURI,
-            header = header.v2Header(
-                method: .post,
-                uri: ppgHealthURI,
-                secretKey: secretKey,
-                apiKey: apiKey
-            )
-        
-        AF.upload(
-            multipartFormData: { multipartFormData in
-                multipartFormData.append(rgbPath, withName: "rgb")
-                for (key, value) in parameter {
-                    multipartFormData.append("\(value)".data(using: .utf8)!,
-                                             withName: key)
-                }
-            },
-            to: url,
-            method: .post,
-            headers: header)
-        .responseDecodable(of: ResultOfFacePPG.self) { response in
-            
-            switch response.result {
-            case .success(let res):
+            url = ppgHealthURL + ppgHealthURI
 
-                guard res.result == 200 else { return print("ppg stress result return") }
-                let response = res.message
-                self.recordModel.hr = response.hr
-                self.recordModel.sys = response.sys
-                self.recordModel.dia = response.dia
-                self.recordModel.physicalStress = response.physicalStress
-                self.recordModel.mentalStress =   response.mentalStress
-                self.recordModel.af = response.afDetect
+        Task {[weak self] in
+            guard let self = self else { return }
+            do {
+                let element = try await self.header.getHeader(uri: ppgHealthURI, apiKey: apiKey)
+                let headers: HTTPHeaders = [
+                    "x-ncp-apigw-api-key"      : apiKey,
+                    "x-ncp-apigw-timestamp"    : element.timestamp,
+                    "x-ncp-iam-access-key"     : element.accessKey,
+                    "x-ncp-apigw-signature-v1" : element.signature
+                ]
+                AF.upload(
+                    multipartFormData: { multipartFormData in
+                        multipartFormData.append(rgbPath, withName: "rgb")
+                        for (key, value) in parameter {
+                            multipartFormData.append("\(value)".data(using: .utf8)!,
+                                                     withName: key)
+                        }
+                    },
+                    to: url,
+                    method: .post,
+                    headers: headers
+                )
+                .responseDecodable(of: ResultOfFacePPG.self) { response in
+                    
+                    switch response.result {
+                    case .success(let res):
+
+                        guard res.result == 200 else { return print("ppg stress result return") }
+                        let response = res.message
+                        self.recordModel.hr = response.hr
+                        self.recordModel.sys = response.sys
+                        self.recordModel.dia = response.dia
+                        self.recordModel.physicalStress = response.physicalStress
+                        self.recordModel.mentalStress =   response.mentalStress
+                        self.recordModel.af = response.afDetect
+                        
+                        com(nil)
+                    case .failure(let err):
+                        print("post stress data err: " + err.localizedDescription)
+                        com(err)
+                    }
+                }
+            } catch {
                 
-                com(nil)
-            case .failure(let err):
-                print("post stress data err: " + err.localizedDescription)
-                com(err)
             }
         }
     }
@@ -116,31 +125,39 @@ class Service {
             .appending("\(sys)")
             .appending("&dia=")
             .appending("\(dia)")
-        
-        let url = cardioRiskBaseURL + cardioRiskBaseURI
-        
-        AF.request(
-            url,
-            method: .post,
-            headers: header.v2Header(
-                method: .post,
-                uri: cardioRiskBaseURI,
-                secretKey: secretKey,
-                apiKey: apiKey
-            )
-        )
-        .responseDecodable(of: CardiacResult.self) { response in
-            switch response.result {
-            case .success(let res):
-                let cvdRiskArr = self.changeDataFormat(
-                    risk: res.message.cvdRisk
+            
+        Task {[weak self] in
+            guard let self = self else { return }
+            do {
+                let url = cardioRiskBaseURL + cardioRiskBaseURI
+                let element = try await self.header.getHeader(uri: cardioRiskBaseURI, apiKey: apiKey)
+                let headers: HTTPHeaders = [
+                    "x-ncp-apigw-api-key"      : apiKey,
+                    "x-ncp-apigw-timestamp"    : element.timestamp,
+                    "x-ncp-iam-access-key"     : element.accessKey,
+                    "x-ncp-apigw-signature-v1" : element.signature
+                ]
+                AF.request(
+                    url,
+                    method: .post,
+                    headers: headers
                 )
-                self.recordModel.cardioRisk = cvdRiskArr.reduce(0, +) / Double(cvdRiskArr.count)
-                com(nil)
+                .responseDecodable(of: CardiacResult.self) { response in
+                    switch response.result {
+                    case .success(let res):
+                        let cvdRiskArr = self.changeDataFormat(
+                            risk: res.message.cvdRisk
+                        )
+                        self.recordModel.cardioRisk = cvdRiskArr.reduce(0, +) / Double(cvdRiskArr.count)
+                        com(nil)
 
-            case .failure(let err):
-                print("cardio risk fail " + err.localizedDescription)
-                com(err)
+                    case .failure(let err):
+                        print("cardio risk fail " + err.localizedDescription)
+                        com(err)
+                    }
+                }
+            } catch {
+                
             }
         }
     }
