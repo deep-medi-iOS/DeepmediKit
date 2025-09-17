@@ -43,13 +43,8 @@ class Service {
         Task {[weak self] in
             guard let self = self else { return }
             do {
-                let element = try await self.header.getHeader(uri: ppgHealthURI, apiKey: apiKey)
-                let headers: HTTPHeaders = [
-                    "x-ncp-apigw-api-key"      : apiKey,
-                    "x-ncp-apigw-timestamp"    : element.timestamp,
-                    "x-ncp-iam-access-key"     : element.accessKey,
-                    "x-ncp-apigw-signature-v1" : element.signature
-                ]
+                let headers = try await self.header.getHeader(uri: ppgHealthURI, apiKey: apiKey)
+                
                 AF.upload(
                     multipartFormData: { multipartFormData in
                         multipartFormData.append(rgbPath, withName: "rgb")
@@ -130,13 +125,7 @@ class Service {
             guard let self = self else { return }
             do {
                 let url = cardioRiskBaseURL + cardioRiskBaseURI
-                let element = try await self.header.getHeader(uri: cardioRiskBaseURI, apiKey: apiKey)
-                let headers: HTTPHeaders = [
-                    "x-ncp-apigw-api-key"      : apiKey,
-                    "x-ncp-apigw-timestamp"    : element.timestamp,
-                    "x-ncp-iam-access-key"     : element.accessKey,
-                    "x-ncp-apigw-signature-v1" : element.signature
-                ]
+                let headers = try await self.header.getHeader(uri: cardioRiskBaseURI, apiKey: apiKey)
                 AF.request(
                     url,
                     method: .post,

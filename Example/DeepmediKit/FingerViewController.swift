@@ -109,7 +109,7 @@ class FingerViewController: UIViewController {
             if success {
                 Task {
                     do {
-                        let headerElement = try await self.header.getHeader(
+                        let header = try await self.header.getHeader(
                             uri   : "uri",
                             apiKey: "apikey"
                         )

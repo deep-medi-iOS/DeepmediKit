@@ -17,7 +17,7 @@ public final class Header {
     public func getHeader(
         uri: String,
         apiKey: String
-    ) async throws -> DeepmediHeader {
+    ) async throws -> HTTPHeaders {
         let headerURL = "https://y8gc8ito4a.apigw.ntruss.com/signature/v1/"
         let headerParams = [
             "uri": uri,
@@ -40,9 +40,19 @@ public final class Header {
            !(200..<300).contains(statusCode) {
             throw Header.HeaderErr.messegae("status code error: \(statusCode)")
         } else if let value = resp.value {
-            return value
+            return [
+                "x-ncp-apigw-api-key"      : apiKey,
+                "x-ncp-apigw-timestamp"    : value.timestamp,
+                "x-ncp-iam-access-key"     : value.accessKey,
+                "x-ncp-apigw-signature-v1" : value.signature
+            ]
         }
-        return .init(signature: "", timestamp: "", accessKey: "")
+        return [
+            "x-ncp-apigw-api-key"      : "",
+            "x-ncp-apigw-timestamp"    : "",
+            "x-ncp-iam-access-key"     : "",
+            "x-ncp-apigw-signature-v1" : ""
+        ]
     }
 }
 

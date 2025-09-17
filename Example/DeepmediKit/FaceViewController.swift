@@ -92,17 +92,10 @@ class FaceViewController: UIViewController {
             if successed {
                 Task {
                     do {
-                        let headerElement = try await self.header.getHeader(
+                        let headers = try await self.header.getHeader(
                             uri   : "uri",
                             apiKey: "apikey"
                         )
-                        let  headers: HTTPHeaders = [
-                            "x-ncp-apigw-api-key"      : "apiKey",
-                            "x-ncp-apigw-timestamp"    : headerElement.timestamp,
-                            "x-ncp-iam-access-key"     : headerElement.accessKey,
-                            "x-ncp-apigw-signature-v1" : headerElement.signature
-                        ]
-                        
                     } catch let error {
                         print("header error: \(error.localizedDescription)")
                     }
