@@ -43,7 +43,7 @@ open class FingerKit: NSObject {
     
     // MARK: isTapCheck
     private var filterG = [Float]()
-    private let limitTapCount = 60
+    private let limitTapCount = 30
     
     // MARK: Flag
     private var isDeviceBack = false,
@@ -142,19 +142,20 @@ open class FingerKit: NSObject {
     }
     
     open func startSession() {
-        self.startMeasurement()
-        self.prepareMeasurement()
+        startMeasurement()
+        prepareMeasurement()
     }
     
     open func startMeasurement() {
-        self.isComplete = false
-        self.accelemeterUpdates()
-        self.gyroscopeUpdates()
-        self.deviceMotionUpdates()
+        isComplete = false
+        accelemeterUpdates()
+        gyroscopeUpdates()
+        deviceMotionUpdates()
     }
     
     private func prepareMeasurement() {
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
             self.measurementTime = self.model.fingerMeasurementTime
             self.cameraSetup.useSession().startRunning()
             self.turnOnThe(torch: true)
@@ -162,45 +163,42 @@ open class FingerKit: NSObject {
     }
     
     open func stopSession() {
-        self.stopMeasurement()
-    }
-    
-    private func stopMeasurement() {
-        self.isComplete = true
-        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-        self.cameraSetup.useSession().stopRunning()
-        self.motionManager.stopAccelerometerUpdates()
-        self.motionManager.stopGyroUpdates()
-        self.motionManager.stopDeviceMotionUpdates()
-        self.turnOnThe(torch: false)
-        self.elementInitalize()
+        isComplete = true
+//        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
+        cameraSetup.clearCaptureDevice()
+        cameraSetup.useSession().stopRunning()
+        motionManager.stopAccelerometerUpdates()
+        motionManager.stopGyroUpdates()
+        motionManager.stopDeviceMotionUpdates()
+        turnOnThe(torch: false)
+        elementInitalize()
     }
     
     private func elementInitalize() {
-        self.measurementTime = self.model.fingerMeasurementTime
-        self.measurementTimer.invalidate()
-        self.chartTimer.invalidate()
-        self.dataModel.initRGBData()
-        self.dataModel.initAccData()
-        self.dataModel.initGyroData()
-        self.tap.removeAll()
-        self.noTap.removeAll()
-        self.stopMeasureStatus.removeAll()
+        measurementTime = model.fingerMeasurementTime
+        measurementTimer.invalidate()
+        chartTimer.invalidate()
+        dataModel.initRGBData()
+        dataModel.initAccData()
+        dataModel.initGyroData()
+        tap.removeAll()
+        noTap.removeAll()
+        stopMeasureStatus.removeAll()
     }
     
     private func turnOnThe(
         torch: Bool
     ) {
-        guard self.cameraSetup.hasTorch() else {
+        guard cameraSetup.hasTorch() else {
             print("has not torch")
             return
         }
         
         switch torch {
-        case true:
-            self.cameraSetup.useCaptureDevice().torchMode = .on
-        case false:
-            self.cameraSetup.useCaptureDevice().torchMode = .off
+            case true:
+                cameraSetup.useCaptureDevice().torchMode = .on
+            case false:
+                cameraSetup.useCaptureDevice().torchMode = .off
         }
     }
     
@@ -278,35 +276,36 @@ open class FingerKit: NSObject {
                 }
                 
                 switch status {
-                case .tap:
-                    defer {
-                        if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
-                            self.startTimer()
+                    case .tap:
+                        defer {
+                            if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
+                                self.startTimer()
+                            }
                         }
-                    }
-                    guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
-                        return
-                    }
-                    self.noTap.removeAll()
-                    self.stopMeasureStatus.removeAll()
-                    self.measurementModel.measurementStop.onNext(false)
-
-                case .noTap:
-                    guard self.tap.count >= 30 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
-                        print("no tap return")
-                        return
-                    }
-                    self.elementInitalize()
-                    self.measurementModel.measurementStop.onNext(true)
-
-                case .back, .flip:
-                    guard self.stopMeasureStatus.count >= 30 else {
-                        print("back, flip return")
-                        return
-                    }
-                    self.turnOnThe(torch: false)
-                    self.elementInitalize()
-                    self.measurementModel.measurementStop.onNext(true)
+                        guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
+                            return
+                        }
+                        self.noTap.removeAll()
+                        self.stopMeasureStatus.removeAll()
+                        self.measurementModel.measurementStop.onNext(false)
+                        
+                    case .noTap:
+//                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
+                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount) else {
+                            print("no tap return")
+                            return
+                        }
+                        self.elementInitalize()
+                        self.measurementModel.measurementStop.onNext(true)
+                        
+                    case .back, .flip:
+                        guard self.stopMeasureStatus.count >= 30 else {
+                            print("back, flip return")
+                            return
+                        }
+                        self.turnOnThe(torch: false)
+                        self.elementInitalize()
+                        self.measurementModel.measurementStop.onNext(true)
                 }
             })
             .disposed(by: self.bag)
@@ -317,15 +316,16 @@ open class FingerKit: NSObject {
             secondRemaining = self.measurementModel.secondRemaining,
             measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
         
-        self.isComplete = true
-        self.dataModel.initRGBData()
-        self.dataModel.initAccData()
-        self.dataModel.initGyroData()
+        isComplete = true
+        dataModel.initRGBData()
+        dataModel.initAccData()
+        dataModel.initGyroData()
         
         self.measurementTimer = Timer.scheduledTimer(
             withTimeInterval: 0.1,
             repeats: true
-        ) { timer in
+        ) { [weak self] timer in
+            guard let self = self else { return }
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.fingerMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
             secondRemaining.onNext(Int(self.measurementTime))
@@ -334,42 +334,41 @@ open class FingerKit: NSObject {
                 
                 self.notiGenerator.notificationOccurred(.success)
                 
+                self.document.makeDocument(data: .rgb)
+
                 if self.model.breathMeasurement {
-                    self.document.makeDocument(data: .rgb)
                     self.document.makeDocument(data: .acc)
                     self.document.makeDocument(data: .gyro)
                     
-                    if let rgbPath = self.dataModel.rgbDataPath,
-                       let accPath = self.dataModel.accDataPath,
+                    if let rgbPath  = self.dataModel.rgbDataPath,
+                       let accPath  = self.dataModel.accDataPath,
                        let gyroPath = self.dataModel.gyroDataPath {
                         completion.onNext((success: true,
-                                           rgbURL: rgbPath,
-                                           accURL: accPath,
+                                           rgbURL:  rgbPath,
+                                           accURL:  accPath,
                                            gyroURL: gyroPath))
                     } else {
                         completion.onNext((success: false,
-                                           rgbURL: URL(string: "there is not rgb path"),
-                                           accURL: URL(string: "there is not acc path"),
-                                           gyroURL: URL(string: "there is not gyro path")))
+                                           rgbURL:  URL(string: "there is no rgb path"),
+                                           accURL:  URL(string: "there is no acc path"),
+                                           gyroURL: URL(string: "there is no gyro path")))
                     }
                     
                 } else {
                     
-                    self.document.makeDocument(data: .rgb)
-                    
                     if let rgbPath = self.dataModel.rgbDataPath {
                         completion.onNext((success: true,
-                                           rgbURL: rgbPath,
-                                           accURL: URL(string: "there is not acc path"),
-                                           gyroURL: URL(string: "there is not gyro path")))
+                                           rgbURL:  rgbPath,
+                                           accURL:  URL(string: "there is no acc path"),
+                                           gyroURL: URL(string: "there is no gyro path")))
                     } else {
                         completion.onNext((success: false,
-                                           rgbURL: URL(string: "there is not rgb path"),
-                                           accURL: URL(string: "there is not acc path"),
-                                           gyroURL: URL(string: "there is not gyro path")))
+                                           rgbURL:  URL(string: "there is no rgb path"),
+                                           accURL:  URL(string: "there is no acc path"),
+                                           gyroURL: URL(string: "there is no gyro path")))
                     }
                 }
-                self.stopMeasurement()
+                self.stopSession()
             }
         }
     }
@@ -384,7 +383,6 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             fatalError("cvimg ref")
-            
         }
         
         CVPixelBufferLockBaseAddress(

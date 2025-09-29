@@ -32,7 +32,7 @@ public class FaceKitModel: NSObject {
     public func setMeasurementTime(
         _ time: Double?
     ) {
-        self.model.faceMeasurementTime = time ?? 30.0
+        self.model.faceMeasurementTime = time ?? 15.0
     }
     
 //    public func setWindowSecond(

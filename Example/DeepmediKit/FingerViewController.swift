@@ -41,14 +41,14 @@ class FingerViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        self.fingerMeasureKitModel.setMeasurementTime(30)
-        self.fingerMeasureKitModel.doMeasurementBreath(true)
+        self.fingerMeasureKitModel.setMeasurementTime(15)
+        self.fingerMeasureKitModel.doMeasurementBreath(false)
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
         
         self.setupUI()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1 ) {
             self.fingerMeasureKit.startSession()
         }
     }
@@ -113,12 +113,6 @@ class FingerViewController: UIViewController {
                             uri   : "uri",
                             apiKey: "apikey"
                         )
-                        let  headers: HTTPHeaders = [
-                            "x-ncp-apigw-api-key"      : "apiKey",
-                            "x-ncp-apigw-timestamp"    : headerElement.timestamp,
-                            "x-ncp-iam-access-key"     : headerElement.accessKey,
-                            "x-ncp-apigw-signature-v1" : headerElement.signature
-                        ]
                     } catch let error {
                         print("header error: \(error.localizedDescription)")
                     }

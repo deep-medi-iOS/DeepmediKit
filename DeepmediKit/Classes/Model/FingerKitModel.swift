@@ -13,7 +13,7 @@ public class FingerKitModel: NSObject {
     public func setMeasurementTime(
         _ time: Double?
     ) {
-        self.model.fingerMeasurementTime = time ?? 30.0
+        self.model.fingerMeasurementTime = time ?? 15.0
     }
     
     public func doMeasurementBreath(

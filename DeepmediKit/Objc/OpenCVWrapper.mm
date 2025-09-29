@@ -70,7 +70,7 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     
     //  printf("r/255 %f / g/255 %f \n", (r / 255), (g / 255));
     //  printf("r %f / r/255 %f / g %f / g/255 %f /  b %f \n", r, (r / 255), g, (g / 255), b);
-    //  printf("->canny %f / r/255 %f / g/255 %f /  b/255 %f \n",(canny), (r / 255), (g / 255), (b / 255));
+      printf("-> canny %f / r/255 %f / g/255 %f /  b/255 %f \n",(canny), (r / 255), (g / 255), (b / 255));
     
     BOOL result;
     if ([device containsString:@"Pad"]){
@@ -81,7 +81,7 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
         }
     } else {
         if([device containsString:@"X"]) {
-            if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 2.0f) {
+            if(canny < 3.0 && (r / 255) > 0.25f && (g / 255) < 0.97f) {
                 result = true;
             } else {
                 result = false;

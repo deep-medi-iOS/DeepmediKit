@@ -77,7 +77,7 @@ class Model {
 //        self.overlappingSec = 2
         
         self.limitTapTime = 3
-        self.limitNoTapTime = 5
+        self.limitNoTapTime = 6
         self.fingerMeasurementTime = 15.0
         self.breathMeasurement = true
     }
