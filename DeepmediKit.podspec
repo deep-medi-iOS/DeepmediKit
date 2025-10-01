@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/deep-medi/DeepmediKit'
   s.license          = { :type => 'BSD', :file => 'LICENSE' }
   s.author           = { 'demianjun' => 'demianjun@gmail.com' }
-  s.source           = { :git => 'https://github.com/deep-medi/DeepmediKit.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/deep-medi-iOS/DeepmediKit.git', :tag => s.version.to_s }
   s.ios.deployment_target = '13.0'
   s.source_files = 'DeepmediKit','DeepmediKit/Objc/*.{h,mm}', 'DeepmediKit/Classes/**/*.{h,swift}'
   
