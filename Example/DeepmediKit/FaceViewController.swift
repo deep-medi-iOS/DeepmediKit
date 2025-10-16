@@ -34,6 +34,10 @@ class FaceViewController: UIViewController {
     }
     
     let tempView = UIView()
+    
+    let tempImageView = UIImageView().then { v in
+        v.contentMode = .scaleAspectFit
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -79,6 +83,12 @@ class FaceViewController: UIViewController {
         
         faceMeasureKit.captureImage { img in
             print("[++\(#fileID):\(#line)]- image ")
+            if let capture = img {
+                self.tempImageView.image = capture
+            } else {
+                self.tempImageView.image = UIImage()
+            }
+            
         }
         
         faceMeasureKit.measurementCompleteRatio { ratio in
@@ -127,11 +137,13 @@ class FaceViewController: UIViewController {
         self.view.addSubview(faceRecognitionAreaView)
         self.view.addSubview(previousButton)
         self.view.addSubview(tempView)
+        self.view.addSubview(tempImageView)
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         tempView.translatesAutoresizingMaskIntoConstraints = false
+        tempImageView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             preview.topAnchor.constraint(equalTo: self.view.topAnchor),
@@ -160,13 +172,20 @@ class FaceViewController: UIViewController {
         
         tempView.frame = CGRect(x: 0, y: 100, width: 100, height: 100)
         tempView.layer.cornerRadius = 50
-
+        
         previousButton.layer.cornerRadius = (width * 0.3) / 2
         previousButton.addTarget(
             self,
             action: #selector(prev),
             for: .touchUpInside
         )
+        
+        NSLayoutConstraint.activate([
+            tempImageView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            tempImageView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+            tempImageView.widthAnchor.constraint(equalToConstant: width * 0.3),
+            tempImageView.heightAnchor.constraint(equalToConstant: width * 0.3)
+        ])
     }
     
     @objc func prev() {
