@@ -114,10 +114,10 @@ public class FaceKit: NSObject {
     ) {
         let completion = measurementModel.measurementComplete
         let filePath = measurementModel.rgbFilePath
-        let timeStamp = measurementModel.timeStamp,
-            sigR = measurementModel.sigR,
-            sigB = measurementModel.sigB,
-            sigG = measurementModel.sigG
+//        let timeStamp = measurementModel.timeStamp,
+//            sigR = measurementModel.sigR,
+//            sigB = measurementModel.sigB,
+//            sigG = measurementModel.sigG
         
         Observable.combineLatest(
             completion,
@@ -211,13 +211,13 @@ public class FaceKit: NSObject {
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.faceRecognitionAreaView = faceRecognitionAreaView
-                DispatchQueue.main.async {
-                    self.faceRecognitionAreaView.addSubview(self.tempView)
-                    self.faceRecognitionAreaView.addSubview(self.extraView)
-                    self.faceRecognitionAreaView.addSubview(self.tempView1)
-                    self.faceRecognitionAreaView.addSubview(self.tempView2)
-//                    self.extraView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
-                }
+//                DispatchQueue.main.async {
+//                    self.faceRecognitionAreaView.addSubview(self.tempView)
+//                    self.faceRecognitionAreaView.addSubview(self.extraView)
+//                    self.faceRecognitionAreaView.addSubview(self.tempView1)
+//                    self.faceRecognitionAreaView.addSubview(self.tempView2)
+////                    self.extraView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+//                }
             }
             self.cameraSetup.useSession().startRunning()
         }
@@ -351,7 +351,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         self.lastFrame = sampleBuffer
         
         let orientation = self.imageOrientation(fromDevicePosition: .front)
-//        let orientation = self.imageOrientationForFrontCamera()
         let visionImage = VisionImage(buffer: sampleBuffer)
         visionImage.orientation = orientation
         
@@ -494,46 +493,51 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         faceFrame: CGRect,
         recognitionArea: CGRect
     ) -> Bool {
-        let minX = recognitionArea.minX
-        let maxX = recognitionArea.maxX
-//        let minY = recognitionArea.minY
-//        let maxY = recognitionArea.maxY
+        let minX = recognitionArea.minX + recognitionArea.width * 0.07
+        let maxX = recognitionArea.maxX - recognitionArea.width * 0.07
+        let minY = recognitionArea.minY + recognitionArea.height * 0.07
+        let maxY = recognitionArea.maxY - recognitionArea.height * 0.07
         
         let smallMinX = recognitionArea.minX + (recognitionArea.width / 2.2)
         let smallMaxX = recognitionArea.maxX - (recognitionArea.width / 2.2)
         let smallMinY = recognitionArea.minY + (recognitionArea.height / 2.2)
         let smallMaxY = recognitionArea.maxY - (recognitionArea.height / 2.2)
         
-        let faceMinX = faceFrame.minX + faceFrame.width * 0.3
-        let faceMaxX = faceFrame.maxX - faceFrame.width * 0.3
+        let faceMinX = faceFrame.minX + faceFrame.width * 0.25
+        let faceMaxX = faceFrame.maxX - faceFrame.width * 0.25
         let faceMinY = faceFrame.minY + faceFrame.height * 0.2
         let faceMaxY = faceFrame.maxY - faceFrame.height * 0.2
         
-        DispatchQueue.main.async {
-            self.tempView.frame = recognitionArea
-            self.tempView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
-            self.tempView.layer.borderColor = UIColor.red.cgColor
-            self.tempView.layer.borderWidth = 5
-            
-            self.tempView1.layer.borderColor = UIColor.blue.cgColor
-            self.tempView1.layer.borderWidth = 3
-            
-            self.tempView2.layer.borderColor = UIColor.green.cgColor
-            self.tempView2.layer.borderWidth = 1
-            
-            self.tempView1.frame = CGRect(
-                x: faceMinX,
-                y: faceMinY,
-                width: faceMaxX - faceMinX,
-                height: faceMaxY - faceMinY
-            )
-            self.tempView2.frame = CGRect(
-                x: smallMinX,
-                y: smallMinY,
-                width: smallMaxX - smallMinX,
-                height: smallMaxY - smallMinY
-            )
-        }
+//        DispatchQueue.main.async {
+//            self.tempView.frame = CGRect(
+//                x: minX,
+//                y: minY,
+//                width: maxX - minX,
+//                height: maxY - minY
+//            )
+//            
+//            self.tempView.layer.borderColor = UIColor.red.cgColor
+//            self.tempView.layer.borderWidth = 5
+//            
+//            self.tempView1.layer.borderColor = UIColor.blue.cgColor
+//            self.tempView1.layer.borderWidth = 3
+//            
+//            self.tempView2.layer.borderColor = UIColor.green.cgColor
+//            self.tempView2.layer.borderWidth = 1
+//            
+//            self.tempView1.frame = CGRect(
+//                x: faceMinX,
+//                y: faceMinY,
+//                width: faceMaxX - faceMinX,
+//                height: faceMaxY - faceMinY
+//            )
+//            self.tempView2.frame = CGRect(
+//                x: smallMinX,
+//                y: smallMinY,
+//                width: smallMaxX - smallMinX,
+//                height: smallMaxY - smallMinY
+//            )
+//        }
         
         return (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
@@ -1248,16 +1252,16 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //            case .portrait:
 //                // 🔥 여기만 바꾸면 대부분 문제 해결
 //                return .rightMirrored
-//                
+//
 //            case .landscapeLeft:
 //                return .upMirrored
-//                
+//
 //            case .portraitUpsideDown:
 //                return .leftMirrored
-//                
+//
 //            case .landscapeRight:
 //                return .downMirrored
-//                
+//
 //            default:
 //                return .rightMirrored
 //        }
