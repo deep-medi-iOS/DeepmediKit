@@ -264,7 +264,7 @@ open class FingerKit: NSObject {
                     
                     if self.tap.count == 30 && !self.isComplete {
                         self.chartUpdateTimer()
-                        self.cameraSetup.setUpCatureDevice()
+                        self.cameraSetup.setUpCaptureDevice(.locked)
                     }
                     
                     self.tap.append(.tap)
@@ -335,9 +335,9 @@ open class FingerKit: NSObject {
                 self.notiGenerator.notificationOccurred(.success)
                 
                 if self.model.breathMeasurement {
-                    self.document.makeDocument(data: .rgb)
-                    self.document.makeDocument(data: .acc)
-                    self.document.makeDocument(data: .gyro)
+//                    self.document.makeDocument(data: .rgb)
+//                    self.document.makeDocument(data: .acc)
+//                    self.document.makeDocument(data: .gyro)
                     
                     if let rgbPath = self.dataModel.rgbDataPath,
                        let accPath = self.dataModel.accDataPath,
@@ -355,7 +355,7 @@ open class FingerKit: NSObject {
                     
                 } else {
                     
-                    self.document.makeDocument(data: .rgb)
+//                    self.document.makeDocument(data: .rgb)
                     
                     if let rgbPath = self.dataModel.rgbDataPath {
                         completion.onNext((success: true,

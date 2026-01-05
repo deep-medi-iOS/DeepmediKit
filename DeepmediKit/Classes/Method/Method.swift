@@ -8,6 +8,9 @@
 import UIKit
 import AVFoundation
 import CoreImage
+import MLKitVision
+import MLKitFaceDetection
+
 
 final class SampleBufferConverter {
     private static let ciContext = CIContext(options: nil)
@@ -71,5 +74,70 @@ final class SampleBufferConverter {
         let b = round6(Double(rgbaF[2]) * 255.0)
 
         return [NSNumber(value: r), NSNumber(value: g), NSNumber(value: b)]
+    }
+}
+
+final class Antispoofing: NSObject {
+    
+    private var checkLeftArr: [Bool] = [],
+                checkRightArr: [Bool] = [],
+                diffLeftArr: [CGFloat] = [],
+                diffRightArr: [CGFloat] = []
+    
+    func initialize() {
+        checkLeftArr.removeAll()
+        checkRightArr.removeAll()
+        diffLeftArr.removeAll()
+        diffRightArr.removeAll()
+    }
+    
+    func checkReal(
+        _ face: Face
+    ) -> (left: Bool, right: Bool) {
+        let leftEyeOpen  = face.leftEyeOpenProbability
+        let rightEyeOpen = face.rightEyeOpenProbability
+        guard leftEyeOpen != 1.0 && rightEyeOpen != 1.0 else {
+            checkRightArr.removeAll()
+            diffRightArr.removeAll()
+            checkLeftArr.removeAll()
+            diffLeftArr.removeAll()
+            return (false, false)
+        }
+        
+        let checkLeft  = leftEyeOpen < 0.3
+        let checkRight = rightEyeOpen < 0.3
+        
+        if checkRightArr.count <= 450 {
+            checkRightArr.append(checkRight)
+        } else {
+            checkRightArr.removeFirst()
+            checkRightArr.append(checkRight)
+        }
+        
+        if checkLeftArr.count <= 450 {
+            checkLeftArr.append(checkLeft)
+        } else {
+            checkLeftArr.removeFirst()
+            checkLeftArr.append(checkLeft)
+        }
+        return (
+            left: containsPatternTwice(in: checkLeftArr),
+            right: containsPatternTwice(in: checkRightArr)
+        )
+    }
+    
+    private func containsPatternTwice(in array: [Bool]) -> Bool {
+        var count = 0
+        // 배열을 반복해서 false, true 패턴을 찾습니다.
+        for i in 0..<array.count - 1 {
+            if array[i] == false && array[i + 1] == true {
+                count += 1
+            }
+            // 패턴이 2개 이상 포함되었는지 체크
+            if count >= 2 {
+                return true
+            }
+        }
+        return false // 패턴이 2개 이상 없으면 false 반환
     }
 }

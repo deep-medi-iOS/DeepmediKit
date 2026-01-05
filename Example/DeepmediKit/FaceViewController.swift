@@ -9,6 +9,7 @@
 import UIKit
 import AVKit
 import DeepmediKit
+import Alamofire
 
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
@@ -107,6 +108,20 @@ class FaceViewController: UIViewController {
             if case let .filePath(result, path) = result {
                 if result {
                     print("file path: \(path)")
+                    Task {
+                        do {
+//                            let header = try await self.header()
+//                            let result = try await self.concurrencyEstimatePPG(
+//                                header: header,
+//                                file: path
+//                            )
+//                            print("[++\(#fileID):\(#line)]- result: ", result)
+                        } catch {
+                            print("error: \(error)")
+                        }
+                    }
+                } else {
+                    print("result is failed")
                 }
             } else if case let .rawData(result, dataSet) = result {
                 if result {
@@ -124,6 +139,8 @@ class FaceViewController: UIViewController {
                         print("data error")
                     }
                 }
+            } else {
+                print("finish error")
             }
             self.faceMeasureKit.stopSession()
         }
@@ -191,5 +208,126 @@ class FaceViewController: UIViewController {
     @objc func prev() {
         self.faceMeasureKit.stopSession()
         self.dismiss(animated: true)
+    }
+    
+    func header() async throws -> Header {
+        let url = "https://y8gc8ito4a.apigw.ntruss.com/signature/v1/"
+        let params = [
+            "uri":    "/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3",
+            "method": "POST",
+            "api_key": "4D5lRr2SFk3u91dBqfRWazXdp01yNQUBXJuUmeCA"
+        ] as [String: Any]
+        
+        let headers: HTTPHeaders = [
+            .contentType("application/json")
+        ]
+        
+        let resp = await AF.request(
+            url,
+            method: .post,
+            parameters: params,
+            encoding: JSONEncoding.default,
+            headers: headers
+        )
+            .serializingDecodable(Header.self).response
+        
+        if let afError = resp.error {
+            throw EstimateErr.message(afError.localizedDescription)
+        }
+        
+        if let statusCode = resp.response?.statusCode,
+           !(200..<300).contains(statusCode) {
+            throw AFError.responseValidationFailed(reason: .unacceptableStatusCode(code: statusCode))
+        } else if let value = resp.value {
+            return value
+        } else {
+            throw EstimateErr.message("Please ensure an accurate measurement.")
+        }
+        return .init(signature: "", timestamp: "", accessKey: "")
+    }
+    
+    func concurrencyEstimatePPG(
+        header: Header,
+        file: URL
+    ) async throws -> EstimateMessage {
+        let url = "https://siigjmw19n.apigw.ntruss.com/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3"
+        
+        let params = [
+            "age": 20,
+            "gender": 0,
+            "height": 170,
+            "weight": 70
+        ] as [String: Any]
+
+        // Ensure all header values are Strings
+        let headers: HTTPHeaders = [
+            "x-ncp-apigw-api-key" : "4D5lRr2SFk3u91dBqfRWazXdp01yNQUBXJuUmeCA",
+            "x-ncp-iam-access-key" : header.accessKey,
+            "x-ncp-apigw-signature-v1": header.signature,
+            "x-ncp-apigw-timestamp" : header.timestamp
+        ]
+        
+        let resp = await AF.upload(multipartFormData: { multipartFormData in
+                multipartFormData.append(file, withName: "rgb")
+                params.forEach { key, value in
+                    multipartFormData.append("\(value)".data(using: .utf8)!, withName: key)
+                }
+            },
+            to: url,
+            method: .post,
+            headers: headers
+        )
+        .serializingDecodable(Estimate.self)
+        .response
+        
+        if let afError = resp.error {
+            throw EstimateErr.message(afError.localizedDescription)
+        }
+        if let statusCode = resp.response?.statusCode,
+           !(200..<300).contains(statusCode) {
+            throw AFError.responseValidationFailed(reason: .unacceptableStatusCode(code: statusCode))
+        } else if let value = resp.value {
+            if value.result == 200 {
+                return value.message
+            } else {
+                throw EstimateErr.message("Please ensure an accurate measurement.")
+            }
+        }
+        return .init(
+            hr: 0,
+            RMSSD: 0,
+            SDNN: 0,
+            rrList: [],
+            preRRlist: [],
+        )
+    }
+}
+
+enum EstimateErr: Error {
+    case message(String)
+}
+
+struct Header: Codable {
+    let signature: String
+    let timestamp: String
+    let accessKey: String
+}
+
+struct Estimate: Codable {
+    let message: EstimateMessage,
+        result: Int
+}
+
+struct EstimateMessage: Codable {
+    let hr: Int,
+        RMSSD: Int,
+        SDNN: Int,
+        rrList: [Float],
+        preRRlist:  [Float]
+    
+    enum CodingKeys: String, CodingKey {
+        case rrList = "rr_list", preRRlist = "pre_rr_list"
+        case hr, RMSSD, SDNN
+        
     }
 }
