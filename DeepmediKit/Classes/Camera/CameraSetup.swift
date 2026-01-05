@@ -130,7 +130,7 @@ class CameraSetup: NSObject {
             self.correctColor()
     }
     
-    func setUpCatureDevice(
+    func setUpCaptureDevice(
         _ mode: AVCaptureDevice.ExposureMode
     ) {
         try! self.captureDevice?.lockForConfiguration()

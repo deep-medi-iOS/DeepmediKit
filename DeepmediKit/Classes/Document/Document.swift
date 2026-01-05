@@ -31,7 +31,7 @@ public class Document {
             case .gyro:
                 fileURL = docuURL.appendingPathComponent("GYRO_DATA_\(part)_ios.txt")
         }
-        self.transrateDataToTxtFile(
+        transrateDataToTxtFile(
             fileURL,
             data: type,
             dataSet: dataSet
