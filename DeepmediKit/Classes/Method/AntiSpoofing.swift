@@ -28,10 +28,7 @@ final class Antispoofing: NSObject {
         let leftEyeOpen  = face.leftEyeOpenProbability
         let rightEyeOpen = face.rightEyeOpenProbability
         guard leftEyeOpen != 1.0 && rightEyeOpen != 1.0 else {
-            checkRightArr.removeAll()
-            diffRightArr.removeAll()
-            checkLeftArr.removeAll()
-            diffLeftArr.removeAll()
+            initialize()
             return (false, false)
         }
         

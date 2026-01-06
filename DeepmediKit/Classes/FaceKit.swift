@@ -60,6 +60,7 @@ public class FaceKit: NSObject {
     
     private var lastValue: Int? = nil
     private var lastImage: UIImage?
+    private var cropFaceImage: UIImage?
     private var dispatchTimer: DispatchSourceTimer?
     private var isTimerRunning = false
     private var useFaceRecognitionArea = false
@@ -85,14 +86,16 @@ public class FaceKit: NSObject {
     }
     
     public func captureImage(
-        _ capture: @escaping((UIImage?) -> ())
+        _ capture: @escaping((UIImage?, UIImage?) -> ())
+//        _ capture: @escaping((UIImage?) -> ())
     ) {
         let captureImage = measurementModel.captureImage
         captureImage
             .observe(on: MainScheduler.asyncInstance)
-            .asDriver(onErrorJustReturn: UIImage())
+            .asDriver(onErrorJustReturn: (UIImage(), UIImage()))
             .drive(onNext: { image in
-                capture(image)
+                let (screenCapture, crop) = image
+                capture(screenCapture, crop)
             })
             .disposed(by: bag)
     }
@@ -575,7 +578,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             guard let self = self else { return }
             if let frame = lastFrame,
                let captureImage = SampleBufferConverter.convertingBufferFront(frame) {
-                measurementModel.captureImage.onNext(captureImage)
+                measurementModel.captureImage.onNext((capture: captureImage, crop: cropFaceImage))
             }
         }
     }
@@ -606,20 +609,17 @@ extension FaceKit {
             print("casting error")
             return
         }
-        print("[++\(#fileID):\(#line)]- extracted rgb ")
         guard let r = faceRGB[0] as? Float,
               let g = faceRGB[1] as? Float,
               let b = faceRGB[2] as? Float else {
             print("rgb casting error")
             return
         }
-        print("[++\(#fileID):\(#line)]- is timer running: ", isTimerRunning)
-        print("[++\(#fileID):\(#line)]- face rgb: ", faceRGB)
+        
         let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
         if isTimerRunning {
             guard ts > 100 else { return }
             let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
-            print("[++\(#fileID):\(#line)]- dataSet: ", dataSet)
             timeStamp.append(ts)
             sigR.append(r)
             sigB.append(g)
@@ -649,7 +649,7 @@ extension FaceKit {
            let rightEyeBrowBottomContour = face.contour(ofType: .rightEyebrowBottom),
            let upperLipContour = face.contour(ofType: .upperLipTop),
            let lowerLipContour = face.contour(ofType: .lowerLipBottom) {
-            print("[++\(#fileID):\(#line)]- add contours and isTimerRunning: ", isTimerRunning )
+            
             var facePath = UIBezierPath().then { p in
                 p.lineWidth = 1
             }
@@ -670,13 +670,11 @@ extension FaceKit {
             }
             
             if willCheckRealFace {
-                guard !isTimerRunning else {
-                    antiSpoofing.initialize()
-                    return
+                if !isTimerRunning {
+                    let (left, right) = antiSpoofing.checkReal(face)
+                    isLeftEyeReal  = left
+                    isRightEyeReal = right
                 }
-                let (left, right) = antiSpoofing.checkReal(face)
-                isLeftEyeReal  = left
-                isRightEyeReal = right
             } else {
                 isLeftEyeReal  = true
                 isRightEyeReal = true
@@ -772,6 +770,7 @@ extension FaceKit {
                 facePath.append(leftEyeBrowPath)
                 facePath.append(rightEyeBrowPath)
                 facePath.append(lipsPath)
+                cropFaceImage = cropImage
                 
                 guard let cropLandMarkFace = getMaskedImage(
                     picture: cropImage,
@@ -780,7 +779,6 @@ extension FaceKit {
                       let sampleBuffer = cropLandMarkFace.createCMSampleBuffer() else { fatalError("face crop image return") }
 //                self.cropView.image = cropImage
 //                self.landMarkView.image = cropLandMarkFace
-                print("[++\(#fileID):\(#line)]- get sample buffer ")
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
             }
         } else {
