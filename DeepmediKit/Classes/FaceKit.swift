@@ -29,13 +29,10 @@ public class FaceKit: NSObject {
     }
     private let bag = DisposeBag()
     
-    private let makeDocument = Document(),
+    private let document = Document(),
                 measurementModel = MeasurementModel()
     
-    private let service = Service.manager
-    
-    private let dataModel   = DataModel.shared,
-                model       = Model.shared,
+    private let model       = Model.shared,
                 cameraSetup = CameraSetup.shared
     
     private var lastFrame: CMSampleBuffer?,
@@ -43,7 +40,7 @@ public class FaceKit: NSObject {
                 cropFaceRect: CGRect?,
                 cropChestRect: CGRect?
     
-    // MARK: Property
+// MARK: Property 
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                 prepareTimer = Timer(),
                 measurementTime = Double(), // 측정하는 시간
@@ -71,6 +68,19 @@ public class FaceKit: NSObject {
     private var sigG: [Float] = []
     private var tempG: [Float] = []
     private var totalData: [(Double, Float, Float, Float)] = []
+    
+    public func iso(
+        _ iso: @escaping((Float) -> ())
+    ) {
+        let value = self.measurementModel.isoValue
+        value
+            .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                iso(value)
+            })
+            .disposed(by: bag)
+    }
     
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
@@ -161,7 +171,7 @@ public class FaceKit: NSObject {
     public func timesLeft(
         _ com: @escaping((Int) -> ())
     ) {
-        let secondRemaining = self.measurementModel.secondRemaining
+        let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
             .drive(onNext: { remaining in
@@ -172,13 +182,12 @@ public class FaceKit: NSObject {
     
     public override init() {
         super.init()
+        print("[++\(#fileID):\(#line)]- init ")
         UIApplication.shared.isIdleTimerDisabled = true //측정중 화면 자동잠금을 막기 위해 설정
-//        if let openCVstr = OpenCVWrapper.openCVVersionString() {
-//            print("\(openCVstr)")
-//        }
     }
     
     deinit {
+        print("[++\(#fileID)] deinit ")
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
@@ -197,16 +206,15 @@ public class FaceKit: NSObject {
     private var smallView = UIView()
 
     open func startSession() {
-        self.measurementTime = self.model.faceMeasurementTime
-        self.preparingSec    = self.model.prepareTime
+        self.measurementTime = model.faceMeasurementTime
+        self.preparingSec    = model.prepareTime
         self.isTimerRunning  = false
         self.dispatchTimer?.cancel()
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self,
-                  let previewLayer = self.model.previewLayer else {
+            guard let self, let previewLayer = self.model.previewLayer else {
                 print("previewLayer is nil")
                 return
             }
@@ -282,7 +290,7 @@ public class FaceKit: NSObject {
             // MARK: 측정완료
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
-                if let rgbPath = self.makeDocument.makeDocument(
+                if let rgbPath = self.document.make(
                     data: .rgb,
                     dataSet: totalData
                 ) {
@@ -302,9 +310,9 @@ public class FaceKit: NSObject {
     func completionRate(
         second: Double
     ) -> Int? {
-        let newValue = Int((100.0 - (second / self.model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
-        let ratio = newValue != self.lastValue ? newValue : nil
-        self.lastValue = newValue
+        let newValue = Int((100.0 - (second / model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
+        let ratio = newValue != lastValue ? newValue : nil
+        lastValue = newValue
         if let r = ratio {
             return r
         }
@@ -432,6 +440,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 print("sample buffer error")
                 return
             }
+            measurementModel.isoValue.onNext(cameraSetup.useCaptureDevice().iso)
             if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
                 if tempG.count >= 30 {
                     measurementModel.checkRealFace.onNext(true)
@@ -462,7 +471,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             }
         }
     }
-    
     
     private func recognitionArea(
         face: Face,
@@ -830,7 +838,7 @@ extension FaceKit {
         picture: UIImage,
         cgPath: CGPath
     ) -> UIImage? {
-        let flipped = orientation.flipImage(picture) ?? picture
+        let flipped     = orientation.flipImage(picture) ?? picture
         let flippedPath = orientation.flipPathHorizontally(cgPath, in: picture.size)
         
         let rect = CGRect(origin: .zero, size: flipped.size)

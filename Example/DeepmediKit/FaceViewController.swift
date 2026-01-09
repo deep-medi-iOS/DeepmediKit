@@ -56,14 +56,23 @@ class FaceViewController: UIViewController {
         )
         faceMeasureKitModel.setMeasurementTime(15)
         faceMeasureKitModel.setPrepareTime(3)
-        faceMeasureKitModel.willUseFaceRecognitionArea(true)
+        faceMeasureKitModel.willUseFaceRecognitionArea(false)
         faceMeasureKitModel.willCheckRealFace(true)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
-        self.setupUI()
+        setupUI()
 
-        self.faceMeasureKit.startSession()
+        faceMeasureKit.startSession()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("[++\(#fileID):\(#line)]- view did appear ")
+    }
+    
+    deinit {
+        print("[++\(#fileID):\(#line)]- vc deinit ")
     }
     
     override func viewDidLayoutSubviews() {
@@ -83,6 +92,10 @@ class FaceViewController: UIViewController {
             } else {
                 self.tempView.backgroundColor = .red
             }
+        }
+        
+        faceMeasureKit.iso { iso in
+            print("[++\(#fileID):\(#line)]- iso: ", iso)
         }
         
         faceMeasureKit.captureImage { (capture, crop)  in

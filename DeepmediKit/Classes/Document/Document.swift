@@ -9,11 +9,11 @@ import UIKit
 
 public class Document {
     private let fileManager = FileManager()
-//    private let dataModel = DataModel.shared
+    //    private let dataModel = DataModel.shared
     private let model = Model.shared
     
     // MARK: 측정데이터 파일생성
-    func makeDocument(
+    func make(
         data type: DataModel.type,
         dataSet: [(Double, Float, Float, Float)]
     ) -> URL? {
@@ -56,7 +56,7 @@ public class Document {
                 data = dataSet
             case .gyro:
                 data = dataSet
-       }
+        }
         
         data.forEach { dataMass in
             dataToArr.append(
@@ -73,7 +73,7 @@ public class Document {
         
         try? dataSubStr.write(to: file, atomically: true, encoding: String.Encoding.utf8)
     }
-    
+}
 //    func makeDocuFromChestData() {
 //        let docuURL = self.fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
 //        
@@ -156,4 +156,3 @@ public class Document {
 //    ) -> [UInt8] where T: FixedWidthInteger {
 //        withUnsafeBytes(of: value.bigEndian, Array.init)
 //    }
-}
