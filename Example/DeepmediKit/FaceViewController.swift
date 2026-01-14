@@ -35,6 +35,11 @@ class FaceViewController: UIViewController {
     }
     
     let tempView = UIView()
+   
+    let isoLabel = UILabel().then { l in
+        l.backgroundColor = .black
+        l.textColor = .white
+    }
     
     let captureImageView = UIImageView().then { v in
         v.contentMode = .scaleAspectFit
@@ -56,7 +61,7 @@ class FaceViewController: UIViewController {
         )
         faceMeasureKitModel.setMeasurementTime(15)
         faceMeasureKitModel.setPrepareTime(3)
-        faceMeasureKitModel.willUseFaceRecognitionArea(false)
+        faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(true)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
@@ -95,14 +100,15 @@ class FaceViewController: UIViewController {
         }
         
         faceMeasureKit.iso { iso in
-            print("[++\(#fileID):\(#line)]- iso: ", iso)
+//            print("[++\(#fileID):\(#line)]- iso: ", iso)
+            self.isoLabel.text = "\(iso)"
         }
         
-        faceMeasureKit.captureImage { (capture, crop)  in
+        faceMeasureKit.captureImage { capture in
             print("[++\(#fileID):\(#line)]- image ")
-            if let capture = capture,
-               let crop = crop {
-                self.captureImageView.image = capture
+            if let screen = capture.screen,
+               let crop = capture.face {
+                self.captureImageView.image = screen
                 self.cropImageView.image = crop
             } else {
                 self.captureImageView.image = UIImage()
@@ -161,6 +167,7 @@ class FaceViewController: UIViewController {
         self.view.addSubview(faceRecognitionAreaView)
         self.view.addSubview(previousButton)
         self.view.addSubview(tempView)
+        self.view.addSubview(isoLabel)
         self.view.addSubview(captureImageView)
         self.view.addSubview(cropImageView)
         
@@ -168,6 +175,7 @@ class FaceViewController: UIViewController {
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         tempView.translatesAutoresizingMaskIntoConstraints = false
+        isoLabel.translatesAutoresizingMaskIntoConstraints = false
         captureImageView.translatesAutoresizingMaskIntoConstraints = false
         cropImageView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -188,6 +196,13 @@ class FaceViewController: UIViewController {
         ])
         faceRecognitionAreaView.layer.borderColor = UIColor.blue.cgColor
         faceRecognitionAreaView.layer.borderWidth = 2
+        
+        NSLayoutConstraint.activate([
+            isoLabel.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 80),
+            isoLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            isoLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
+            isoLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
 
         NSLayoutConstraint.activate([
             previousButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),

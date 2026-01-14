@@ -19,14 +19,23 @@ public class FaceKit: NSObject {
     public enum Result {
         case filePath, rawData
     }
-    
     public enum ResultSelector {
         case filePath(result: Bool, path: URL)
         case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
     }
+    public struct Capture {
+        public let screen: UIImage?
+        public let face: UIImage?
+        public init(screen: UIImage?, face: UIImage?) {
+            self.screen = screen
+            self.face = face
+        }
+    }
+    
     enum MeasurementErr: Error {
         case message(String)
     }
+    
     private let bag = DisposeBag()
     
     private let document = Document(),
@@ -72,7 +81,7 @@ public class FaceKit: NSObject {
     public func iso(
         _ iso: @escaping((Float) -> ())
     ) {
-        let value = self.measurementModel.isoValue
+        let value = measurementModel.isoValue
         value
             .asDriver(onErrorJustReturn: 0)
             .distinctUntilChanged(==)
@@ -85,7 +94,7 @@ public class FaceKit: NSObject {
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
     ) {
-        let check = self.measurementModel.checkRealFace
+        let check = measurementModel.checkRealFace
         check
             .asDriver(onErrorJustReturn: false)
             .distinctUntilChanged()
@@ -96,16 +105,15 @@ public class FaceKit: NSObject {
     }
     
     public func captureImage(
-        _ capture: @escaping((UIImage?, UIImage?) -> ())
-//        _ capture: @escaping((UIImage?) -> ())
+        _ capture: @escaping((Capture) -> ())
     ) {
         let captureImage = measurementModel.captureImage
         captureImage
             .observe(on: MainScheduler.asyncInstance)
-            .asDriver(onErrorJustReturn: (UIImage(), UIImage()))
+            .asDriver(onErrorJustReturn: (screen: nil, crop: nil))
             .drive(onNext: { image in
-                let (screenCapture, crop) = image
-                capture(screenCapture, crop)
+                guard let screen = image.screen, let crop = image.crop else { return }
+                capture(Capture(screen: screen, face: crop))
             })
             .disposed(by: bag)
     }
@@ -174,6 +182,7 @@ public class FaceKit: NSObject {
         let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
             .drive(onNext: { remaining in
                 com(remaining)
             })
@@ -462,6 +471,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     }
                 }
             } else {
+                cameraSetup.setUpCaptureDevice(.autoExpose)
                 measurementModel.checkRealFace.onNext(false)
                 initRGBData()
                 isTimerRunning = false
@@ -586,7 +596,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             guard let self = self else { return }
             if let frame = lastFrame,
                let captureImage = SampleBufferConverter.convertingBufferFront(frame) {
-                measurementModel.captureImage.onNext((capture: captureImage, crop: cropFaceImage))
+                measurementModel.captureImage.onNext((screen: captureImage, crop: cropFaceImage))
             }
         }
     }
@@ -859,3 +869,4 @@ extension FaceKit {
     }
     
 }
+

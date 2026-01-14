@@ -39,7 +39,7 @@ class MeasurementModel {
     let resultCardioRisk = PublishSubject<[String: Any]>()
     let healthCareInfoResult = PublishSubject<[String: Any]>()
     let measurementComplete = PublishSubject<Bool>()
-    let captureImage = PublishSubject<(capture: UIImage?, crop: UIImage?)>()
+    let captureImage = PublishSubject<(screen: UIImage?, crop: UIImage?)>()
 //    let captureImage = PublishSubject<UIImage?>()
     let rgbFilePath = PublishSubject<URL>()
     let timeStamp = PublishSubject<[Double]>()
