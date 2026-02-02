@@ -8,6 +8,10 @@
 import UIKit
 import CoreMotion
 
+extension FaceKit {
+    
+}
+
 class DataModel {
     static let shared = DataModel()
     

@@ -9,6 +9,7 @@
 import UIKit
 import AVKit
 import DeepmediKit
+import Alamofire
 
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
@@ -34,8 +35,16 @@ class FaceViewController: UIViewController {
     }
     
     let tempView = UIView()
+   
+    let isoLabel = UILabel().then { l in
+        l.backgroundColor = .black
+        l.textColor = .white
+    }
     
-    let tempImageView = UIImageView().then { v in
+    let captureImageView = UIImageView().then { v in
+        v.contentMode = .scaleAspectFit
+    }
+    let cropImageView = UIImageView().then { v in
         v.contentMode = .scaleAspectFit
     }
 
@@ -57,9 +66,18 @@ class FaceViewController: UIViewController {
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
-        self.setupUI()
+        setupUI()
 
-        self.faceMeasureKit.startSession()
+        faceMeasureKit.startSession()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("[++\(#fileID):\(#line)]- view did appear ")
+    }
+    
+    deinit {
+        print("[++\(#fileID):\(#line)]- vc deinit ")
     }
     
     override func viewDidLayoutSubviews() {
@@ -81,12 +99,20 @@ class FaceViewController: UIViewController {
             }
         }
         
-        faceMeasureKit.captureImage { img in
+        faceMeasureKit.iso { iso in
+//            print("[++\(#fileID):\(#line)]- iso: ", iso)
+            self.isoLabel.text = "\(iso)"
+        }
+        
+        faceMeasureKit.captureImage { capture in
             print("[++\(#fileID):\(#line)]- image ")
-            if let capture = img {
-                self.tempImageView.image = capture
+            if let screen = capture.screen,
+               let crop = capture.face {
+                self.captureImageView.image = screen
+                self.cropImageView.image = crop
             } else {
-                self.tempImageView.image = UIImage()
+                self.captureImageView.image = UIImage()
+                self.cropImageView.image = UIImage()
             }
             
         }
@@ -107,6 +133,8 @@ class FaceViewController: UIViewController {
             if case let .filePath(result, path) = result {
                 if result {
                     print("file path: \(path)")
+                } else {
+                    print("result is failed")
                 }
             } else if case let .rawData(result, dataSet) = result {
                 if result {
@@ -119,11 +147,13 @@ class FaceViewController: UIViewController {
                         && sigR.count > 0
                         && sigG.count > 0
                         && sigB.count > 0 {
-                        print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
+                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
                     } else {
                         print("data error")
                     }
                 }
+            } else {
+                print("finish error")
             }
             self.faceMeasureKit.stopSession()
         }
@@ -137,13 +167,17 @@ class FaceViewController: UIViewController {
         self.view.addSubview(faceRecognitionAreaView)
         self.view.addSubview(previousButton)
         self.view.addSubview(tempView)
-        self.view.addSubview(tempImageView)
+        self.view.addSubview(isoLabel)
+        self.view.addSubview(captureImageView)
+        self.view.addSubview(cropImageView)
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         tempView.translatesAutoresizingMaskIntoConstraints = false
-        tempImageView.translatesAutoresizingMaskIntoConstraints = false
+        isoLabel.translatesAutoresizingMaskIntoConstraints = false
+        captureImageView.translatesAutoresizingMaskIntoConstraints = false
+        cropImageView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             preview.topAnchor.constraint(equalTo: self.view.topAnchor),
@@ -162,6 +196,13 @@ class FaceViewController: UIViewController {
         ])
         faceRecognitionAreaView.layer.borderColor = UIColor.blue.cgColor
         faceRecognitionAreaView.layer.borderWidth = 2
+        
+        NSLayoutConstraint.activate([
+            isoLabel.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 80),
+            isoLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            isoLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
+            isoLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
 
         NSLayoutConstraint.activate([
             previousButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
@@ -181,10 +222,16 @@ class FaceViewController: UIViewController {
         )
         
         NSLayoutConstraint.activate([
-            tempImageView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
-            tempImageView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
-            tempImageView.widthAnchor.constraint(equalToConstant: width * 0.3),
-            tempImageView.heightAnchor.constraint(equalToConstant: width * 0.3)
+            captureImageView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            captureImageView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+            captureImageView.widthAnchor.constraint(equalToConstant: width * 0.3),
+            captureImageView.heightAnchor.constraint(equalToConstant: width * 0.3)
+        ])
+        NSLayoutConstraint.activate([
+            cropImageView.leadingAnchor.constraint(equalTo: captureImageView.trailingAnchor),
+            cropImageView.topAnchor.constraint(equalTo: captureImageView.topAnchor),
+            cropImageView.widthAnchor.constraint(equalToConstant: width * 0.3),
+            cropImageView.heightAnchor.constraint(equalToConstant: width * 0.3)
         ])
     }
     

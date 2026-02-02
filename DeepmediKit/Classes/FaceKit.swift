@@ -19,23 +19,29 @@ public class FaceKit: NSObject {
     public enum Result {
         case filePath, rawData
     }
-    
     public enum ResultSelector {
         case filePath(result: Bool, path: URL)
         case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
     }
+    public struct Capture {
+        public let screen: UIImage?
+        public let face: UIImage?
+        public init(screen: UIImage?, face: UIImage?) {
+            self.screen = screen
+            self.face = face
+        }
+    }
+    
     enum MeasurementErr: Error {
         case message(String)
     }
+    
     private let bag = DisposeBag()
     
-    private let makeDocument = Document(),
+    private let document = Document(),
                 measurementModel = MeasurementModel()
     
-    private let service = Service.manager
-    
-    private let dataModel = DataModel.shared,
-                model = Model.shared,
+    private let model       = Model.shared,
                 cameraSetup = CameraSetup.shared
     
     private var lastFrame: CMSampleBuffer?,
@@ -43,7 +49,7 @@ public class FaceKit: NSObject {
                 cropFaceRect: CGRect?,
                 cropChestRect: CGRect?
     
-    // MARK: Property
+// MARK: Property 
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                 prepareTimer = Timer(),
                 measurementTime = Double(), // 측정하는 시간
@@ -53,23 +59,44 @@ public class FaceKit: NSObject {
                 faceRecognitionAreaView = UIView()
     
     private var notDetectFace = true,
-//                isPreparing = false,
-                isLeftEyeReal = false ,
-                isRightEyeReal = false ,
-                diffLeftArr:[CGFloat] = [],
-                diffRightArr:[CGFloat] = [],
-                checkLeftArr:[Bool] = [],
-                checkRightArr:[Bool] = []
+                isLeftEyeReal = false,
+                isRightEyeReal = false
+    
+    private var willCheckRealFace = false
     
     private var lastValue: Int? = nil
     private var lastImage: UIImage?
+    private var cropFaceImage: UIImage?
     private var dispatchTimer: DispatchSourceTimer?
     private var isTimerRunning = false
+    private var useFaceRecognitionArea = false
+    
+    private var timeStamp: [Double] = []
+    private var sigR: [Float] = []
+    private var sigB: [Float] = []
+    private var sigG: [Float] = []
+    private var tempG: [Float] = []
+    private var totalData: [(Double, Float, Float, Float)] = []
+    
+    private var bytesArray: [[UInt8]] = []
+    
+    public func iso(
+        _ iso: @escaping((Float) -> ())
+    ) {
+        let value = measurementModel.isoValue
+        value
+            .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                iso(value)
+            })
+            .disposed(by: bag)
+    }
     
     public func checkRealFace(
         _ isReal: @escaping((Bool) -> ())
     ) {
-        let check = self.measurementModel.checkRealFace
+        let check = measurementModel.checkRealFace
         check
             .asDriver(onErrorJustReturn: false)
             .distinctUntilChanged()
@@ -80,16 +107,15 @@ public class FaceKit: NSObject {
     }
     
     public func captureImage(
-        _ capture: @escaping((UIImage?) -> ())
+        _ capture: @escaping((Capture) -> ())
     ) {
         let captureImage = measurementModel.captureImage
         captureImage
             .observe(on: MainScheduler.asyncInstance)
-            .asDriver(onErrorJustReturn: UIImage())
+            .asDriver(onErrorJustReturn: (screen: nil, crop: nil))
             .drive(onNext: { image in
-                let resizeImg = self.resizeImage(image: image)
-                capture(resizeImg)
-//                capture(image)
+                guard let screen = image.screen, let crop = image.crop else { return }
+                capture(Capture(screen: screen, face: crop))
             })
             .disposed(by: bag)
     }
@@ -114,29 +140,20 @@ public class FaceKit: NSObject {
     ) {
         let completion = measurementModel.measurementComplete
         let filePath = measurementModel.rgbFilePath
-//        let timeStamp = measurementModel.timeStamp,
-//            sigR = measurementModel.sigR,
-//            sigB = measurementModel.sigB,
-//            sigG = measurementModel.sigG
         
         Observable.combineLatest(
             completion,
             filePath,
-//            timeStamp,
-//            sigR,
-//            sigG,
-//            sigB
         )
         .observe(on: MainScheduler.instance)
-//        .asDriver(onErrorJustReturn: (false, URL(fileURLWithPath: ""), [], [], [], []))
-//        .drive(onNext: { (res, path, ts, r, g, b) in
         .asDriver(onErrorJustReturn: (false, URL(fileURLWithPath: "")))
-        .drive(onNext: { (res, path) in
+        .drive(onNext: {[weak self] (res, path) in
+            guard let self else { return }
             let output: ResultSelector
-            let ts = self.dataModel.timeStamp
-            let r = self.dataModel.rData
-            let g = self.dataModel.gData
-            let b = self.dataModel.bData
+            let ts = timeStamp.map { $0 - (self.timeStamp.first ?? 0.0) }
+            let r  = sigR
+            let g  = sigG
+            let b  = sigB
             switch kind {
                 case .filePath:
                     output = .filePath(result: res, path: path)
@@ -151,7 +168,7 @@ public class FaceKit: NSObject {
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())
     ) {
-        let ratio = self.measurementModel.measurementCompleteRatio
+        let ratio = measurementModel.measurementCompleteRatio
         ratio
             .asDriver(onErrorJustReturn: "0%")
             .asDriver()
@@ -164,7 +181,7 @@ public class FaceKit: NSObject {
     public func timesLeft(
         _ com: @escaping((Int) -> ())
     ) {
-        let secondRemaining = self.measurementModel.secondRemaining
+        let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
             .drive(onNext: { remaining in
@@ -175,48 +192,54 @@ public class FaceKit: NSObject {
     
     public override init() {
         super.init()
+        print("[++\(#fileID):\(#line)]- init ")
         UIApplication.shared.isIdleTimerDisabled = true //측정중 화면 자동잠금을 막기 위해 설정
-        if let openCVstr = OpenCVWrapper.openCVVersionString() {
-            print("\(openCVstr)")
-        }
     }
     
     deinit {
+        print("[++\(#fileID)] deinit ")
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
-    private var tempView = UIImageView().then { imv in
+    private var cropView = UIImageView().then { imv in
         imv.contentMode = .scaleAspectFit
     }
-    private var extraView = UIImageView().then { imv in
+    private var landMarkView = UIImageView().then { imv in
         imv.contentMode = .scaleAspectFit
     }
-    private var tempView1 = UIView()
-    private var tempView2 = UIView()
+    
+    private let antiSpoofing = Antispoofing()
+    private let cropBuffer   = CropBuffer()
+    private let orientation  = Orientation()
+    private var recogView = UIView()
+    private var faceDetecView = UIView()
+    private var smallView = UIView()
 
     open func startSession() {
-        self.measurementTime = self.model.faceMeasurementTime
-        self.preparingSec = self.model.prepareTime
-        self.isTimerRunning = false
+        self.measurementTime = model.faceMeasurementTime
+        self.preparingSec    = model.prepareTime
+        self.isTimerRunning  = false
         self.dispatchTimer?.cancel()
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
         
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            if let previewLayer = self.model.previewLayer {
-                self.previewLayer = previewLayer
+            guard let self, let previewLayer = self.model.previewLayer else {
+                print("previewLayer is nil")
+                return
             }
-            
+            self.previewLayer = previewLayer
+            self.willCheckRealFace = model.willCheckRealFace
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
+                self.useFaceRecognitionArea = self.model.useFaceRecognitionArea
                 self.faceRecognitionAreaView = faceRecognitionAreaView
 //                DispatchQueue.main.async {
-//                    self.faceRecognitionAreaView.addSubview(self.tempView)
-//                    self.faceRecognitionAreaView.addSubview(self.extraView)
-//                    self.faceRecognitionAreaView.addSubview(self.tempView1)
-//                    self.faceRecognitionAreaView.addSubview(self.tempView2)
-////                    self.extraView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+//                    self.faceRecognitionAreaView.addSubview(self.cropView)
+//                    self.faceRecognitionAreaView.addSubview(self.landMarkView)
+//                    self.faceRecognitionAreaView.addSubview(self.recogView)
+//                    self.faceRecognitionAreaView.addSubview(self.faceDetecView)
+//                    self.faceRecognitionAreaView.addSubview(self.smallView)
 //                }
             }
             self.cameraSetup.useSession().startRunning()
@@ -224,24 +247,16 @@ public class FaceKit: NSObject {
     }
     
     open func stopSession() {
-        self.lastFrame = nil
-        self.cropFaceRect = nil
+        lastFrame = nil
+        cropFaceRect = nil
         
-        self.isLeftEyeReal = false
-        self.isRightEyeReal = false
-        self.isTimerRunning = false
+        isLeftEyeReal = false
+        isRightEyeReal = false
         
-        self.dispatchTimer?.cancel()
-        self.measurementTimer.invalidate()
-        self.prepareTimer.invalidate()
-
-        self.dataModel.gTempData.removeAll()
-        self.diffLeftArr.removeAll()
-        self.diffRightArr.removeAll()
-        self.checkLeftArr.removeAll()
-        self.checkRightArr.removeAll()
-        
-        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
+        initRGBData()
+        timerReset()
+        antiSpoofing.initialize()
+        cameraSetup.setUpCaptureDevice(.autoExpose)
         
         DispatchQueue.global(qos: .background).async { [weak self] in
             guard let self = self else { return }
@@ -250,38 +265,28 @@ public class FaceKit: NSObject {
     }
     
     private func collectDatas() {
-        self.measurementModel.measurementStop.onNext(false)
+        measurementModel.measurementStop.onNext(false)
         
-        let secondRemaining = measurementModel.secondRemaining,
+        let secondRemaining          = measurementModel.secondRemaining,
             measurementCompleteRatio = measurementModel.measurementCompleteRatio,
-            measurementComplete = measurementModel.measurementComplete,
-            rgbFilePath = measurementModel.rgbFilePath
-//            timeStamp = measurementModel.timeStamp,
-//            sigR = measurementModel.sigR,
-//            sigB = measurementModel.sigB,
-//            sigG = measurementModel.sigG
+            measurementComplete      = measurementModel.measurementComplete,
+            rgbFilePath              = measurementModel.rgbFilePath
+
+        initRGBData()
+        preparingSec    = model.prepareTime
+        measurementTime = model.faceMeasurementTime
         
-        self.dataModel.initRGBData()
-        self.dataModel.gTempData.removeAll()
-        
-        self.preparingSec = self.model.prepareTime
-        self.measurementTime = self.model.faceMeasurementTime
-        
-        self.dispatchTimer = DispatchSource.makeTimerSource()
-        self.dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
-        self.dispatchTimer?.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            self.isTimerRunning = true
-            
-            guard self.isLeftEyeReal && self.isRightEyeReal else {
-                self.lastValue = nil
-                self.diffLeftArr.removeAll()
-                self.diffRightArr.removeAll()
-                self.checkLeftArr.removeAll()
-                self.checkRightArr.removeAll()
-                self.dispatchTimer?.cancel()
+        dispatchTimer = DispatchSource.makeTimerSource()
+        dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
+        dispatchTimer?.setEventHandler { [weak self] in
+            guard let self = self, self.isLeftEyeReal && self.isRightEyeReal else {
+                self?.antiSpoofing.initialize()
+                self?.lastValue = nil
+                self?.isTimerRunning = false
+                self?.dispatchTimer?.cancel()
                 return
             }
+            self.isTimerRunning = true
             
             if let ratio = self.completionRate(
                 second: self.measurementTime
@@ -295,35 +300,37 @@ public class FaceKit: NSObject {
             // MARK: 측정완료
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
-                self.makeDocument.makeDocument(data: .rgb) //측정한 데이터 파일로 변환
-                if let rgbPath = self.dataModel.rgbDataPath { //파일이 존재할때 api호출 시도
+                if let rgbPath = self.document.make(
+                    data: .rgb,
+                    dataSet: totalData
+                ) {
+                    print("[++\(#fileID):\(#line)]- byteArr count: ", bytesArray.count)
+                    guard let dataBin = self.document.makeBin(
+                        dataSet: totalData,
+                        bytesArr: bytesArray
+                    ) else {
+                        print("byte to bin error")
+                        return
+                    }
                     measurementComplete.onNext(true)
                     rgbFilePath.onNext(rgbPath)
-//                    timeStamp.onNext(self.dataModel.timeStamp)
-//                    sigR.onNext(self.dataModel.rData)
-//                    sigG.onNext(self.dataModel.gData)
-//                    sigB.onNext(self.dataModel.bData)
                 } else {
                     measurementComplete.onNext(false)
                     rgbFilePath.onNext(URL(fileURLWithPath: ""))
-//                    timeStamp.onNext([])
-//                    sigR.onNext([])
-//                    sigG.onNext([])
-//                    sigB.onNext([])
                 }
                 self.dispatchTimer?.cancel()
                 self.isTimerRunning = false
             }
         }
-        self.dispatchTimer?.resume()
+        dispatchTimer?.resume()
     }
     
     func completionRate(
         second: Double
     ) -> Int? {
-        let newValue = Int((100.0 - (second / self.model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
-        let ratio = newValue != self.lastValue ? newValue : nil
-        self.lastValue = newValue
+        let newValue = Int((100.0 - (second / model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
+        let ratio = newValue != lastValue ? newValue : nil
+        lastValue = newValue
         if let r = ratio {
             return r
         }
@@ -349,15 +356,15 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         )
         
         self.lastFrame = sampleBuffer
-        
-        let orientation = self.imageOrientation(fromDevicePosition: .front)
+    
+        let orientation = orientation.image(fromDevicePosition: .front)
         let visionImage = VisionImage(buffer: sampleBuffer)
         visionImage.orientation = orientation
         
         let imageWidth = CGFloat(CVPixelBufferGetWidth(cvimgRef))
         let imageHeight = CGFloat(CVPixelBufferGetHeight(cvimgRef))
         
-        self.detectFacesOnDevice(
+        detectFacesOnDevice(
             in: visionImage,
             imageWidth: imageWidth,
             imageHeight: imageHeight
@@ -392,96 +399,52 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             return
         }
         
-        DispatchQueue.global(qos: .background).async {
-            
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self else { return }
             self.updatePreviewOverlayViewWithLastFrame()
             
             if !faces.isEmpty {
-                
                 for face in faces {
-                    
                     guard face.contours.count != 0 else {
                         print("[++\(#fileID):\(#line)]- face have not contours")
                         return
                     }
                     let previewBounds = self.model.previewLayerBounds
+                    let x = face.frame.origin.x,
+                        y = face.frame.origin.y,
+                        w = face.frame.size.width,
+                        h = face.frame.size.height
+                    let normalizedRect = CGRect(x: x / imageWidth,
+                                                y: y / imageHeight,
+                                                width: w / imageWidth,
+                                                height: h / imageHeight)
                     
-                    if self.model.useFaceRecognitionArea {
-                        
-//                        let x = (face.frame.origin.x + face.frame.size.width * 0.3),
-//                            y = (face.frame.origin.y + face.frame.size.height * 0.2),
-//                            w = (face.frame.size.width * 0.4),
-//                            h = (face.frame.size.height * 0.6)
-                        let x = face.frame.origin.x,
-                            y = face.frame.origin.y,
-                            w = face.frame.size.width,
-                            h = face.frame.size.height
-                        let normalizedRect = CGRect(x: x / imageWidth,
-                                                    y: y / imageHeight,
-                                                    width: w / imageWidth,
-                                                    height: h / imageHeight)
-                        
-                        let standardizedRect = self.previewLayer.layerRectConverted(
-                            fromMetadataOutputRect: normalizedRect
-                        ).standardized,
-                            recognitionStandardizedRect = CGRect(
-                                x: standardizedRect.origin.x + previewBounds.origin.x,
-                                y: standardizedRect.origin.y + previewBounds.origin.y,
-                                width: standardizedRect.width,
-                                height: standardizedRect.height
-                            )
-                        
-                        self.recognitionArea(
-                            face: face,
-                            imageWidth: imageWidth,
-                            imageHeight: imageHeight,
-                            recognitionStandardizedRect: recognitionStandardizedRect,
-                            faceRecognitionAreaView: self.faceRecognitionAreaView
+                    let standardizedRect = self.previewLayer.layerRectConverted(
+                        fromMetadataOutputRect: normalizedRect
+                    ).standardized,
+                        recognitionStandardizedRect = CGRect(
+                            x: standardizedRect.origin.x + previewBounds.origin.x,
+                            y: standardizedRect.origin.y + previewBounds.origin.y,
+                            width: standardizedRect.width,
+                            height: standardizedRect.height
                         )
-                        
-                    } else {
-                        
-                        let x1 = (face.frame.origin.x + face.frame.size.width * 0.1),
-                            y1 = (face.frame.origin.y + face.frame.size.height * 0.1),
-                            w1 = (face.frame.size.width * 0.8),
-                            h1 = (face.frame.size.height * 0.8)// 얼굴인식 위치 설정
-                        let noneRecognitionNormalizedRect = CGRect(
-                            x: x1 / imageWidth,
-                            y: y1 / imageHeight,
-                            width: w1 / imageWidth,
-                            height: h1 / imageHeight
-                        )
-                        let standardizedRect1 = self.previewLayer.layerRectConverted(
-                            fromMetadataOutputRect: noneRecognitionNormalizedRect
-                        ).standardized,
-                            noneRecgnitionStandardizedRect = CGRect(
-                                x: standardizedRect1.origin.x + previewBounds.origin.x,
-                                y: standardizedRect1.origin.y + previewBounds.origin.y,
-                                width: standardizedRect1.width,
-                                height: standardizedRect1.height
-                            )
-                        
-                        self.noneRecognitionArea(
-                            face: face,
-                            imageWidth: imageWidth,
-                            imageHeight: imageHeight,
-                            standardizedRect: noneRecgnitionStandardizedRect
-                        )
-                    }
+                    
+                    self.recognitionArea(
+                        face: face,
+                        imageWidth: imageWidth,
+                        imageHeight: imageHeight,
+                        recognitionStandardizedRect: recognitionStandardizedRect,
+                        faceRecognitionAreaView: faceRecognitionAreaView
+                    )
                 }
             } else {
                 print("On-Device face detector returned no results.")
                 self.lastFrame = nil
                 self.cropFaceRect = nil
                 
-                self.checkLeftArr.removeAll()
-                self.checkRightArr.removeAll()
-                
-                self.dataModel.gTempData.removeAll()
-                self.isTimerRunning = false
-                self.dispatchTimer?.cancel()
-                self.measurementTimer.invalidate()
-                self.prepareTimer.invalidate()
+                self.initRGBData()
+                self.timerReset()
+                self.antiSpoofing.initialize()
                 
                 self.measurementModel.checkRealFace.onNext(false)
                 self.measurementModel.measurementStop.onNext(true)
@@ -489,8 +452,96 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         }
     }
     
-    func faceDetectAreaCondition(
+    private func updatePreviewOverlayViewWithLastFrame() {
+        DispatchQueue.main.sync { [weak self] in
+            guard let self, lastFrame != nil else {
+                print("sample buffer error")
+                return
+            }
+            measurementModel.isoValue.onNext(cameraSetup.useCaptureDevice().iso)
+            if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
+                if tempG.count >= 30 {
+                    measurementModel.checkRealFace.onNext(true)
+                    tempG.removeAll()
+                    isTimerRunning = true
+                    prepareTimer = Timer.scheduledTimer(
+                        withTimeInterval: 1,
+                        repeats: true
+                    ) {[weak self] prepareTimer in
+                        guard let self else { return }
+                        measurementModel.secondRemaining.onNext(preparingSec)
+                        if preparingSec == 0 {
+                            screenCapture()
+                            prepareTimer.invalidate()
+                            cameraSetup.setUpCaptureDevice(.locked)
+                            collectDatas()
+                        }
+                        preparingSec -= 1
+                    }
+                }
+            } else {
+                cameraSetup.setUpCaptureDevice(.autoExpose)
+                measurementModel.checkRealFace.onNext(false)
+                initRGBData()
+                isTimerRunning = false
+                dispatchTimer?.cancel()
+                measurementTimer.invalidate()
+                prepareTimer.invalidate()
+            }
+        }
+    }
+    
+    private func recognitionArea(
+        face: Face,
+        imageWidth: CGFloat,
+        imageHeight: CGFloat,
+        recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
+        faceRecognitionAreaView: UIView
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let recognitionArea = useFaceRecognitionArea
+            ? faceRecognitionAreaView.frame
+            : UIScreen.main.bounds
+            
+            let isMeasurableFacePosition = self.faceDetectAreaCondition(
+                faceFrame: recognitionStandardizedRect,
+                useFaceRecognitionArea: useFaceRecognitionArea,
+                recognitionArea: recognitionArea
+            )
+
+            if isMeasurableFacePosition {
+                self.measurementModel.measurementStop.onNext(false)
+                self.cropFaceRect = CGRect(
+                    x: face.frame.origin.x,
+                    y: face.frame.origin.y,
+                    width: face.frame.width,
+                    height: face.frame.height
+                ).integral // 얼굴인식 위치 계산
+                
+                self.addContours(
+                    for: face,
+                    imageWidth: imageWidth,
+                    imageHeight: imageHeight
+                )
+            } else {
+                self.lastFrame = nil
+                self.cropFaceRect = nil
+                
+                self.preparingSec    = self.model.prepareTime
+                self.measurementTime = self.model.faceMeasurementTime
+                
+                self.initRGBData()
+                self.timerReset()
+                self.antiSpoofing.initialize()
+                self.measurementModel.measurementStop.onNext(true)
+            }
+        }
+    }
+    
+    private func faceDetectAreaCondition(
         faceFrame: CGRect,
+        useFaceRecognitionArea: Bool,
         recognitionArea: CGRect
     ) -> Bool {
         let minX = recognitionArea.minX + recognitionArea.width * 0.07
@@ -508,206 +559,124 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let faceMinY = faceFrame.minY + faceFrame.height * 0.2
         let faceMaxY = faceFrame.maxY - faceFrame.height * 0.2
         
+//        Debug용 View 설정 - 측정구역(대, 소), 감지된 얼굴
 //        DispatchQueue.main.async {
-//            self.tempView.frame = CGRect(
-//                x: minX,
-//                y: minY,
-//                width: maxX - minX,
-//                height: maxY - minY
-//            )
-//            
-//            self.tempView.layer.borderColor = UIColor.red.cgColor
-//            self.tempView.layer.borderWidth = 5
-//            
-//            self.tempView1.layer.borderColor = UIColor.blue.cgColor
-//            self.tempView1.layer.borderWidth = 3
-//            
-//            self.tempView2.layer.borderColor = UIColor.green.cgColor
-//            self.tempView2.layer.borderWidth = 1
-//            
-//            self.tempView1.frame = CGRect(
+//            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+//            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
+//
+//            self.recogView.layer.borderColor = UIColor.red.cgColor
+//            self.recogView.layer.borderWidth = 1
+//
+//            self.faceDetecView.layer.borderColor = UIColor.blue.cgColor
+//            self.faceDetecView.layer.borderWidth = 1
+//
+//            self.smallView.layer.borderColor = UIColor.green.cgColor
+//            self.smallView.layer.borderWidth = 1
+//
+//            self.recogView.frame = recognitionArea
+//            self.faceDetecView.frame = CGRect(
 //                x: faceMinX,
 //                y: faceMinY,
 //                width: faceMaxX - faceMinX,
 //                height: faceMaxY - faceMinY
 //            )
-//            self.tempView2.frame = CGRect(
+//            self.smallView.frame = CGRect(
 //                x: smallMinX,
 //                y: smallMinY,
 //                width: smallMaxX - smallMinX,
 //                height: smallMaxY - smallMinY
 //            )
 //        }
-        
-        return (minX <= faceMinX && faceMinX <= smallMinX)
+
+        let useRecognitionArea = (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
         && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
+        let unUseRecognitionArea = (minX <= faceMinX && faceMinX <= maxX)
+        && (minY <= faceMinY && faceMinY <= maxY)
+        let areaCondition = useFaceRecognitionArea
+        ? useRecognitionArea
+        : unUseRecognitionArea
+        
+        return areaCondition
     }
-    
-    private func recognitionArea(
-        face: Face,
-        imageWidth: CGFloat,
-        imageHeight: CGFloat,
-        recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
-        faceRecognitionAreaView: UIView
-    ) {
+  
+    private func screenCapture() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            let betweenFaceFrame = self.faceDetectAreaCondition(
-                faceFrame: recognitionStandardizedRect,
-                recognitionArea: faceRecognitionAreaView.frame
-            )
-            
-            if betweenFaceFrame {
-                self.measurementModel.measurementStop.onNext(false)
-                self.cropFaceRect = CGRect(
-                    x: face.frame.origin.x,
-                    y: face.frame.origin.y,
-                    width: face.frame.width,
-                    height: face.frame.height
-                ).integral // 얼굴인식 위치 계산
-                
-                self.addContours(
-                    for: face,
-                    imageWidth: imageWidth,
-                    imageHeight: imageHeight
-                )
-            } else {
-                self.lastFrame = nil
-                self.cropFaceRect = nil
-                self.dataModel.gTempData.removeAll()
-                self.dataModel.initRGBData() // 중간에 쌓여있을 수 있는 데이터 초기화
-                self.isTimerRunning = false
-                self.dispatchTimer?.cancel()
-                self.measurementTimer.invalidate()
-                self.prepareTimer.invalidate()
-                
-                self.preparingSec = self.model.prepareTime
-                self.measurementTime = self.model.faceMeasurementTime
-                
-                self.diffLeftArr.removeAll()
-                self.diffRightArr.removeAll()
-                self.checkLeftArr.removeAll()
-                self.checkRightArr.removeAll()
-                self.measurementModel.measurementStop.onNext(true)
+            if let frame = lastFrame,
+               let captureImage = SampleBufferConverter.convertingBufferFront(frame) {
+                measurementModel.captureImage.onNext((screen: captureImage, crop: cropFaceImage))
             }
         }
     }
     
-    private func noneRecognitionArea(
-        face: Face,
-        imageWidth: CGFloat,
-        imageHeight: CGFloat,
-        standardizedRect: CGRect
+    private func initRGBData() {
+        timeStamp.removeAll()
+        sigR.removeAll()
+        sigB.removeAll()
+        sigG.removeAll()
+        tempG.removeAll()
+        totalData.removeAll()
+        bytesArray.removeAll()
+    }
+    
+    private func timerReset() {
+        isTimerRunning = false
+        dispatchTimer?.cancel()
+        measurementTimer.invalidate()
+        prepareTimer.invalidate()
+    }
+}
+
+// MARK: RGB 수집
+extension FaceKit {
+    private func extractRGBFromDetectFace(
+        sampleBuffer: CMSampleBuffer
     ) {
+        guard let faceRGB = SampleBufferConverter.detectFaceSampleBuffer(sampleBuffer) else {
+            print("casting error")
+            return
+        }
+        guard let r = faceRGB[0] as? Float,
+              let g = faceRGB[1] as? Float,
+              let b = faceRGB[2] as? Float else {
+            print("rgb casting error")
+            return
+        }
         
-        let minX = UIScreen.main.bounds.minX,
-            minY = UIScreen.main.bounds.minY,
-            maxX = UIScreen.main.bounds.maxX,
-            maxY = UIScreen.main.bounds.maxY
-        
-        if standardizedRect.minX >= minX
-            && standardizedRect.maxX <= maxX
-            && standardizedRect.minY >= minY
-            && standardizedRect.maxY <= maxY {
-            
-            self.cropFaceRect = CGRect(
-                x: face.frame.origin.x,
-                y: face.frame.origin.y,
-                width: face.frame.width,
-                height: face.frame.height
-            ).integral // 얼굴인식 위치 계산
-            
-            self.addContours(
-                for: face,
-                imageWidth: imageWidth,
-                imageHeight: imageHeight
-            )
-        } else {
-            self.measurementModel.measurementStop.onNext(true)
-            self.lastFrame = nil
-            self.cropFaceRect = nil
-            self.dataModel.gTempData.removeAll()
-            self.diffLeftArr.removeAll()
-            self.diffRightArr.removeAll()
-            self.checkLeftArr.removeAll()
-            self.checkRightArr.removeAll()
+        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
+        if isTimerRunning {
+            guard ts > 100 else { return }
+            let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
+            timeStamp.append(ts)
+            sigR.append(r)
+            sigB.append(g)
+            sigG.append(b)
+            totalData.append(dataSet)
+        } else if !isTimerRunning {
+            tempG.append(g)
         }
     }
     
-    private func updatePreviewOverlayViewWithLastFrame() {
-        DispatchQueue.main.sync { [weak self] in
-            guard let self = self else { return }
-            guard lastFrame != nil else {
-                print("sample buffer error")
-                return
-            }
-            if self.model.useFaceRecognitionArea {
-                self.useRecogntionFace()
-            } else {
-                self.noneUseRecognitionFace()
-            }
+    private func collectionByteData(
+        sampleBuffer: CMSampleBuffer
+    ) {
+        guard let byteData = SampleBufferConverter.dataSampleBuffer36x36(sampleBuffer) else {
+            return print("objc chest casting error")
         }
+        bytesArray.append(Array(byteData))
     }
-    
-    private func useRecogntionFace() {
-        if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
-            if self.dataModel.gTempData.count >= 30 {
-                self.measurementModel.checkRealFace.onNext(true)
-                self.dataModel.gTempData.removeAll()
-                self.isTimerRunning = true
-                self.prepareTimer = Timer.scheduledTimer(
-                    withTimeInterval: 1,
-                    repeats: true
-                ) { prepareTimer in
-                    self.measurementModel.secondRemaining.onNext(self.preparingSec)
-                    if self.preparingSec == 0 {
-                        self.screenCapture()
-                        prepareTimer.invalidate()
-                        self.cameraSetup.setUpCatureDevice()
-                        self.collectDatas()
-                    }
-                    self.preparingSec -= 1
-                }
-            }
-        } else {
-            self.measurementModel.checkRealFace.onNext(false)
-            self.dataModel.initRGBData()
-            self.isTimerRunning = false
-            self.dispatchTimer?.cancel()
-            self.measurementTimer.invalidate()
-            self.prepareTimer.invalidate()
-        }
-    }
-    
-    private func noneUseRecognitionFace() {
-        if self.cropFaceRect != nil && self.isLeftEyeReal && self.isRightEyeReal {
-            if self.dataModel.gTempData.count >= 30 && !self.isTimerRunning {
-                self.measurementModel.checkRealFace.onNext(true)
-                self.cameraSetup.setUpCatureDevice()
-                self.collectDatas()
-            }
-        } else {
-            self.measurementModel.checkRealFace.onNext(false)
-            self.diffLeftArr.removeAll()
-            self.diffRightArr.removeAll()
-            self.checkLeftArr.removeAll()
-            self.checkRightArr.removeAll()
-        }
-    }
-    
+}
+
+// MARK: 랜드마크 제거
+extension FaceKit {
     private func addContours(
         for face: Face,
         imageWidth: CGFloat,
         imageHeight: CGFloat
     ) {
-        guard let rect = self.cropFaceRect,
-        rect.width <= 930 && rect.height <= 930 else {
-            print("[++\(#fileID):\(#line)]- too big crop size")
-            return
-        }
-           
-        if let frame = self.lastFrame,
+        if let rect  = cropFaceRect,
+           let frame = lastFrame,
            let faceContour = face.contour(ofType: .face),
            let leftEyeContour = face.contour(ofType: .leftEye),
            let leftEyeBrowTopContour = face.contour(ofType: .leftEyebrowTop),
@@ -717,45 +686,41 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
            let rightEyeBrowBottomContour = face.contour(ofType: .rightEyebrowBottom),
            let upperLipContour = face.contour(ofType: .upperLipTop),
            let lowerLipContour = face.contour(ofType: .lowerLipBottom) {
-           
+            
             var facePath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             var leftEyePath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             var rightEyePath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             var leftEyeBrowPath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             var rightEyeBrowPath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             var lipsPath = UIBezierPath().then { p in
-                p.lineWidth = 2
+                p.lineWidth = 1
             }
             
-            if self.model.willCheckRealFace {
-                checkRealLeftEye(
-                    face: face,
-                    eyePoints: leftEyeContour.points
-                )
-                checkRealRightEye(
-                    face: face,
-                    eyePoints: rightEyeContour.points
-                )
+            if willCheckRealFace {
+                if !isTimerRunning {
+                    let (left, right) = antiSpoofing.checkReal(face)
+                    isLeftEyeReal  = left
+                    isRightEyeReal = right
+                }
             } else {
-                self.isLeftEyeReal = true
-                self.isRightEyeReal = true
+                isLeftEyeReal  = true
+                isRightEyeReal = true
             }
             
-            guard let faceCropBuffer = self.croppedSampleBuffer(frame, with: rect) else {
+            guard let faceCropBuffer = cropBuffer.sample(frame, with: rect) else {
                 print("[++\(#fileID):\(#line)]- crop face error")
                 return
             }
-            let cropImage = OpenCVWrapper.converting(faceCropBuffer) ?? UIImage()
             
             draw(
                 previewLayer: previewLayer,
@@ -765,7 +730,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 leftEyeBrowPoints: leftEyeBrowTopContour.points + leftEyeBrowBottomContour.points ,
                 rightEyeBrowPoints: rightEyeBrowTopContour.points + rightEyeBrowBottomContour.points,
                 lipsPoints: upperLipContour.points + lowerLipContour.points,
-                cropImage: cropImage,
+                cropImage: SampleBufferConverter.convertingBufferFront(faceCropBuffer),
                 imageWidth: imageWidth,
                 imageHeight: imageHeight
             )
@@ -786,7 +751,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 facePath.lineJoinStyle = .miter
                 
                 guard let previewLayer = previewLayer,
-                      let cropImage = cropImage else { return print("crop image return") }
+                      let cropImage = cropImage else {
+                    print("crop image return")
+                    return
+                }
                 
                 gridPath(
                     previewLayer: previewLayer,
@@ -839,181 +807,49 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 facePath.append(leftEyeBrowPath)
                 facePath.append(rightEyeBrowPath)
                 facePath.append(lipsPath)
+                cropFaceImage = cropImage
                 
-                guard let faceCropImage = getMaskedImage(picture: cropImage, cgPath: facePath.cgPath),
-                      let sampleBuffer = faceCropImage.createCMSampleBuffer() else { fatalError("face crop image return") }
-                
-                self.extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
+                guard let cropLandMarkFace = getMaskedImage(
+                    picture: cropImage,
+                    cgPath: facePath.cgPath
+                ),
+                      let sampleBuffer = cropLandMarkFace.createCMSampleBuffer() else { fatalError("face crop image return") }
+//                self.cropView.image = cropImage
+//                self.landMarkView.image = cropLandMarkFace
+                extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
+                collectionByteData(sampleBuffer: sampleBuffer)
             }
-        }
-    }
-    
-    private func screenCapture() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            if let frame = lastFrame,
-               let capture = OpenCVWrapper.convertingBuffer(toImage: frame),
-               let faceImage = flipImage(capture) {
-                measurementModel.captureImage.onNext(faceImage)
-            }
-        }
-    }
-    
-    private func extractRGBFromDetectFace(
-        sampleBuffer: CMSampleBuffer
-    ) {
-        guard let faceRGB = OpenCVWrapper.detectFace(sampleBuffer) else {
-            print("objc casting error")
-            return
-        }
-        guard let r = faceRGB[0] as? Float,
-              let g = faceRGB[1] as? Float,
-              let b = faceRGB[2] as? Float else {
-            print("objc rgb casting error")
-            return
-        }
-        
-        let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-        if self.isTimerRunning {
-            guard timeStamp > 100 else { return }
-            self.dataModel.collectRGB(
-                timeStamp: timeStamp,
-                r: r, g: g, b: b
-            )
-        } else if !self.isTimerRunning {
-            self.dataModel.gTempData.append(g)
-        }
-    }
-    
-    private func checkRealLeftEye(
-        face: Face,
-        eyePoints: [VisionPoint]
-    ) {
-        if !isTimerRunning {
-            let leftEyeOpen = face.leftEyeOpenProbability
-            guard leftEyeOpen != 1.0 else {
-                self.isLeftEyeReal = false
-                self.checkLeftArr.removeAll()
-                self.diffLeftArr.removeAll()
-                return
-            }
-            let check = leftEyeOpen < 0.3
-            
-            if self.checkLeftArr.count <= 450 {
-                self.checkLeftArr.append(check)
-            } else {
-                self.checkLeftArr.removeFirst()
-                self.checkLeftArr.append(check)
-            }
-            self.isLeftEyeReal = self.containsPatternTwice(in: self.checkLeftArr)
-        }
-    }
-
-    private func checkRealRightEye(
-        face: Face,
-        eyePoints: [VisionPoint]
-    ) {
-        if !isTimerRunning {
-            let rightEyeOpen = face.rightEyeOpenProbability
-            guard rightEyeOpen != 1.0 else {
-                self.checkRightArr.removeAll()
-                self.diffRightArr.removeAll()
-                return
-            }
-            let check = rightEyeOpen < 0.3
-            
-            if self.checkRightArr.count <= 450 {
-                self.checkRightArr.append(check)
-            } else {
-                self.checkRightArr.removeFirst()
-                self.checkRightArr.append(check)
-            }
-            self.isRightEyeReal = self.containsPatternTwice(in: self.checkRightArr)
-        }
-    }
-    
-    private func containsPatternTwice(in array: [Bool]) -> Bool {
-        var count = 0
-        // 배열을 반복해서 false, true 패턴을 찾습니다.
-        for i in 0..<array.count - 1 {
-            if array[i] == false && array[i + 1] == true {
-                count += 1
-            }
-            // 패턴이 2개 이상 포함되었는지 체크
-            if count >= 2 {
-                return true
-            }
-        }
-        return false // 패턴이 2개 이상 없으면 false 반환
-    }
-
-    enum FaceDetectorUIKit {
-        private static let ciContext: CIContext = {
-            // 컬러 공간 변환 최소화를 원하면 .workingColorSpace: NSNull() 도 고려
-            CIContext(options: [.useSoftwareRenderer: false])
-        }()
-
-        /// 평균 RGB를 0...255 스케일로 Double(소수점 6자리) 반환
-        static func detectFaceSampleBuffer(_ sampleBuffer: CMSampleBuffer) -> [NSNumber]? {
-            guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
-
-            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            let extent = ciImage.extent
-
-            guard let avgImage = CIFilter(name: "CIAreaAverage", parameters: [
-                kCIInputImageKey: ciImage,
-                kCIInputExtentKey: CIVector(cgRect: extent)
-            ])?.outputImage else {
-                return nil
-            }
-
-            // RGBAf (Float32 per channel) 로 렌더 -> [Float] 4개
-            var rgbaF = [Float](repeating: 0, count: 4)
-            let cs = CGColorSpaceCreateDeviceRGB()
-            FaceDetectorUIKit.ciContext.render(
-                avgImage,
-                toBitmap: &rgbaF,
-                rowBytes: MemoryLayout<Float>.size * 4,
-                bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
-                format: .RGBAf,                // ✅ 부동소수 포맷
-                colorSpace: cs
-            )
-
-            // 0...1 → 0...255 변환 후 소수점 6자리로 반올림
-            func round6(_ v: Double) -> Double { (v * 1.0e6).rounded() / 1.0e6 }
-            let r = round6(Double(rgbaF[0]) * 255.0)
-            let g = round6(Double(rgbaF[1]) * 255.0)
-            let b = round6(Double(rgbaF[2]) * 255.0)
-
-            return [NSNumber(value: r), NSNumber(value: g), NSNumber(value: b)]
-        }
-    }
-    
-    private func resizeImage(
-        image: UIImage?
-    ) -> UIImage {
-        guard let image = image else {
-            return UIImage()
-        }
-        let size = image.size
-        let widthRatio  = 480 / size.width
-        let heightRatio = 640 / size.height
-        
-        // 비율에 따라 축소될 크기 설정
-        let newSize: CGSize
-        if (widthRatio > heightRatio) {
-            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
         } else {
-            newSize = CGSize(width: size.width * widthRatio, height: size.height * widthRatio)
+            print("[++\(#fileID):\(#line)]- face is nil")
         }
-
-        // 그림으로 변환
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    private func gridPath(
+        previewLayer: AVCaptureVideoPreviewLayer,
+        width: CGFloat,
+        height: CGFloat,
+        points: [VisionPoint],
+        path: inout UIBezierPath
+    ) {
+        UIGraphicsBeginImageContext(CGSize(width: width, height: height))
+        for (i, point) in points.enumerated() {
+            let cgPoint = normalizedPoint(
+                previewLayer: previewLayer,
+                fromVisionPoint: point,
+                width: width,
+                height: height
+            )
+            if i == 0 {
+                path.move(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
+            } else if i == points.count - 1 {
+                path.addLine(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
+                path.close()
+                path.stroke()
+            } else {
+                path.addLine(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
+            }
+        }
         UIGraphicsEndImageContext()
-
-        return newImage!
     }
     
     private func normalizedPoint(
@@ -1028,243 +864,29 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         return normalizedPoint
     }
     
-    private func gridPath(
-        previewLayer: AVCaptureVideoPreviewLayer,
-        width: CGFloat,
-        height: CGFloat,
-        points: [VisionPoint],
-        path: inout UIBezierPath
-    ) {
-        UIGraphicsBeginImageContext(CGSize(width: width, height: height))
-        for (i, point) in points.enumerated() {
-            let cgPoint = normalizedPoint(previewLayer: previewLayer,
-                                          fromVisionPoint: point,
-                                          width: width,
-                                          height: height)
-            if i == 0 {
-                path.move(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
-            } else if i == points.count - 1 {
-                path.addLine(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
-                path.close()
-                path.stroke()
-            } else {
-                path.addLine(to: CGPoint(x: cgPoint.x, y: cgPoint.y))
-            }
-        }
-        UIGraphicsEndImageContext()
-    }
-    
     private func getMaskedImage(
         picture: UIImage,
         cgPath: CGPath
     ) -> UIImage? {
-        let picture = flipImage(picture) ?? picture
-        let imageLayer = CALayer()
-        imageLayer.frame = CGRect(origin: .zero, size: picture.size)
-        imageLayer.contents = picture.cgImage
-        let maskLayer = CAShapeLayer()
-        let maskPath = cgPath.resized(to: CGRect(origin: .zero, size: picture.size))
-        maskLayer.path = maskPath
-        maskLayer.fillRule = .evenOdd
-        imageLayer.mask = maskLayer
+        let flipped     = orientation.flipImage(picture) ?? picture
+        let flippedPath = orientation.flipPathHorizontally(cgPath, in: picture.size)
         
-        UIGraphicsBeginImageContext(picture.size)
+        let rect = CGRect(origin: .zero, size: flipped.size)
+        let maskPath = (flippedPath.resized(to: rect) ?? flippedPath)
+        
+        UIGraphicsBeginImageContextWithOptions(picture.size, false, 0.8)
         defer { UIGraphicsEndImageContext() }
         
-        if let context = UIGraphicsGetCurrentContext() {
-            context.addPath(maskPath ?? cgPath)
-            context.clip()
-            imageLayer.render(in: context)
-            let newImage = UIGraphicsGetImageFromCurrentImageContext()
-            
-            return newImage
-        }
-        return nil
+        guard let ctx = UIGraphicsGetCurrentContext() else { return nil }
+        
+        ctx.addPath(maskPath)
+        ctx.clip(using: .evenOdd)
+        
+        // ✅ 핵심: UIImage.draw는 orientation(회전/미러)을 반영해서 그려줌
+        flipped.draw(in: rect)
+        
+        return UIGraphicsGetImageFromCurrentImageContext()
     }
     
-    private func flipImage(
-        _ image: UIImage
-    ) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
-        let context = UIGraphicsGetCurrentContext()!
-        context.translateBy(x: image.size.width, y: image.size.height)
-        context.scaleBy(x: -image.scale, y: -image.scale)
-        context.draw(image.cgImage!, in: CGRect(origin:CGPoint.zero, size: image.size))
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return newImage
-    }
-    
-    // MARK: ImageBuffer crop
-    private func croppedSampleBuffer(
-        _ sampleBuffer: CMSampleBuffer,
-        with rect: CGRect
-    ) -> CMSampleBuffer? { // 특정 사이즈만큼 화면을 잘라 카메라 측정을 하기 위한 함수
-        
-        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
-        
-        CVPixelBufferLockBaseAddress(imageBuffer, .readOnly)
-        
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer)
-        let width = CVPixelBufferGetWidth(imageBuffer)
-        let bytesPerPixel = bytesPerRow / width
-        guard let baseAddress = CVPixelBufferGetBaseAddress(imageBuffer) else { return nil }
-        let baseAddressStart = baseAddress.assumingMemoryBound(to: UInt8.self)
-        
-        var cropX = Int(rect.origin.x)
-        let cropY = Int(rect.origin.y)
-        
-        // Start pixel in RGB color space can't be odd.
-        if cropX % 2 != 0 {
-            cropX += 1
-        }
-        
-        let cropStartOffset = Int(cropY * bytesPerRow + cropX * bytesPerPixel)
-        
-        var pixelBuffer: CVPixelBuffer!
-        var error: CVReturn
-        
-        // Initiates pixelBuffer.
-        let pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer)
-        let options = [kCVPixelBufferCGImageCompatibilityKey: true,
-               kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-                                      kCVPixelBufferWidthKey: rect.size.width,
-                                     kCVPixelBufferHeightKey: rect.size.height] as [CFString : Any]
-        
-        error = CVPixelBufferCreateWithBytes(kCFAllocatorDefault,
-                                             Int(rect.size.width),
-                                             Int(rect.size.height),
-                                             pixelFormat,
-                                             &baseAddressStart[cropStartOffset],
-                                             Int(bytesPerRow),
-                                             nil,
-                                             nil,
-                                             options as CFDictionary,
-                                             &pixelBuffer)
-        if error != kCVReturnSuccess {
-            print("Crop CVPixelBufferCreateWithBytes error \(Int(error))")
-            return nil
-        }
-        
-        // Cropping using CIImage.
-        var ciImage = CIImage(cvImageBuffer: imageBuffer)
-        ciImage = ciImage.cropped(to: rect)
-        // CIImage is not in the original point after cropping. So we need to pan.
-        ciImage = ciImage.transformed(by: CGAffineTransform(translationX: CGFloat(-cropX), y: CGFloat(-cropY)))
-        
-        guard let pixelBuffer = pixelBuffer else { return nil }
-        
-        self.gCIContext?.render(ciImage, to: pixelBuffer)
-        
-        // Prepares sample timing info.
-        var sampleTime = CMSampleTimingInfo()
-        sampleTime.duration = CMSampleBufferGetDuration(sampleBuffer)
-        sampleTime.presentationTimeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-        sampleTime.decodeTimeStamp = CMSampleBufferGetDecodeTimeStamp(sampleBuffer)
-        
-        var videoInfo: CMVideoFormatDescription!
-        error = CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault,
-                                                             imageBuffer: pixelBuffer, formatDescriptionOut: &videoInfo)
-        if error != kCVReturnSuccess {
-            print("CMVideoFormatDescriptionCreateForImageBuffer error \(Int(error))")
-            CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags.readOnly)
-            return nil
-        }
-        
-        // Creates `CMSampleBufferRef`.
-        var resultBuffer: CMSampleBuffer?
-        error = CMSampleBufferCreateForImageBuffer(allocator: kCFAllocatorDefault,
-                                                   imageBuffer: pixelBuffer,
-                                                   dataReady: true,
-                                                   makeDataReadyCallback: nil,
-                                                   refcon: nil,
-                                                   formatDescription: videoInfo,
-                                                   sampleTiming: &sampleTime,
-                                                   sampleBufferOut: &resultBuffer)
-        if error != kCVReturnSuccess {
-            print("CMSampleBufferCreateForImageBuffer error \(Int(error))")
-        }
-        
-        CVPixelBufferUnlockBaseAddress(imageBuffer, .readOnly)
-        return resultBuffer
-    }
-    
-    private func imageOrientation(
-        fromDevicePosition devicePosition: AVCaptureDevice.Position = .back
-    ) -> UIImage.Orientation {
-        
-        var deviceOrientation = UIDevice.current.orientation
-        if deviceOrientation == .faceDown || deviceOrientation == .faceUp || deviceOrientation == .unknown{
-            deviceOrientation = self.currentUIOrientation()
-        }
-        switch deviceOrientation {
-        case .portrait:
-            return devicePosition == .front ? .leftMirrored : .right
-        case .landscapeLeft:
-            return devicePosition == .front ? .downMirrored : .up
-        case .portraitUpsideDown:
-            return devicePosition == .front ? .rightMirrored : .left
-        case .landscapeRight:
-            return devicePosition == .front ? .upMirrored : .down
-        case .faceDown, .faceUp, .unknown:
-            return .up
-        @unknown default:
-            fatalError()
-        }
-    }
-        
-    private func currentUIOrientation() -> UIDeviceOrientation {
-        let deviceOrientation = { () -> UIDeviceOrientation in
-            switch UIApplication.shared.statusBarOrientation {
-                case .landscapeLeft:
-                    return .landscapeRight
-                case .landscapeRight:
-                    return .landscapeLeft
-                case .portraitUpsideDown:
-                    return .portraitUpsideDown
-                case .portrait, .unknown:
-                    return .portrait
-                @unknown default:
-                    fatalError()
-            }
-        }
-        
-        guard Thread.isMainThread else {
-            var currentOrientation: UIDeviceOrientation = .portrait
-            DispatchQueue.main.sync {
-                currentOrientation = deviceOrientation()
-            }
-            return currentOrientation
-        }
-        return deviceOrientation()
-    }
-    
-//    private func imageOrientationForFrontCamera() -> UIImage.Orientation {
-//
-//        var deviceOrientation = UIDevice.current.orientation
-//        if deviceOrientation == .faceDown ||
-//            deviceOrientation == .faceUp ||
-//            deviceOrientation == .unknown {
-//            deviceOrientation = currentUIOrientation()
-//        }
-//
-//        switch deviceOrientation {
-//            case .portrait:
-//                // 🔥 여기만 바꾸면 대부분 문제 해결
-//                return .rightMirrored
-//
-//            case .landscapeLeft:
-//                return .upMirrored
-//
-//            case .portraitUpsideDown:
-//                return .leftMirrored
-//
-//            case .landscapeRight:
-//                return .downMirrored
-//
-//            default:
-//                return .rightMirrored
-//        }
-//    }
 }
 

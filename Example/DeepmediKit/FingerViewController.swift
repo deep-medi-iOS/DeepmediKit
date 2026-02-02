@@ -101,8 +101,8 @@ class FingerViewController: UIViewController {
         }
         
         fingerMeasureKit.finishedMeasurement { success, rgbPath, accPath, gyroPath in
-            print("finger rgb path:", rgbPath)
-            print("finger acc path:", accPath)
+            print("finger rgb path:",  rgbPath)
+            print("finger acc path:",  accPath)
             print("finger gyr pPath:", gyroPath)
             if success {
                 DispatchQueue.global(qos: .background).async {

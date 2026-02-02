@@ -24,6 +24,7 @@ class MeasurementModel {
     let secondRemaining = PublishSubject<Int>()
     let measurementCompleteRatio = PublishSubject<String>()
     let measurementStop = PublishSubject<Bool>()
+    let isoValue: BehaviorSubject<Float> = .init(value: 0)
     
     //손가락 전용
     let outputFingerStatus = PublishSubject<MeasurementModel.status>()
@@ -37,10 +38,9 @@ class MeasurementModel {
     let resultHeatlInfo = PublishSubject<[String: Any]>()
     let resultCardioRisk = PublishSubject<[String: Any]>()
     let healthCareInfoResult = PublishSubject<[String: Any]>()
-//    let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
-//    let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     let measurementComplete = PublishSubject<Bool>()
-    let captureImage = PublishSubject<UIImage?>()
+    let captureImage = PublishSubject<(screen: UIImage?, crop: UIImage?)>()
+//    let captureImage = PublishSubject<UIImage?>()
     let rgbFilePath = PublishSubject<URL>()
     let timeStamp = PublishSubject<[Double]>()
     let sigR = PublishSubject<[Float]>()

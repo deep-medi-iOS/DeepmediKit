@@ -10,7 +10,7 @@ import AVKit
 
 class CameraSetup: NSObject {
     static let shared = CameraSetup()
-    
+
     private var session = AVCaptureSession()
     private var captureDevice: AVCaptureDevice?
     private var customISO: Float?
@@ -120,19 +120,21 @@ class CameraSetup: NSObject {
               try! self.captureDevice?.lockForConfiguration() != nil else { return print("current format")}
         try! self.captureDevice?.lockForConfiguration()
         self.captureDevice?.activeFormat = tempCurrentFormat
-        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(30))
-        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(30))
-//        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
-//        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+//        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(30))
+//        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(30))
+        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
         self.captureDevice?.unlockForConfiguration()
         
         guard part == .finger, self.captureDevice?.hasTorch ?? false else { return }
             self.correctColor()
     }
     
-    func setUpCatureDevice() {
+    func setUpCaptureDevice(
+        _ mode: AVCaptureDevice.ExposureMode
+    ) {
         try! self.captureDevice?.lockForConfiguration()
-        captureDevice?.exposureMode = .locked
+        captureDevice?.exposureMode = mode
         captureDevice?.unlockForConfiguration()
     }
     
