@@ -9,8 +9,9 @@ import UIKit
 
 public class Document {
     private let fileManager = FileManager()
-    //    private let dataModel = DataModel.shared
     private let model = Model.shared
+    
+    private var byteData: [UInt8] = []
     
     // MARK: 측정데이터 파일생성
     func make(
@@ -85,7 +86,6 @@ public class Document {
         return dataURL
     }
     
-    var byteData: [UInt8] = []
     private func transrateDataToByteArr(
         _ fileURL: URL,
         dataSet: [(Double, Float, Float, Float)],

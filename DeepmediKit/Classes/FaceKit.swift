@@ -305,13 +305,13 @@ public class FaceKit: NSObject {
                     dataSet: totalData
                 ) {
                     print("[++\(#fileID):\(#line)]- byteArr count: ", bytesArray.count)
-                    guard let dataBin = self.document.makeBin(
-                        dataSet: totalData,
-                        bytesArr: bytesArray
-                    ) else {
-                        print("byte to bin error")
-                        return
-                    }
+//                    guard let dataBin = self.document.makeBin(
+//                        dataSet: totalData,
+//                        bytesArr: bytesArray
+//                    ) else {
+//                        print("byte to bin error")
+//                        return
+//                    }
                     measurementComplete.onNext(true)
                     rgbFilePath.onNext(rgbPath)
                 } else {
