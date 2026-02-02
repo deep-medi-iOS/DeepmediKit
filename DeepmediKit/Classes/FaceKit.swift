@@ -78,6 +78,8 @@ public class FaceKit: NSObject {
     private var tempG: [Float] = []
     private var totalData: [(Double, Float, Float, Float)] = []
     
+    private var bytesArray: [[UInt8]] = []
+    
     public func iso(
         _ iso: @escaping((Float) -> ())
     ) {
@@ -166,7 +168,7 @@ public class FaceKit: NSObject {
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())
     ) {
-        let ratio = self.measurementModel.measurementCompleteRatio
+        let ratio = measurementModel.measurementCompleteRatio
         ratio
             .asDriver(onErrorJustReturn: "0%")
             .asDriver()
@@ -182,7 +184,6 @@ public class FaceKit: NSObject {
         let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
-            .distinctUntilChanged(==)
             .drive(onNext: { remaining in
                 com(remaining)
             })
@@ -303,6 +304,14 @@ public class FaceKit: NSObject {
                     data: .rgb,
                     dataSet: totalData
                 ) {
+                    print("[++\(#fileID):\(#line)]- byteArr count: ", bytesArray.count)
+                    guard let dataBin = self.document.makeBin(
+                        dataSet: totalData,
+                        bytesArr: bytesArray
+                    ) else {
+                        print("byte to bin error")
+                        return
+                    }
                     measurementComplete.onNext(true)
                     rgbFilePath.onNext(rgbPath)
                 } else {
@@ -608,6 +617,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         sigG.removeAll()
         tempG.removeAll()
         totalData.removeAll()
+        bytesArray.removeAll()
     }
     
     private func timerReset() {
@@ -646,6 +656,15 @@ extension FaceKit {
         } else if !isTimerRunning {
             tempG.append(g)
         }
+    }
+    
+    private func collectionByteData(
+        sampleBuffer: CMSampleBuffer
+    ) {
+        guard let byteData = SampleBufferConverter.dataSampleBuffer36x36(sampleBuffer) else {
+            return print("objc chest casting error")
+        }
+        bytesArray.append(Array(byteData))
     }
 }
 
@@ -798,6 +817,7 @@ extension FaceKit {
 //                self.cropView.image = cropImage
 //                self.landMarkView.image = cropLandMarkFace
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
+                collectionByteData(sampleBuffer: sampleBuffer)
             }
         } else {
             print("[++\(#fileID):\(#line)]- face is nil")
