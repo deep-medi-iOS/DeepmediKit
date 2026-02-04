@@ -650,8 +650,8 @@ extension FaceKit {
             let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
             timeStamp.append(ts)
             sigR.append(r)
-            sigB.append(g)
-            sigG.append(b)
+            sigG.append(g)
+            sigB.append(b)
             totalData.append(dataSet)
         } else if !isTimerRunning {
             tempG.append(g)
