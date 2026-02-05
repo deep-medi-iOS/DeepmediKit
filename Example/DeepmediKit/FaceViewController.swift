@@ -9,7 +9,6 @@
 import UIKit
 import AVKit
 import DeepmediKit
-import Alamofire
 
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
