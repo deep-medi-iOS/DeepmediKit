@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import Alamofire
 
 public final class Header {
     public init() {}
@@ -17,41 +16,41 @@ public final class Header {
     public func getHeader(
         uri: String,
         apiKey: String
-    ) async throws -> HTTPHeaders {
-        let headerURL = "https://y8gc8ito4a.apigw.ntruss.com/signature/v1/"
-        let headerParams = [
+    ) async throws -> [String: String] {
+        let urlString = "https://y8gc8ito4a.apigw.ntruss.com/signature/v1/"
+        guard let url = URL(string: urlString) else {
+            throw Header.HeaderErr.messegae("Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
             "uri": uri,
             "method": "POST",
             "api_key": apiKey
         ]
         
-        let resp = await AF.request(
-            headerURL,
-            method: .post,
-            parameters: headerParams
-        )
-            .serializingDecodable(DeepmediHeader.self).response
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        if let afErr = resp.error {
-            throw Header.HeaderErr.messegae("response error: \(afErr.localizedDescription)")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw Header.HeaderErr.messegae("Invalid response")
         }
         
-        if let statusCode = resp.response?.statusCode,
-           !(200..<300).contains(statusCode) {
-            throw Header.HeaderErr.messegae("status code error: \(statusCode)")
-        } else if let value = resp.value {
-            return [
-                "x-ncp-apigw-api-key"      : apiKey,
-                "x-ncp-apigw-timestamp"    : value.timestamp,
-                "x-ncp-iam-access-key"     : value.accessKey,
-                "x-ncp-apigw-signature-v1" : value.signature
-            ]
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw Header.HeaderErr.messegae("status code error: \(httpResponse.statusCode)")
         }
+        
+        let decoded = try JSONDecoder().decode(DeepmediHeader.self, from: data)
+        
         return [
-            "x-ncp-apigw-api-key"      : "",
-            "x-ncp-apigw-timestamp"    : "",
-            "x-ncp-iam-access-key"     : "",
-            "x-ncp-apigw-signature-v1" : ""
+            "x-ncp-apigw-api-key"      : apiKey,
+            "x-ncp-apigw-timestamp"    : decoded.timestamp,
+            "x-ncp-iam-access-key"     : decoded.accessKey,
+            "x-ncp-apigw-signature-v1" : decoded.signature
         ]
     }
 }

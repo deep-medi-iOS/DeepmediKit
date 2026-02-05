@@ -1,13 +1,11 @@
 //
 //  Service.swift
-//  Alamofire
 //
 //  Created by 딥메디 on 2/27/24.
 //
 
 import UIKit
 import RxSwift
-import Alamofire
 
 class Service {
     // MARK: Manager
@@ -27,58 +25,80 @@ class Service {
         gender: Int,
         weight: Int,
         height: Int,
-        _ com: @escaping((AFError?) -> ())
+        _ com: @escaping((Error?) -> ())
     ) {
-        let parameter = [
-            "age" : age,
-            "gender" : gender,
-            "weight" : weight,
-            "height" : height
-        ] as [String : Int]
+        let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com"
+        let ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3"
+        let urlString = ppgHealthURL + ppgHealthURI
         
-        let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com",
-            ppgHealthURI = "/face_health_estimate/v1/calculate_face_ppg_dr_bp_v3",
-            url = ppgHealthURL + ppgHealthURI
-
-        Task {[weak self] in
-            guard let self = self else { return }
+        Task { [weak self] in
+            guard let self else { return }
             do {
+                guard let url = URL(string: urlString) else {
+                    throw URLError(.badURL)
+                }
+                
+                // ✅ headers
                 let headers = try await self.header.getHeader(uri: ppgHealthURI, apiKey: apiKey)
                 
-                AF.upload(
-                    multipartFormData: { multipartFormData in
-                        multipartFormData.append(rgbPath, withName: "rgb")
-                        for (key, value) in parameter {
-                            multipartFormData.append("\(value)".data(using: .utf8)!,
-                                                     withName: key)
-                        }
-                    },
-                    to: url,
-                    method: .post,
-                    headers: headers
-                )
-                .responseDecodable(of: ResultOfFacePPG.self) { response in
-                    
-                    switch response.result {
-                    case .success(let res):
-
-                        guard res.result == 200 else { return print("ppg stress result return") }
-                        let response = res.message
-                        self.recordModel.hr = response.hr
-                        self.recordModel.sys = response.sys
-                        self.recordModel.dia = response.dia
-                        self.recordModel.physicalStress = response.physicalStress
-                        self.recordModel.mentalStress =   response.mentalStress
-                        self.recordModel.af = response.afDetect
-                        
-                        com(nil)
-                    case .failure(let err):
-                        print("post stress data err: " + err.localizedDescription)
-                        com(err)
-                    }
-                }
-            } catch {
+                // ✅ multipart body
+                var builder = MultipartFormDataBuilder()
+                let params: [String: String] = [
+                    "age": "\(age)",
+                    "gender": "\(gender)",
+                    "weight": "\(weight)",
+                    "height": "\(height)"
+                ]
                 
+                // rgb 파일 mimeType은 실제 포맷에 맞게 조정 (예: video/mp4, application/octet-stream 등)
+                let body = try builder.makeBody(
+                    fileURL: rgbPath,
+                    fileFieldName: "rgb",
+                    mimeType: "application/octet-stream",
+                    parameters: params
+                )
+                
+                // ✅ request
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("multipart/form-data; boundary=\(builder.boundary)", forHTTPHeaderField: "Content-Type")
+                
+                headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+                
+                // ✅ upload
+                let (data, response) = try await URLSession.shared.upload(for: request, from: body)
+                
+                guard let http = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                guard (200..<300).contains(http.statusCode) else {
+                    throw NSError(domain: "HTTP", code: http.statusCode, userInfo: [
+                        NSLocalizedDescriptionKey: "status code error: \(http.statusCode)"
+                    ])
+                }
+                
+                // ✅ decode
+                let res = try JSONDecoder().decode(ResultOfFacePPG.self, from: data)
+                
+                guard res.result == 200 else {
+                    // 서버가 200 OK를 주더라도 payload.result가 실패일 수 있음
+                    throw NSError(domain: "API", code: res.result, userInfo: [
+                        NSLocalizedDescriptionKey: "ppg result error: \(res.result)"
+                    ])
+                }
+                
+                let msg = res.message
+                self.recordModel.hr = msg.hr
+                self.recordModel.sys = msg.sys
+                self.recordModel.dia = msg.dia
+                self.recordModel.physicalStress = msg.physicalStress
+                self.recordModel.mentalStress = msg.mentalStress
+                self.recordModel.af = msg.afDetect
+                
+                com(nil)
+            } catch {
+                print("facePPG error:", error.localizedDescription)
+                com(error)
             }
         }
     }
@@ -96,57 +116,59 @@ class Service {
         diabetes: Int,
         sys: Int,
         dia: Int,
-        _ com: @escaping((AFError?) -> ())
+        _ com: @escaping((Error?) -> ())
     ) {
-        let cardioRiskBaseURL = "https://escv0giloo.apigw.ntruss.com",
-            cardioRiskBaseURI = "/risk_calculator/v1/cardio_risk"
-            .appending("?gender=")
-            .appending("\(gender)")
-            .appending("&age=")
-            .appending("\(age)")
-            .appending("&height=")
-            .appending("\(height)")
-            .appending("&weight=")
-            .appending("\(weight)")
-            .appending("&belly=")
-            .appending("\(belly)")
-            .appending("&act=")
-            .appending("\(act)")
-            .appending("&smoke=")
-            .appending("\(smoke)")
-            .appending("&diabetes=")
-            .appending("\(diabetes)")
-            .appending("&sys=")
-            .appending("\(sys)")
-            .appending("&dia=")
-            .appending("\(dia)")
-            
-        Task {[weak self] in
-            guard let self = self else { return }
+        let baseURL = "https://escv0giloo.apigw.ntruss.com"
+        let path = "/risk_calculator/v1/cardio_risk"
+        
+        Task { [weak self] in
+            guard let self else { return }
             do {
-                let url = cardioRiskBaseURL + cardioRiskBaseURI
-                let headers = try await self.header.getHeader(uri: cardioRiskBaseURI, apiKey: apiKey)
-                AF.request(
-                    url,
-                    method: .post,
-                    headers: headers
-                )
-                .responseDecodable(of: CardiacResult.self) { response in
-                    switch response.result {
-                    case .success(let res):
-                        let cvdRiskArr = self.changeDataFormat(
-                            risk: res.message.cvdRisk
-                        )
-                        self.recordModel.cardioRisk = cvdRiskArr.reduce(0, +) / Double(cvdRiskArr.count)
-                        com(nil)
-
-                    case .failure(let err):
-                        print("cardio risk fail " + err.localizedDescription)
-                        com(err)
-                    }
-                }
-            } catch {
+                var components = URLComponents(string: baseURL + path)
+                components?.queryItems = [
+                    .init(name: "gender", value: "\(gender)"),
+                    .init(name: "age", value: "\(age)"),
+                    .init(name: "height", value: "\(height)"),
+                    .init(name: "weight", value: "\(weight)"),
+                    .init(name: "belly", value: "\(belly)"),
+                    .init(name: "act", value: "\(act)"),
+                    .init(name: "smoke", value: "\(smoke)"),
+                    .init(name: "diabetes", value: "\(diabetes)"),
+                    .init(name: "sys", value: "\(sys)"),
+                    .init(name: "dia", value: "\(dia)")
+                ]
                 
+                guard let url = components?.url else {
+                    throw URLError(.badURL)
+                }
+                
+                // 🔥 중요: 서명에 쓰는 uri는 "path + ?query..." 형태여야 함 (기존과 동일)
+                let uriForSignature = path + "?" + (components?.percentEncodedQuery ?? "")
+                let headers = try await self.header.getHeader(uri: uriForSignature, apiKey: apiKey)
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+                
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let http = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                guard (200..<300).contains(http.statusCode) else {
+                    throw NSError(domain: "HTTP", code: http.statusCode, userInfo: [
+                        NSLocalizedDescriptionKey: "status code error: \(http.statusCode)"
+                    ])
+                }
+                
+                let decoded = try JSONDecoder().decode(CardiacResult.self, from: data)
+                let cvdRiskArr = self.changeDataFormat(risk: decoded.message.cvdRisk)
+                self.recordModel.cardioRisk = cvdRiskArr.reduce(0, +) / Double(cvdRiskArr.count)
+                
+                com(nil)
+            } catch {
+                print("cardiacRisk error:", error.localizedDescription)
+                com(error)
             }
         }
     }
@@ -161,6 +183,50 @@ class Service {
             .map { num in
                 Double(num) ?? 0.0
             }
+    }
+    
+    private struct MultipartFormDataBuilder {
+        let boundary: String = "Boundary-\(UUID().uuidString)"
+
+        mutating func makeBody(
+            fileURL: URL,
+            fileFieldName: String,
+            fileName: String? = nil,
+            mimeType: String,
+            parameters: [String: String]
+        ) throws -> Data {
+            var data = Data()
+
+            // text params
+            for (key, value) in parameters {
+                data.appendString("--\(boundary)\r\n")
+                data.appendString("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+                data.appendString("\(value)\r\n")
+            }
+
+            // file
+            let actualFileName = fileName ?? fileURL.lastPathComponent
+            let fileData = try Data(contentsOf: fileURL)
+
+            data.appendString("--\(boundary)\r\n")
+            data.appendString("Content-Disposition: form-data; name=\"\(fileFieldName)\"; filename=\"\(actualFileName)\"\r\n")
+            data.appendString("Content-Type: \(mimeType)\r\n\r\n")
+            data.append(fileData)
+            data.appendString("\r\n")
+
+            data.appendString("--\(boundary)--\r\n")
+            return data
+        }
+    }
+
+    // MARK: - Data helper
+}
+
+private extension Data {
+    mutating func appendString(_ string: String) {
+        if let d = string.data(using: .utf8) {
+            append(d)
+        }
     }
 }
 

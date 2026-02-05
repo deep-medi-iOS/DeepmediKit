@@ -9,7 +9,6 @@
 import UIKit
 import AVKit
 import DeepmediKit
-import Alamofire
 
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
@@ -96,6 +95,7 @@ class FaceViewController: UIViewController {
                             uri   : "uri",
                             apiKey: "apikey"
                         )
+                        print("[++\(#fileID):\(#line)]- header: ", headers)
                     } catch let error {
                         print("header error: \(error.localizedDescription)")
                     }
@@ -118,7 +118,7 @@ class FaceViewController: UIViewController {
             smokeType: .none,
             diabetesType: .none
         ) { healthInfo in
-            print(healthInfo)
+            print("[++\(#fileID):\(#line)]- healthInfo: ", healthInfo)
         }
     }
 
