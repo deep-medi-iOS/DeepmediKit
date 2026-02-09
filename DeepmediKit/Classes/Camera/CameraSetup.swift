@@ -29,12 +29,12 @@ class CameraSetup: NSObject {
     }
     
     func useCaptureDevice() -> AVCaptureDevice {
-        guard let device = self.captureDevice else { return AVCaptureDevice(uniqueID: "tmp")! }
+        guard let device = captureDevice else { return AVCaptureDevice(uniqueID: "tmp")! }
         return device
     }
     
     func hasTorch() -> Bool {
-        guard let device = self.captureDevice else { return false }
+        guard let device = captureDevice else { return false }
         return device.hasTorch
     }
     
@@ -42,7 +42,7 @@ class CameraSetup: NSObject {
     func startDetection(
         _ part: CameraObject.Part
     ) {
-        self.session.sessionPreset = .low
+        session.sessionPreset = .low
         
         if part == .face {
             guard let captureDevice = AVCaptureDevice.default(
@@ -50,7 +50,7 @@ class CameraSetup: NSObject {
                 for: .video,
                 position: .front
             ) else { fatalError("capture device error") }
-            self.detection(captureDevice)
+            detection(captureDevice)
             
         } else {
             
@@ -60,7 +60,7 @@ class CameraSetup: NSObject {
 //                self.detection(captureDevice1)
             } else { // iOS version 13.0 이하
                 guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
-                self.detection(captureDevice)
+                detection(captureDevice)
             }
         }
     }
@@ -70,9 +70,9 @@ class CameraSetup: NSObject {
     ) {
         self.captureDevice = captureDevice
         
-        if self.session.inputs.isEmpty {
+        if session.inputs.isEmpty {
             guard let input = try? AVCaptureDeviceInput(device: captureDevice) else { fatalError("input error") }
-            self.session.addInput(input)
+            session.addInput(input)
         }
     }
     
@@ -83,8 +83,8 @@ class CameraSetup: NSObject {
         var currentFormat: AVCaptureDevice.Format?,
             tempFramePerSec = Double()
         
-        guard let captureDeviceFormats = self.captureDevice?.formats else { fatalError("capture device") }
-        
+        guard let captureDeviceFormats = captureDevice?.formats else { fatalError("capture device") }
+        self.part = part
         for format in captureDeviceFormats {
             let ranges = format.videoSupportedFrameRateRanges
             let frameRates = ranges[0]
@@ -126,8 +126,8 @@ class CameraSetup: NSObject {
         self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
         self.captureDevice?.unlockForConfiguration()
         
-        guard part == .finger, self.captureDevice?.hasTorch ?? false else { return }
-            self.correctColor()
+        guard part == .finger, captureDevice?.hasTorch ?? false else { return }
+            correctColor()
     }
     
     func setUpCaptureDevice(

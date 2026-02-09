@@ -39,14 +39,14 @@ class FingerViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        self.fingerMeasureKitModel.setMeasurementTime(30)
-        self.fingerMeasureKitModel.doMeasurementBreath(true)
+        self.fingerMeasureKitModel.setMeasurementTime(15)
+        self.fingerMeasureKitModel.doMeasurementBreath(false)
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
         
         self.setupUI()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1 ) {
             self.fingerMeasureKit.startSession()
         }
     }
@@ -108,6 +108,7 @@ class FingerViewController: UIViewController {
                 DispatchQueue.global(qos: .background).async {
                     self.fingerMeasureKit.stopSession()
                 }
+                self.fingerMeasureKit.stopSession()
             } else {
                 print("error")
             }
