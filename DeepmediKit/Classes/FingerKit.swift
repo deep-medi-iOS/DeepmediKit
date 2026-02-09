@@ -41,7 +41,7 @@ open class FingerKit: NSObject {
     
     // MARK: isTapCheck
     private var filterG = [Float]()
-    private let limitTapCount = 60
+    private let limitTapCount = 30
     
     private var chartData: [Float] = [] // green
     
@@ -294,35 +294,36 @@ open class FingerKit: NSObject {
                 }
                 
                 switch status {
-                case .tap:
-                    defer {
-                        if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
-                            self.startTimer()
+                    case .tap:
+                        defer {
+                            if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
+                                self.startTimer()
+                            }
                         }
-                    }
-                    guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
-                        return
-                    }
-                    self.noTap.removeAll()
-                    self.stopMeasureStatus.removeAll()
-                    self.measurementModel.measurementStop.onNext(false)
-
-                case .noTap:
-                    guard self.tap.count >= 30 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
-                        print("no tap return")
-                        return
-                    }
-                    self.elementInitalize()
-                    self.measurementModel.measurementStop.onNext(true)
-
-                case .back, .flip:
-                    guard self.stopMeasureStatus.count >= 30 else {
-                        print("back, flip return")
-                        return
-                    }
-                    self.turnOnThe(torch: false)
-                    self.elementInitalize()
-                    self.measurementModel.measurementStop.onNext(true)
+                        guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
+                            return
+                        }
+                        self.noTap.removeAll()
+                        self.stopMeasureStatus.removeAll()
+                        self.measurementModel.measurementStop.onNext(false)
+                        
+                    case .noTap:
+//                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
+                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount) else {
+                            print("no tap return")
+                            return
+                        }
+                        self.elementInitalize()
+                        self.measurementModel.measurementStop.onNext(true)
+                        
+                    case .back, .flip:
+                        guard self.stopMeasureStatus.count >= 30 else {
+                            print("back, flip return")
+                            return
+                        }
+                        self.turnOnThe(torch: false)
+                        self.elementInitalize()
+                        self.measurementModel.measurementStop.onNext(true)
                 }
             })
             .disposed(by: self.bag)
@@ -406,7 +407,6 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             fatalError("cvimg ref")
-            
         }
         
         CVPixelBufferLockBaseAddress(

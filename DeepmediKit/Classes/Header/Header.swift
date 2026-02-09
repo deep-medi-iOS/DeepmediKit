@@ -60,3 +60,4 @@ public struct DeepmediHeader: Codable {
     public let timestamp: String
     public let accessKey: String
 }
+

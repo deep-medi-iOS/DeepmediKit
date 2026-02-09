@@ -47,8 +47,8 @@ class Model {
         self.prepareTime = 1
         
         self.limitTapTime = 3
-        self.limitNoTapTime = 5
-        self.fingerMeasurementTime = 30.0
+        self.limitNoTapTime = 6
+        self.fingerMeasurementTime = 15.0
         self.breathMeasurement = true
     }
 }

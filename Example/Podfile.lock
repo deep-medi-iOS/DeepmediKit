@@ -71,7 +71,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - Alamofire
     - GoogleDataTransport
     - GoogleMLKit
     - GoogleToolboxForMac
