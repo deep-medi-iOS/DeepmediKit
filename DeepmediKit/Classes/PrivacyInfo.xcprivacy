@@ -13,7 +13,8 @@
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
-				<string></string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeOther</string>
 			</array>
 		</dict>
 	</array>
@@ -24,7 +25,7 @@
 			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
-				<string>0A2A.1 For data measurement elapsed time</string>
+				<string>0A2A.1</string>
 			</array>
 		</dict>
 	</array>

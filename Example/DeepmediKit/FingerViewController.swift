@@ -40,14 +40,14 @@ class FingerViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        self.fingerMeasureKitModel.setMeasurementTime(30)
-        self.fingerMeasureKitModel.doMeasurementBreath(true)
+        self.fingerMeasureKitModel.setMeasurementTime(15)
+        self.fingerMeasureKitModel.doMeasurementBreath(false)
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
         
         self.setupUI()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1 ) {
             self.fingerMeasureKit.startSession()
         }
     }
@@ -106,14 +106,17 @@ class FingerViewController: UIViewController {
             print("finger acc path:", accPath)
             print("finger gyr pPath:", gyroPath)
             if success {
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
-                
-                DispatchQueue.global(qos: .background).async {
-                    self.fingerMeasureKit.stopSession()
+                Task {
+                    do {
+                        let header = try await self.header.getHeader(
+                            uri   : "uri",
+                            apiKey: "apikey"
+                        )
+                    } catch let error {
+                        print("header error: \(error.localizedDescription)")
+                    }
                 }
+                self.fingerMeasureKit.stopSession()
             } else {
                 print("error")
             }
