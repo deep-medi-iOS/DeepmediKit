@@ -7,6 +7,7 @@
 
 import Foundation
 import RxSwift
+import RxCocoa
 
 class MeasurementModel {
     public enum status {
@@ -46,6 +47,13 @@ class MeasurementModel {
     let sigR = PublishSubject<[Float]>()
     let sigG = PublishSubject<[Float]>()
     let sigB = PublishSubject<[Float]>()
+    
+    let headAnglesRelay = BehaviorRelay<FaceKit.HeaderAngles?>(value: FaceKit.HeaderAngles.init(pitch: 0.0, yaw: 0.0, roll: 0.0))
+    
+    let yMean = PublishSubject<Float>()
+    
+    let acc  = PublishSubject<Float>()
+    let gyro = PublishSubject<Float>()
     
     //bind
     func bindFingerTap() {

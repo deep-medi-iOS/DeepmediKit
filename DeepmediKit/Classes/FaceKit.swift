@@ -23,6 +23,11 @@ public class FaceKit: NSObject {
         case filePath(result: Bool, path: URL)
         case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
     }
+    public struct HeaderAngles: Equatable {
+        let pitch: CGFloat
+        let yaw:   CGFloat
+        let roll:  CGFloat
+    }
     public struct Capture {
         public let screen: UIImage?
         public let face: UIImage?
@@ -81,6 +86,34 @@ public class FaceKit: NSObject {
     private var yuvY: [Float] = []
     
     private var bytesArray: [[UInt8]] = []
+    
+    public func pitchYawRoll(
+        _ pitchYawRoll: @escaping((HeaderAngles) -> ())
+    ) {
+        let headAnglesRelay = measurementModel.headAnglesRelay
+        
+        headAnglesRelay
+            .asDriver()
+            .compactMap { $0 }
+            .distinctUntilChanged(==)
+            .drive(onNext: { angle in
+                pitchYawRoll(HeaderAngles.init(pitch: angle.pitch, yaw: angle.yaw, roll: angle.roll))
+            })
+            .disposed(by: bag)
+    }
+    
+    public func yMean(
+        _ y: @escaping((Float) -> ())
+    ) {
+        let yMean = measurementModel.yMean
+        yMean
+            .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                y(value)
+            })
+            .disposed(by: bag)
+    }
     
     public func iso(
         _ iso: @escaping((Float) -> ())
@@ -355,7 +388,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             cvimgRef,
             CVPixelBufferLockFlags(rawValue: 0)
         )
-        
+        print("[++\(#fileID):\(#line)]- brightness: ", UIScreen.main.brightness)
         self.lastFrame = sampleBuffer
     
         let orientation = orientation.image(fromDevicePosition: .front)
@@ -459,7 +492,26 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 print("sample buffer error")
                 return
             }
-            measurementModel.isoValue.onNext(cameraSetup.useCaptureDevice().iso)
+            let device = cameraSetup.useCaptureDevice()
+            let iso            = device.iso
+            let exposureMode   = device.exposureMode
+            let exposureOffset = device.exposureTargetOffset//offset < -1 : 어두움, offset > +1 : 밝음
+            let focusMode    = device.focusMode
+            let lensPosition = device.lensPosition
+            let whiteBalanceMode         = device.whiteBalanceMode
+            let deviceWhiteBalanceGains  = device.deviceWhiteBalanceGains
+            let temperatureAndTintValues = device.temperatureAndTintValues(for: .init(redGain: 1, greenGain: 1, blueGain: 1))
+            
+            print("[++\(#fileID):\(#line)]- exposureMode: ", exposureMode.rawValue)
+            print("[++\(#fileID):\(#line)]- exposureOffset: ", exposureOffset)
+            print("[++\(#fileID):\(#line)]- focusMode: ", focusMode.rawValue)
+            print("[++\(#fileID):\(#line)]- lensPosition: ", lensPosition)
+            print("[++\(#fileID):\(#line)]- whiteBalanceMode: ", whiteBalanceMode)
+            print("[++\(#fileID):\(#line)]- deviceWhiteBalanceGains: ", deviceWhiteBalanceGains)
+            print("[++\(#fileID):\(#line)]- temperatureAndTintValues: ", temperatureAndTintValues)
+            print("[++\(#fileID):\(#line)]- ===================================")
+            
+            measurementModel.isoValue.onNext(iso)
             if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
                 if tempG.count >= 30 {
                     measurementModel.checkRealFace.onNext(true)
@@ -525,6 +577,13 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     imageWidth: imageWidth,
                     imageHeight: imageHeight
                 )
+                
+                //degree
+                let pitch = face.headEulerAngleX  // 위/아래
+                let yaw   = face.headEulerAngleY  // 좌/우 회전
+                let roll  = face.headEulerAngleZ  // 좌/우 기울기(tilt)
+                measurementModel.headAnglesRelay.accept(HeaderAngles.init(pitch: pitch, yaw: yaw, roll: roll))
+                
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
@@ -600,16 +659,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         
         return areaCondition
     }
-  
-    private func screenCapture() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            if let frame = lastFrame,
-               let captureImage = SampleBufferConverter.convertingBufferFront(frame) {
-                measurementModel.captureImage.onNext((screen: captureImage, crop: cropFaceImage))
-            }
-        }
-    }
     
     private func initRGBData() {
         timeStamp.removeAll()
@@ -619,8 +668,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         tempG.removeAll()
         totalData.removeAll()
         bytesArray.removeAll()
-        
-        yuvY.removeAll()
     }
     
     private func timerReset() {
@@ -628,58 +675,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         dispatchTimer?.cancel()
         measurementTimer.invalidate()
         prepareTimer.invalidate()
-    }
-}
-
-// MARK: RGB 수집
-extension FaceKit {
-    private func extractRGBFromDetectFace(
-        sampleBuffer: CMSampleBuffer
-    ) {
-        guard let faceRGB = SampleBufferConverter.detectFaceSampleBuffer(sampleBuffer) else {
-            print("casting error")
-            return
-        }
-        guard let r = faceRGB[0] as? Float,
-              let g = faceRGB[1] as? Float,
-              let b = faceRGB[2] as? Float else {
-            print("rgb casting error")
-            return
-        }
-        
-        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
-        if isTimerRunning {
-            guard ts > 100 else { return }
-            let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
-            timeStamp.append(ts)
-            sigR.append(r)
-            sigG.append(g)
-            sigB.append(b)
-            totalData.append(dataSet)
-        } else if !isTimerRunning {
-            tempG.append(g)
-        }
-    }
-    
-    private func collectionByteData(
-        sampleBuffer: CMSampleBuffer
-    ) {
-        guard let byteData = SampleBufferConverter.dataSampleBuffer36x36(sampleBuffer) else {
-            return print("objc chest casting error")
-        }
-        bytesArray.append(Array(byteData))
-    }
-    
-    private func extractYUVFromDetectFace(
-        sampleBuffer: CMSampleBuffer,
-    ) {
-        let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
-        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
-        
-        if isTimerRunning {
-            guard ts > 100 else { return }
-            yuvY.append(yMean)
-        }
     }
 }
 
@@ -723,10 +718,6 @@ extension FaceKit {
 //            face.contours.forEach { faceContour in
 //                print(faceContour.points)
 //            }
-            print("[++\(#fileID):\(#line)]- head euler angleX: ", face.headEulerAngleX)
-            print("[++\(#fileID):\(#line)]- head euler angleY: ", face.headEulerAngleY)
-            print("[++\(#fileID):\(#line)]- head euler angleZ: ", face.headEulerAngleZ)
-            print("[++\(#fileID):\(#line)]- head=============================")
             if willCheckRealFace {
                 if !isTimerRunning {
                     let (left, right) = antiSpoofing.checkReal(face)
@@ -839,6 +830,7 @@ extension FaceKit {
 //                self.landMarkView.image = cropLandMarkFace
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
                 collectionByteData(sampleBuffer: sampleBuffer)
+                extractYUVFromDetectFace(sampleBuffer: sampleBuffer)
             }
         } else {
             print("[++\(#fileID):\(#line)]- face is nil")
@@ -908,6 +900,62 @@ extension FaceKit {
         
         return UIGraphicsGetImageFromCurrentImageContext()
     }
+}
+
+// MARK: RGB / ByteArray / YUA -> Ymean / Capture Image
+extension FaceKit {
+    private func extractRGBFromDetectFace(
+        sampleBuffer: CMSampleBuffer
+    ) {
+        guard let faceRGB = SampleBufferConverter.detectFaceSampleBuffer(sampleBuffer) else {
+            print("casting error")
+            return
+        }
+        guard let r = faceRGB[0] as? Float,
+              let g = faceRGB[1] as? Float,
+              let b = faceRGB[2] as? Float else {
+            print("rgb casting error")
+            return
+        }
+        
+        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
+        if isTimerRunning {
+            guard ts > 100 else { return }
+            let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
+            timeStamp.append(ts)
+            sigR.append(r)
+            sigG.append(g)
+            sigB.append(b)
+            totalData.append(dataSet)
+        } else if !isTimerRunning {
+            tempG.append(g)
+        }
+    }
     
+    private func collectionByteData(
+        sampleBuffer: CMSampleBuffer
+    ) {
+        guard let byteData = SampleBufferConverter.dataSampleBuffer36x36(sampleBuffer) else {
+            return print("objc chest casting error")
+        }
+        bytesArray.append(Array(byteData))
+    }
+    
+    private func extractYUVFromDetectFace(
+        sampleBuffer: CMSampleBuffer,
+    ) {
+        let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
+        measurementModel.yMean.onNext(yMean)
+    }
+  
+    private func screenCapture() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let frame = lastFrame,
+               let captureImage = SampleBufferConverter.convertingBufferFront(frame) {
+                measurementModel.captureImage.onNext((screen: captureImage, crop: cropFaceImage))
+            }
+        }
+    }
 }
 

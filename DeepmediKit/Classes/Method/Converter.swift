@@ -21,7 +21,10 @@ final class SampleBufferConverter {
         
         let w = CVPixelBufferGetWidth(pixelBuffer)
         let h = CVPixelBufferGetHeight(pixelBuffer)
-        let rect = CGRect(x: 0, y: 0, width: w, height: h)
+        let scaledX = Double(w) * 0.24
+        let scaledY = Double(h) * 0.24
+//        let rect = CGRect(x: scaledX, y: scaledY, width: w, height: h)
+        let rect = CGRect(x: 0, y: 0, width: w, height: h).insetBy(dx: CGFloat(scaledX), dy: CGFloat(scaledY))
         
         guard let cgImage = ciContext.createCGImage(ciImage, from: rect) else { return nil }
         
@@ -30,7 +33,7 @@ final class SampleBufferConverter {
         return UIImage(
             cgImage: cgImage,
             scale: 1.0,
-            //            scale: 0.8,
+//            scale: 0.8,
             orientation: .leftMirrored
         )
     }
