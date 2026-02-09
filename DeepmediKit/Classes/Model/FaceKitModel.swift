@@ -35,15 +35,9 @@ public class FaceKitModel: NSObject {
         self.model.faceMeasurementTime = time ?? 15.0
     }
     
-//    public func setWindowSecond(
-//        _ time: Int?
-//    ) {
-//        self.model.windowSec = time ?? 15
-//    }
-//    
-//    public func setOverlappingSecond(
-//        _ time: Int?
-//    ) {
-//        self.model.overlappingSec = time ?? 2
-//    }
+    public func setPrepareTime(
+        _ time: Int?
+    ) {
+        self.model.prepareTime = time ?? 1
+    }
 }

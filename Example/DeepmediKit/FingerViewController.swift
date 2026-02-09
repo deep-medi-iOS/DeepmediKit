@@ -16,7 +16,6 @@ class FingerViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FingerCapture")
     
-    let header = Header()
     let camera = CameraObject()
     
     let fingerMeasureKit = FingerKit()
@@ -102,19 +101,12 @@ class FingerViewController: UIViewController {
         }
         
         fingerMeasureKit.finishedMeasurement { success, rgbPath, accPath, gyroPath in
-            print("finger rgb path:", rgbPath)
-            print("finger acc path:", accPath)
+            print("finger rgb path:",  rgbPath)
+            print("finger acc path:",  accPath)
             print("finger gyr pPath:", gyroPath)
             if success {
-                Task {
-                    do {
-                        let header = try await self.header.getHeader(
-                            uri   : "uri",
-                            apiKey: "apikey"
-                        )
-                    } catch let error {
-                        print("header error: \(error.localizedDescription)")
-                    }
+                DispatchQueue.global(qos: .background).async {
+                    self.fingerMeasureKit.stopSession()
                 }
                 self.fingerMeasureKit.stopSession()
             } else {

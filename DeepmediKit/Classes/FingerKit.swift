@@ -20,13 +20,11 @@ open class FingerKit: NSObject {
     private let bag = DisposeBag()
     
     private let document = Document(),
+                measurementModel = MeasurementModel(),
                 notiGenerator = UINotificationFeedbackGenerator()
     
-    private let cameraSetup = CameraSetup.shared
-    
-    private let model = Model.shared
-    private let dataModel = DataModel.shared
-    private let measurementModel = MeasurementModel()
+    private let model       = Model.shared,
+                cameraSetup = CameraSetup.shared
     
     private let device = UIDevice.current
     
@@ -45,6 +43,23 @@ open class FingerKit: NSObject {
     private var filterG = [Float]()
     private let limitTapCount = 30
     
+    private var chartData: [Float] = [] // green
+    
+    private var sigR: [Float] = []
+    private var sigB: [Float] = []
+    private var sigG: [Float] = []
+    private var totalData: [(Double, Float, Float, Float)] = []
+    
+    private var accXdata = [Float](),
+                accYdata = [Float](),
+                accZdata = [Float](),
+                accData  = [(Double(),Float(),Float(),Float())]
+    
+    private var gyroXdata = [Float](),
+                gyroYdata = [Float](),
+                gyroZdata = [Float](),
+                gyroData  = [(Double(),Float(),Float(),Float())]
+    
     // MARK: Flag
     private var isDeviceBack = false,
                 isTorch = true,
@@ -53,7 +68,7 @@ open class FingerKit: NSObject {
     public func timesLeft(
         _ time: @escaping (Int)->()
     ) {
-        let secondRemaining = self.measurementModel.secondRemaining
+        let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .observe(on: MainScheduler.asyncInstance)
             .asDriver(onErrorJustReturn: 0)
@@ -66,7 +81,7 @@ open class FingerKit: NSObject {
     public func measurementCompleteRatio(
         _ com: @escaping((String) -> ())
     ) {
-        let ratio = self.measurementModel.measurementCompleteRatio
+        let ratio = measurementModel.measurementCompleteRatio
         ratio
             .asDriver(onErrorJustReturn: "0%")
             .asDriver()
@@ -79,7 +94,7 @@ open class FingerKit: NSObject {
     public func finishedMeasurement(
         _ isSuccess: @escaping((_ success: Bool,_ rgbPath: URL?,_ accPath: URL?,_ gyroPath: URL?) -> ())
     ) {
-        let completion = self.measurementModel.fingerMeasurementComplete
+        let completion = measurementModel.fingerMeasurementComplete
         completion
             .asDriver(onErrorJustReturn: (false, URL(string: ""), URL(string: ""), URL(string: "")))
             .drive(onNext: { result in
@@ -94,7 +109,7 @@ open class FingerKit: NSObject {
     public func stopMeasurement(
         _ isStop: @escaping((Bool) -> ())
     ) {
-        let stop = self.measurementModel.measurementStop
+        let stop = measurementModel.measurementStop
         stop
             .asDriver(onErrorJustReturn: false)
             .asDriver()
@@ -105,9 +120,9 @@ open class FingerKit: NSObject {
     }
     
     public func stoppedStatus() -> StopStatus {
-        if self.measurementModel.stoppedByNotTap {
+        if measurementModel.stoppedByNotTap {
             return FingerKit.StopStatus.noTap
-        } else if self.measurementModel.stoppedByFlipingDevice {
+        } else if measurementModel.stoppedByFlipingDevice {
             return FingerKit.StopStatus.flipDevice
         }
         return FingerKit.StopStatus.notThing
@@ -116,7 +131,7 @@ open class FingerKit: NSObject {
     public func measuredValue(
         _ filtered: @escaping (Double)->()
     ) {
-        let value = self.measurementModel.inputFilteringGvalue
+        let value = measurementModel.inputFilteringGvalue
         value
             .observe(on: MainScheduler.asyncInstance)
             .asDriver(onErrorJustReturn: 0)
@@ -130,14 +145,14 @@ open class FingerKit: NSObject {
         super.init()
         UIApplication.shared.isIdleTimerDisabled = true
         if let openCVstr = OpenCVWrapper.openCVVersionString() {
-            print("\(openCVstr)")
+            print("[++\(#fileID):\(#line)]- opencv version: ", openCVstr)
         }
-        self.measurementRGBfromFinger()
-        self.measurementModel.bindFingerTap()
+        measurementRGBfromFinger()
+        measurementModel.bindFingerTap()
     }
     
     deinit {
-        print("deinit")
+        print("[++\(#fileID)] deinit ")
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
@@ -155,17 +170,20 @@ open class FingerKit: NSObject {
     
     private func prepareMeasurement() {
         DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self = self else { return }
-            self.measurementTime = self.model.fingerMeasurementTime
-            self.cameraSetup.useSession().startRunning()
-            self.turnOnThe(torch: true)
+            guard let self else { return }
+            measurementTime = model.fingerMeasurementTime
+            cameraSetup.useSession().startRunning()
+            turnOnThe(torch: true)
         }
     }
     
     open func stopSession() {
+        stopMeasurement()
+    }
+    
+    private func stopMeasurement() {
         isComplete = true
-//        self.cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-        cameraSetup.clearCaptureDevice()
+        cameraSetup.useCaptureDevice().exposureMode = .autoExpose
         cameraSetup.useSession().stopRunning()
         motionManager.stopAccelerometerUpdates()
         motionManager.stopGyroUpdates()
@@ -178,9 +196,9 @@ open class FingerKit: NSObject {
         measurementTime = model.fingerMeasurementTime
         measurementTimer.invalidate()
         chartTimer.invalidate()
-        dataModel.initRGBData()
-        dataModel.initAccData()
-        dataModel.initGyroData()
+        initRGBData()
+        initAccData()
+        initGyroData()
         tap.removeAll()
         noTap.removeAll()
         stopMeasureStatus.removeAll()
@@ -204,65 +222,65 @@ open class FingerKit: NSObject {
     
     /// Accelemeter start
     private func accelemeterUpdates() {
-        self.motionManager.accelerometerUpdateInterval = 1 / 100
+        motionManager.accelerometerUpdateInterval = 1 / 100
         guard let operationQueue = OperationQueue.current else {
             print("acc operation queue return")
             return
         }
-        self.motionManager.startAccelerometerUpdates(to: operationQueue) { (acc, err)  in
-            self.dataModel.collectAccelemeterData(acc, err)
+        motionManager.startAccelerometerUpdates(to: operationQueue) {[weak self] (acc, err)  in
+            guard let self else { return }
+            collectAccelemeterData(acc, err)
         }
     }
     
     /// Gyroscope start
     private func gyroscopeUpdates() {
-        self.motionManager.gyroUpdateInterval = 1 / 100
+        motionManager.gyroUpdateInterval = 1 / 100
         guard let operationQueue = OperationQueue.current else {
             print("gyro operation queue return")
             return
         }
-        self.motionManager.startGyroUpdates(to: operationQueue) { (gyro, err)  in
-            self.dataModel.collectGyroscopeData(gyro, err)
+        motionManager.startGyroUpdates(to: operationQueue) {[weak self] (gyro, err)  in
+            guard let self else { return }
+            collectGyroscopeData(gyro, err)
         }
     }
     
     func deviceMotionUpdates() {
-        if self.motionManager.isDeviceMotionAvailable {
-            self.motionManager.deviceMotionUpdateInterval = 0.1  // 업데이트 간격 설정
-            guard let operationQueue = OperationQueue.current else {
-                print("deviceMotion operation queue return")
+        guard let operationQueue = OperationQueue.current, motionManager.isDeviceMotionAvailable else {
+            print("deviceMotion operation queue return")
+            return
+        }
+        motionManager.deviceMotionUpdateInterval = 0.1  // 업데이트 간격 설정
+        motionManager.startDeviceMotionUpdates(to: operationQueue) {[weak self] (motion, error) in
+            guard let self, let motion = motion else {
+                print("motion return")
                 return
             }
-            self.motionManager.startDeviceMotionUpdates(to: operationQueue) { (motion, error) in
-                guard let motion = motion else {
-                    print("motion return")
-                    return
-                }
-                
-                let attitude = motion.attitude,
-                    roll = attitude.roll,
-                    back = roll < -2.0 || roll > 2.0,
-                    forward = !back
-                
-                self.measurementModel.inputAccZback.onNext(back)
-                self.measurementModel.inputAccZforward.onNext(forward)
-            }
+            
+            let attitude = motion.attitude,
+                roll = attitude.roll,
+                back = roll < -2.0 || roll > 2.0,
+                forward = !back
+            
+            measurementModel.inputAccZback.onNext(back)
+            measurementModel.inputAccZforward.onNext(forward)
         }
     }
     
     private func measurementRGBfromFinger() {
-        let status = self.measurementModel.outputFingerStatus
+        let status = measurementModel.outputFingerStatus
         status
             .observe(on: MainScheduler.instance)
             .asDriver(onErrorJustReturn: .noTap)
             .drive(onNext: { [weak self] status in
-                guard let self = self else { return }
+                guard let self else { return }
                 self.measurementModel.checkStopStatus(status)
                 if status == .tap && (self.tap.count <= self.limitTapCount * 3) {
                     
                     if self.tap.count == 30 && !self.isComplete {
                         self.chartUpdateTimer()
-                        self.cameraSetup.setUpCatureDevice()
+                        self.cameraSetup.setUpCaptureDevice(.locked)
                     }
                     
                     self.tap.append(.tap)
@@ -312,64 +330,70 @@ open class FingerKit: NSObject {
     }
     
     private func startTimer() {
-        let completion = self.measurementModel.fingerMeasurementComplete,
-            secondRemaining = self.measurementModel.secondRemaining,
-            measurementCompleteRatio = self.measurementModel.measurementCompleteRatio
+        let completion               = measurementModel.fingerMeasurementComplete,
+            secondRemaining          = measurementModel.secondRemaining,
+            measurementCompleteRatio = measurementModel.measurementCompleteRatio
         
         isComplete = true
-        dataModel.initRGBData()
-        dataModel.initAccData()
-        dataModel.initGyroData()
+        initRGBData()
+        initAccData()
+        initGyroData()
         
-        self.measurementTimer = Timer.scheduledTimer(
+        measurementTimer = Timer.scheduledTimer(
             withTimeInterval: 0.1,
             repeats: true
         ) { [weak self] timer in
-            guard let self = self else { return }
+            guard let self else { return }
             let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.fingerMeasurementTime)
             measurementCompleteRatio.onNext("\(ratio)%")
             secondRemaining.onNext(Int(self.measurementTime))
             self.measurementTime -= 0.1
-            if self.measurementTime <= 0.0 {
-                
-                self.notiGenerator.notificationOccurred(.success)
-                
-                self.document.makeDocument(data: .rgb)
-
-                if self.model.breathMeasurement {
-                    self.document.makeDocument(data: .acc)
-                    self.document.makeDocument(data: .gyro)
-                    
-                    if let rgbPath  = self.dataModel.rgbDataPath,
-                       let accPath  = self.dataModel.accDataPath,
-                       let gyroPath = self.dataModel.gyroDataPath {
-                        completion.onNext((success: true,
-                                           rgbURL:  rgbPath,
-                                           accURL:  accPath,
-                                           gyroURL: gyroPath))
-                    } else {
-                        completion.onNext((success: false,
-                                           rgbURL:  URL(string: "there is no rgb path"),
-                                           accURL:  URL(string: "there is no acc path"),
-                                           gyroURL: URL(string: "there is no gyro path")))
-                    }
-                    
-                } else {
-                    
-                    if let rgbPath = self.dataModel.rgbDataPath {
-                        completion.onNext((success: true,
-                                           rgbURL:  rgbPath,
-                                           accURL:  URL(string: "there is no acc path"),
-                                           gyroURL: URL(string: "there is no gyro path")))
-                    } else {
-                        completion.onNext((success: false,
-                                           rgbURL:  URL(string: "there is no rgb path"),
-                                           accURL:  URL(string: "there is no acc path"),
-                                           gyroURL: URL(string: "there is no gyro path")))
-                    }
-                }
-                self.stopSession()
+            guard self.measurementTime <= 0.0,
+                  let rgbPath = self.document.make(data: .rgb, dataSet: totalData) else {
+                print("rgbPath is nil")
+                completion.onNext(
+                    (
+                        success: false,
+                        rgbURL:  URL(string: "there is not rgb path"),
+                        accURL:  URL(string: "there is not acc path"),
+                        gyroURL: URL(string: "there is not gyro path")
+                    )
+                )
+                return
             }
+            self.notiGenerator.notificationOccurred(.success)
+            if self.model.breathMeasurement {
+                if let accPath  = self.document.make(data: .acc, dataSet: accData),
+                    let gyroPath = self.document.make(data: .gyro, dataSet: gyroData) {
+                    completion.onNext(
+                        (
+                            success: true,
+                            rgbURL:  rgbPath,
+                            accURL:  accPath,
+                            gyroURL: gyroPath
+                        )
+                    )
+                } else {
+                    completion.onNext(
+                        (
+                            success: false,
+                            rgbURL:  URL(string: "there is not rgb path"),
+                            accURL:  URL(string: "there is not acc path"),
+                            gyroURL: URL(string: "there is not gyro path")
+                        )
+                    )
+                }
+            } else {
+                completion.onNext(
+                    (
+                        success: true,
+                        rgbURL:  rgbPath,
+                        accURL:  URL(string: "there is not acc path"),
+                        gyroURL: URL(string: "there is not gyro path")
+                    )
+                )
+            }
+            self.stopMeasurement()
         }
     }
 }
@@ -402,10 +426,10 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
               let g = openCVDatas[2] as? Float,
               let b = openCVDatas[3] as? Float else { return print("objc rgb casting error") }
         
-        self.measurementModel.inputFingerTap.onNext(tap)
+        measurementModel.inputFingerTap.onNext(tap)
         let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-        guard timeStamp != 0 else { return }
-        self.dataModel.collectRGB(
+        guard timeStamp > 100 else { return }
+        collectRGB(
             timeStamp: timeStamp,
             r: r, g: g, b: b
         )
@@ -417,18 +441,17 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
     
     private func chartUpdateTimer() {
-        self.chartTimer = Timer.scheduledTimer(
-            timeInterval: 1 / self.FRAMES_PER_SECOND,
+        chartTimer = Timer.scheduledTimer(
+            timeInterval: 1 / FRAMES_PER_SECOND,
             target: self,
-            selector: #selector(self.updatedChartData),
+            selector: #selector(updatedChartData),
             userInfo: nil,
             repeats: true
         )
     }
     
     @objc private func updatedChartData() {
-        let filteredG = self.filter(g: self.dataModel.gTempData)
-        self.measurementModel.inputFilteringGvalue.onNext(filteredG)
+        measurementModel.inputFilteringGvalue.onNext(filter(g: chartData))
     }
     
     private func filter(
@@ -467,5 +490,89 @@ extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             y.removeLast()
         }
         return result
+    }
+    func collectRGB(
+        timeStamp: Double,
+        r: Float,
+        g: Float,
+        b: Float
+    ) {
+        chartData.append(g)
+        sigR.append(r)
+        sigG.append(g)
+        sigB.append(b)
+        totalData.append((timeStamp, r, g, b))
+    }
+    
+    func collectAccelemeterData(
+        _ acc: CMAccelerometerData?,
+        _ err: Error?
+    ) {
+        if err != nil {
+            print("error")
+            return
+        } else {
+            guard let accMeasureData = acc?.acceleration else {
+                print("accelerometer measured data return")
+                return
+            }
+            var x: Float = 0, y: Float = 0, z: Float = 0
+            x = Float(accMeasureData.x)
+            y = Float(accMeasureData.y)
+            z = Float(accMeasureData.z)
+            
+            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
+            guard timeStamp > 100 else { return print("acc timeStamp error") }
+            accXdata.append(x)
+            accYdata.append(y)
+            accZdata.append(z)
+            accData.append((timeStamp, x, y, z))
+        }
+    }
+    
+    func collectGyroscopeData(
+        _ gyro: CMGyroData?,
+        _ err: Error?
+    ) {
+        if err != nil {
+            print("error")
+        } else {
+            guard let gyroMeasureData = gyro?.rotationRate else {
+                print("gyro measured data return")
+                return
+            }
+            var x: Float = 0, y: Float = 0, z: Float = 0
+            x = Float(gyroMeasureData.x)
+            y = Float(gyroMeasureData.y)
+            z = Float(gyroMeasureData.z)
+            
+            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
+            guard timeStamp > 100 else { return print("gyro timeStamp error") }
+            gyroXdata.append(x)
+            gyroYdata.append(y)
+            gyroZdata.append(z)
+            gyroData.append((timeStamp, x, y, z))
+        }
+    }
+    
+    func initRGBData() {
+        sigR.removeAll()
+        sigG.removeAll()
+        sigB.removeAll()
+        totalData.removeAll()
+    }
+    
+    func initAccData() {
+        accXdata.removeAll()
+        accYdata.removeAll()
+        accZdata.removeAll()
+        accData.removeAll()
+    }
+    
+    func initGyroData() {
+        gyroXdata.removeAll()
+        gyroYdata.removeAll()
+        gyroZdata.removeAll()
+        gyroData.removeAll()
     }
 }

@@ -14,8 +14,9 @@
 + (NSString *)openCVVersionString;
 
 + (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer device: (NSString *)device;
-+ (NSArray *)detectFaceSampleBuffer:(CMSampleBufferRef)sampleBuffer;
-+ (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+//+ (NSArray *)detectFaceSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+//+ (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 
-+ (UIImage *)convertingBuffer:(CMSampleBufferRef)sampleBuffer;
+//+ (UIImage *_Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer;
+//+ (UIImage *_Nullable)convertingBufferToImage:(CMSampleBufferRef)sampleBuffer;
 @end

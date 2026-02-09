@@ -10,8 +10,7 @@ import AVKit
 
 class CameraSetup: NSObject {
     static let shared = CameraSetup()
-    
-    private var part = CameraObject.Part.finger
+
     private var session = AVCaptureSession()
     private var captureDevice: AVCaptureDevice?
     private var customISO: Float?
@@ -56,9 +55,9 @@ class CameraSetup: NSObject {
         } else {
             
             if let captureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
-                detection(captureDevice)
-            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
-                detection(captureDevice1)
+                self.detection(captureDevice)
+//            } else if let captureDevice1 = AVCaptureDevice.default(for: .video) {
+//                self.detection(captureDevice1)
             } else { // iOS version 13.0 이하
                 guard let captureDevice = AVCaptureDevice.default(for: .video) else { fatalError("capture device error") }
                 detection(captureDevice)
@@ -118,32 +117,24 @@ class CameraSetup: NSObject {
         }
         
         guard let tempCurrentFormat = currentFormat,
-              try! captureDevice?.lockForConfiguration() != nil else { return print("current format")}
-        
-        try! captureDevice?.lockForConfiguration()
-        captureDevice?.activeFormat = tempCurrentFormat
-        captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
-        captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
-        captureDevice?.unlockForConfiguration()
+              try! self.captureDevice?.lockForConfiguration() != nil else { return print("current format")}
+        try! self.captureDevice?.lockForConfiguration()
+        self.captureDevice?.activeFormat = tempCurrentFormat
+//        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(30))
+//        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(30))
+        self.captureDevice?.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+        self.captureDevice?.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(tempFramePerSec))
+        self.captureDevice?.unlockForConfiguration()
         
         guard part == .finger, captureDevice?.hasTorch ?? false else { return }
             correctColor()
     }
     
-    func setUpCatureDevice() {
-        try! captureDevice?.lockForConfiguration()
-        if device.modelName.contains("X") && part == .finger {
-            captureDevice?.exposureMode = .custom
-            captureDevice?.setExposureModeCustom(duration: CMTime(value: 1, timescale: 60) , iso: 24.0)
-        } else {
-            captureDevice?.exposureMode = .locked
-        }
-        captureDevice?.unlockForConfiguration()
-    }
-    
-    func clearCaptureDevice() {
-        try! captureDevice?.lockForConfiguration()
-        captureDevice?.exposureMode = .autoExpose
+    func setUpCaptureDevice(
+        _ mode: AVCaptureDevice.ExposureMode
+    ) {
+        try! self.captureDevice?.lockForConfiguration()
+        captureDevice?.exposureMode = mode
         captureDevice?.unlockForConfiguration()
     }
     

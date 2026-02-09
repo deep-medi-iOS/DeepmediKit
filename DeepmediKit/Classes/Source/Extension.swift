@@ -38,45 +38,45 @@ extension UIImage {
         return nil
     }
     
-    var uiImageToCVPixelBuffer: CVPixelBuffer? {
-        let width = Int(self.size.width)
-        let height = Int(self.size.height)
-        let attrs = [
-            String(kCVPixelBufferCGImageCompatibilityKey): false,
-            String(kCVPixelBufferCGBitmapContextCompatibilityKey): false,
-        ] as CFDictionary
-        var buffer: CVPixelBuffer?
-        let status = CVPixelBufferCreate(kCFAllocatorDefault,
-                                         width,
-                                         height,
-                                         kCVPixelFormatType_32BGRA,
-                                         attrs,
-                                         &buffer)
-        guard status == kCVReturnSuccess else {
-            return nil
-        }
-
-        CVPixelBufferLockBaseAddress(buffer!, CVPixelBufferLockFlags(rawValue: 0))
-        let pixelData = CVPixelBufferGetBaseAddress(buffer!)
-        let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-        let context = CGContext(data: pixelData,
-                                width: width,
-                                height: height,
-                                bitsPerComponent: 8,
-                                bytesPerRow: CVPixelBufferGetBytesPerRow(buffer!),
-                                space: rgbColorSpace,
-                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-
-        context?.translateBy(x: 0, y: self.size.height)
-        context?.scaleBy(x: 1.0, y: -1.0)
-
-        UIGraphicsPushContext(context!)
-        self.draw(in: CGRect(x: 0, y: 0, width: width, height: height))
-        UIGraphicsPopContext()
-        CVPixelBufferUnlockBaseAddress(buffer!, CVPixelBufferLockFlags(rawValue: 0))
-
-        return buffer
-    }
+//    var uiImageToCVPixelBuffer: CVPixelBuffer? {
+//        let width = Int(self.size.width)
+//        let height = Int(self.size.height)
+//        let attrs = [
+//            String(kCVPixelBufferCGImageCompatibilityKey): false,
+//            String(kCVPixelBufferCGBitmapContextCompatibilityKey): false,
+//        ] as CFDictionary
+//        var buffer: CVPixelBuffer?
+//        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+//                                         width,
+//                                         height,
+//                                         kCVPixelFormatType_32BGRA,
+//                                         attrs,
+//                                         &buffer)
+//        guard status == kCVReturnSuccess else {
+//            return nil
+//        }
+//
+//        CVPixelBufferLockBaseAddress(buffer!, CVPixelBufferLockFlags(rawValue: 0))
+//        let pixelData = CVPixelBufferGetBaseAddress(buffer!)
+//        let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
+//        let context = CGContext(data: pixelData,
+//                                width: width,
+//                                height: height,
+//                                bitsPerComponent: 8,
+//                                bytesPerRow: CVPixelBufferGetBytesPerRow(buffer!),
+//                                space: rgbColorSpace,
+//                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+//
+//        context?.translateBy(x: 0, y: self.size.height)
+//        context?.scaleBy(x: 1.0, y: -1.0)
+//
+//        UIGraphicsPushContext(context!)
+//        self.draw(in: CGRect(x: 0, y: 0, width: width, height: height))
+//        UIGraphicsPopContext()
+//        CVPixelBufferUnlockBaseAddress(buffer!, CVPixelBufferLockFlags(rawValue: 0))
+//
+//        return buffer
+//    }
        
     func createCMSampleBuffer() -> CMSampleBuffer? {
         guard let pixelBuffer = ciImageToCVPixelBuffer else { fatalError("pixel buffer return") }
@@ -102,25 +102,54 @@ extension CGPath {
     func resized(
         to rect: CGRect
     ) -> CGPath? {
-        let boundingBox = self.boundingBox
-        let boundingBoxAspectRatio = boundingBox.width / boundingBox.height
-        let viewAspectRatio = rect.width / rect.height
-        let scaleFactor = boundingBoxAspectRatio > viewAspectRatio ?
-            rect.width / boundingBox.width :
-            rect.height / boundingBox.height
-        let useScale = scaleFactor * 0.8
-        
-        let scaledSize = boundingBox.size.applying(CGAffineTransform(scaleX: useScale, y: useScale))
-        let centerOffset = CGSize(
-            width: (rect.width - scaledSize.width) / (useScale * 2),
-            height: (rect.height - scaledSize.height) / (useScale * 2)
-        )
+//        let boundingBox = self.boundingBox
+//        let boundingBoxAspectRatio = boundingBox.width / boundingBox.height
+//        let viewAspectRatio = rect.width / rect.height
+//        let scaleFactor = boundingBoxAspectRatio > viewAspectRatio ?
+//            rect.width / boundingBox.width :
+//            rect.height / boundingBox.height
+//        let useScale = scaleFactor * 1.0
+////        let useScale = scaleFactor * 0.8
+//        
+//        let scaledSize = boundingBox.size.applying(CGAffineTransform(scaleX: useScale, y: useScale))
+//        let centerOffset = CGSize(
+//            width: (rect.width - scaledSize.width) / (useScale * 2),
+//            height: (rect.height - scaledSize.height) / (useScale * 2)
+//        )
+//
+//        var transform = CGAffineTransform.identity
+//            .scaledBy(x: useScale, y: useScale)
+//            .translatedBy(x: -boundingBox.minX + centerOffset.width, y: -boundingBox.minY + centerOffset.height)
+//        
+//        return copy(using: &transform)
+        // ✅ 더 안정적인 bbox (곡선 control point 때문에 boundingBox가 튀는 문제 방지)
+        let inset = 1.0
+        let bbox = self.boundingBoxOfPath
+            guard bbox.width > 0.0001, bbox.height > 0.0001 else { return nil }
 
-        var transform = CGAffineTransform.identity
-            .scaledBy(x: useScale, y: useScale)
-            .translatedBy(x: -boundingBox.minX + centerOffset.width, y: -boundingBox.minY + centerOffset.height)
-        
-        return copy(using: &transform)
+            let sx = rect.width / bbox.width
+            let sy = rect.height / bbox.height
+            let s  = min(sx, sy) * inset
+
+            let scaledW = bbox.width * s
+            let scaledH = bbox.height * s
+
+            // 최종 rect 기준 중앙정렬 오프셋
+            let tx = (rect.width  - scaledW) * 0.5
+            let ty = (rect.height - scaledH) * 0.5
+
+            var t = CGAffineTransform.identity
+
+            // ✅ 중앙정렬 이동은 "scale 전에" 먼저 넣는다 (scale 영향 안 받게)
+            t = t.translatedBy(x: tx, y: ty)
+
+            // ✅ 그 다음 scale
+            t = t.scaledBy(x: s, y: s)
+
+            // ✅ 마지막으로 bbox 원점을 (0,0)으로 당기기 (이 값은 scale 기준이므로 그대로)
+            t = t.translatedBy(x: -bbox.minX, y: -bbox.minY)
+
+            return self.copy(using: &t)
     }
 }
 
