@@ -78,6 +78,8 @@ public class FaceKit: NSObject {
     private var tempG: [Float] = []
     private var totalData: [(Double, Float, Float, Float)] = []
     
+    private var yuvY: [Float] = []
+    
     private var bytesArray: [[UInt8]] = []
     
     public func iso(
@@ -304,7 +306,6 @@ public class FaceKit: NSObject {
                     data: .rgb,
                     dataSet: totalData
                 ) {
-                    print("[++\(#fileID):\(#line)]- byteArr count: ", bytesArray.count)
 //                    guard let dataBin = self.document.makeBin(
 //                        dataSet: totalData,
 //                        bytesArr: bytesArray
@@ -618,6 +619,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         tempG.removeAll()
         totalData.removeAll()
         bytesArray.removeAll()
+        
+        yuvY.removeAll()
     }
     
     private func timerReset() {
@@ -666,6 +669,18 @@ extension FaceKit {
         }
         bytesArray.append(Array(byteData))
     }
+    
+    private func extractYUVFromDetectFace(
+        sampleBuffer: CMSampleBuffer,
+    ) {
+        let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
+        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
+        
+        if isTimerRunning {
+            guard ts > 100 else { return }
+            yuvY.append(yMean)
+        }
+    }
 }
 
 // MARK: 랜드마크 제거
@@ -705,7 +720,13 @@ extension FaceKit {
             var lipsPath = UIBezierPath().then { p in
                 p.lineWidth = 1
             }
-            
+//            face.contours.forEach { faceContour in
+//                print(faceContour.points)
+//            }
+            print("[++\(#fileID):\(#line)]- head euler angleX: ", face.headEulerAngleX)
+            print("[++\(#fileID):\(#line)]- head euler angleY: ", face.headEulerAngleY)
+            print("[++\(#fileID):\(#line)]- head euler angleZ: ", face.headEulerAngleZ)
+            print("[++\(#fileID):\(#line)]- head=============================")
             if willCheckRealFace {
                 if !isTimerRunning {
                     let (left, right) = antiSpoofing.checkReal(face)

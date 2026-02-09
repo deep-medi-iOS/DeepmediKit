@@ -113,5 +113,50 @@ final class SampleBufferConverter {
         
         return out
     }
+    
+    // MARK: YUV 추출
+    static func extractYUVFromDetectFace(
+        _ sampleBuffer: CMSampleBuffer
+    ) -> Float {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            print("Failed to get pixel buffer")
+            return 0.0
+        }
+        
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer {
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
+        }
+        
+        let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        
+        // YUV 420 포맷 처리 (일반적으로 카메라에서 사용)
+        if pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange ||
+            pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange {
+            
+            // Y plane
+            guard let yBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
+                print("Failed to get Y plane")
+                return 0.0
+            }
+            let yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+            let yHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+            let yWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+            
+            // Y 평균값 계산
+            var ySum: Float = 0
+            var yCount = 0
+            for row in 0..<yHeight {
+                let rowData = yBaseAddress + row * yBytesPerRow
+                for col in 0..<yWidth {
+                    let yValue = rowData.load(fromByteOffset: col, as: UInt8.self)
+                    ySum += Float(yValue)
+                    yCount += 1
+                }
+            }
+            return ySum / Float(yCount)
+        }
+        return 0.0
+    }
 }
 

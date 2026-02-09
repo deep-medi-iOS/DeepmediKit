@@ -11,6 +11,7 @@ import AVKit
 class CameraSetup: NSObject {
     static let shared = CameraSetup()
 
+    private var part: CameraObject.Part = .face
     private var session = AVCaptureSession()
     private var captureDevice: AVCaptureDevice?
     private var customISO: Float?
