@@ -45,9 +45,9 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(30)
-        faceMeasureKitModel.setWindowSecond(15)
-        faceMeasureKitModel.setOverlappingSecond(2)
+        faceMeasureKitModel.setMeasurementTime(15)
+//        faceMeasureKitModel.setWindowSecond(15)
+//        faceMeasureKitModel.setOverlappingSecond(2)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
         
@@ -89,10 +89,17 @@ class FaceViewController: UIViewController {
             print("face rbg path: \(path)")
         
             if successed {
-                let header = self.header.v2Header(method: .post,
-                                                  uri: "uri",
-                                                  secretKey: "secretKey",
-                                                  apiKey: "apiKey")
+                Task {
+                    do {
+                        let headers = try await self.header.getHeader(
+                            uri   : "uri",
+                            apiKey: "apikey"
+                        )
+                        print("[++\(#fileID):\(#line)]- header: ", headers)
+                    } catch let error {
+                        print("header error: \(error.localizedDescription)")
+                    }
+                }
                 self.faceMeasureKit.stopSession()
             } else {
                 print("error")
@@ -101,17 +108,17 @@ class FaceViewController: UIViewController {
         
         faceMeasureKit.resultHealthInfo(
             secretKey: "secretKey",
-            apiKey: "apiKey",
+            apiKey: "apikey",
             genderType: .MALE,
-            age: Int(),
-            height: Int(),
-            weight: Int(),
+            age: 20,
+            height: 170,
+            weight: 70,
             belly: Int(),
             exerciseType: .none,
             smokeType: .none,
             diabetesType: .none
         ) { healthInfo in
-            print(healthInfo)
+            print("[++\(#fileID):\(#line)]- healthInfo: ", healthInfo)
         }
     }
 
