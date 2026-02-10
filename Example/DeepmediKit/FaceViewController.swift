@@ -103,6 +103,14 @@ class FaceViewController: UIViewController {
             self.isoLabel.text = "\(iso)"
         }
         
+        faceMeasureKit.pitchYawRoll { pitchYawRoll in
+            
+        }
+        
+        faceMeasureKit.yMean { yMean in
+            
+        }
+        
         faceMeasureKit.captureImage { capture in
             print("[++\(#fileID):\(#line)]- image ")
             if let screen = capture.screen,

@@ -52,6 +52,16 @@ class MeasurementModel {
     
     let yMean = PublishSubject<Float>()
     
+    let metaData = BehaviorRelay<FaceKit.Metadata>(
+        value: FaceKit.Metadata.init(
+            brightness: 0.0,
+            iso: 0.0,
+            exposureMode: .autoExpose,
+            focusMode: .autoFocus,
+            whiteBalanceMode: .autoWhiteBalance
+        )
+    )
+    
     let acc  = PublishSubject<Float>()
     let gyro = PublishSubject<Float>()
     

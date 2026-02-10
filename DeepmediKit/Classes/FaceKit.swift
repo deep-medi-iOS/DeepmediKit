@@ -24,9 +24,20 @@ public class FaceKit: NSObject {
         case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
     }
     public struct HeaderAngles: Equatable {
-        let pitch: CGFloat
-        let yaw:   CGFloat
-        let roll:  CGFloat
+        public let pitch: CGFloat
+        public let yaw:   CGFloat
+        public let roll:  CGFloat
+    }
+    public struct Metadata: Equatable {
+        public let brightness: CGFloat
+        public let iso: Float
+        //AE
+        public let exposureMode: AVCaptureDevice.ExposureMode
+//        public let exposureOffset: Float
+        //AF
+        public let focusMode: AVCaptureDevice.FocusMode
+        //AWB
+        public let whiteBalanceMode: AVCaptureDevice.WhiteBalanceMode
     }
     public struct Capture {
         public let screen: UIImage?
@@ -86,6 +97,19 @@ public class FaceKit: NSObject {
     private var yuvY: [Float] = []
     
     private var bytesArray: [[UInt8]] = []
+    
+    public func captureDeviceMode(
+        _ mode: @escaping((Metadata) -> ())
+    ) {
+        let metaData = measurementModel.metaData
+        metaData
+            .asDriver(onErrorDriveWith: .empty())
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                mode(value)
+            })
+            .disposed(by: bag)
+    }
     
     public func pitchYawRoll(
         _ pitchYawRoll: @escaping((HeaderAngles) -> ())
@@ -372,6 +396,10 @@ public class FaceKit: NSObject {
     }
 }
 
+extension FaceKit {
+    
+}
+
 @available(iOS 13.0, *)
 extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 이미지에서 데이터 수집을 위한 delegate
     public func captureOutput(
@@ -388,7 +416,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
             cvimgRef,
             CVPixelBufferLockFlags(rawValue: 0)
         )
-        print("[++\(#fileID):\(#line)]- brightness: ", UIScreen.main.brightness)
+        
         self.lastFrame = sampleBuffer
     
         let orientation = orientation.image(fromDevicePosition: .front)
@@ -492,24 +520,26 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                 print("sample buffer error")
                 return
             }
+            // MARK: Metadata
+            let brightness = UIScreen.main.brightness
             let device = cameraSetup.useCaptureDevice()
-            let iso            = device.iso
-            let exposureMode   = device.exposureMode
-            let exposureOffset = device.exposureTargetOffset//offset < -1 : 어두움, offset > +1 : 밝음
-            let focusMode    = device.focusMode
-            let lensPosition = device.lensPosition
-            let whiteBalanceMode         = device.whiteBalanceMode
-            let deviceWhiteBalanceGains  = device.deviceWhiteBalanceGains
-            let temperatureAndTintValues = device.temperatureAndTintValues(for: .init(redGain: 1, greenGain: 1, blueGain: 1))
+            let iso = device.iso
+            //AE
+            let exposureMode = device.exposureMode
+            //AF
+            let focusMode = device.focusMode
+            //AWB
+            let whiteBalanceMode = device.whiteBalanceMode
             
-            print("[++\(#fileID):\(#line)]- exposureMode: ", exposureMode.rawValue)
-            print("[++\(#fileID):\(#line)]- exposureOffset: ", exposureOffset)
-            print("[++\(#fileID):\(#line)]- focusMode: ", focusMode.rawValue)
-            print("[++\(#fileID):\(#line)]- lensPosition: ", lensPosition)
-            print("[++\(#fileID):\(#line)]- whiteBalanceMode: ", whiteBalanceMode)
-            print("[++\(#fileID):\(#line)]- deviceWhiteBalanceGains: ", deviceWhiteBalanceGains)
-            print("[++\(#fileID):\(#line)]- temperatureAndTintValues: ", temperatureAndTintValues)
-            print("[++\(#fileID):\(#line)]- ===================================")
+            measurementModel.metaData.accept(
+                .init(
+                    brightness: brightness,
+                    iso: iso,
+                    exposureMode: exposureMode,
+                    focusMode: focusMode,
+                    whiteBalanceMode: whiteBalanceMode,
+                )
+            )
             
             measurementModel.isoValue.onNext(iso)
             if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
