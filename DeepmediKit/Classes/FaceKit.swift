@@ -17,11 +17,12 @@ import Then
 
 public class FaceKit: NSObject {
     public enum Result {
-        case filePath, rawData
+        case filePath, rawData, all
     }
     public enum ResultSelector {
         case filePath(result: Bool, path: URL)
-        case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
+        case rawData(result: Bool, dataSet: DataSet)
+        case all(result: Bool, path: URL, dataSet: DataSet)
     }
     public struct Capture {
         public let screen: UIImage?
@@ -30,6 +31,12 @@ public class FaceKit: NSObject {
             self.screen = screen
             self.face = face
         }
+    }
+    public struct DataSet {
+        public let ts: [Double],
+                   sigR: [Float],
+                   sigG: [Float],
+                   sigB: [Float]
     }
     
     enum MeasurementErr: Error {
@@ -147,18 +154,36 @@ public class FaceKit: NSObject {
         )
         .observe(on: MainScheduler.instance)
         .asDriver(onErrorJustReturn: (false, URL(fileURLWithPath: "")))
-        .drive(onNext: {[weak self] (res, path) in
-            guard let self else { return }
-            let output: ResultSelector
-            let ts = timeStamp.map { $0 - (self.timeStamp.first ?? 0.0) }
-            let r  = sigR
-            let g  = sigG
-            let b  = sigB
-            switch kind {
-                case .filePath:
-                    output = .filePath(result: res, path: path)
-                case .rawData:
-                    output = .rawData(result: res, dataSet: (ts, r, g, b))
+        .drive(
+            onNext: {[weak self] (res, path) in
+                guard let self else { return }
+                let output: ResultSelector
+                let ts = timeStamp.map { $0 - (self.timeStamp.first ?? 0.0) }
+                switch kind {
+                    case .filePath:
+                        output = .filePath(result: res, path: path)
+                    case .rawData:
+                        output = .rawData(
+                            result: res,
+                            dataSet: DataSet.init(
+                                ts: ts,
+                                sigR: sigR,
+                                sigG: sigG,
+                                sigB: sigB
+                            )
+                        )
+                    case .all:
+                        output = .all(
+                            result: res,
+                            path: path,
+                            dataSet:
+                                DataSet.init(
+                                    ts: ts,
+                                    sigR: sigR,
+                                    sigG: sigG,
+                                    sigB: sigB
+                                )
+                        )
             }
             isSuccess(output)
         })

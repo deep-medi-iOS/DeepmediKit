@@ -84,7 +84,7 @@ class CameraSetup: NSObject {
             tempFramePerSec = Double()
         
         guard let captureDeviceFormats = captureDevice?.formats else { fatalError("capture device") }
-        self.part = part
+        
         for format in captureDeviceFormats {
             let ranges = format.videoSupportedFrameRateRanges
             let frameRates = ranges[0]

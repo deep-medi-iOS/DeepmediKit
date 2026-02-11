@@ -128,7 +128,7 @@ class FaceViewController: UIViewController {
             print("stop state: \(stop)")
         }
         
-        faceMeasureKit.finishedMeasurement(for: .filePath) { result in
+        faceMeasureKit.finishedMeasurement(for: .all) { result in
             if case let .filePath(result, path) = result {
                 if result {
                     print("file path: \(path)")
@@ -137,10 +137,27 @@ class FaceViewController: UIViewController {
                 }
             } else if case let .rawData(result, dataSet) = result {
                 if result {
-                    let ts = dataSet.0,
-                        sigR = dataSet.1,
-                        sigB = dataSet.2,
-                        sigG = dataSet.3
+                    let ts = dataSet.ts,
+                        sigR = dataSet.sigR,
+                        sigG = dataSet.sigG,
+                        sigB = dataSet.sigB
+                    
+                    if ts.count > 0
+                        && sigR.count > 0
+                        && sigG.count > 0
+                        && sigB.count > 0 {
+                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
+                    } else {
+                        print("data error")
+                    }
+                }
+            } else if case let .all(result, path, dataSet) = result {
+                if result {
+                    print("file path: \(path)")
+                    let ts = dataSet.ts,
+                        sigR = dataSet.sigR,
+                        sigG = dataSet.sigG,
+                        sigB = dataSet.sigB
                     
                     if ts.count > 0
                         && sigR.count > 0
@@ -187,7 +204,7 @@ class FaceViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             faceRecognitionAreaView.topAnchor.constraint(equalTo: preview.topAnchor, constant: height * 0.2),
-            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor), 
+            faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: (width / 390) * 230),
             faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: (height / 844) * 320),
 //            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
