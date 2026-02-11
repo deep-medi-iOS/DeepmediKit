@@ -17,11 +17,12 @@ import Then
 
 public class FaceKit: NSObject {
     public enum Result {
-        case filePath, rawData
+        case filePath, rawData, all
     }
     public enum ResultSelector {
         case filePath(result: Bool, path: URL)
         case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
+        case all(result: Bool, path: URL, dataSet: ([Double], [Float], [Float], [Float]))
     }
     public struct HeaderAngles: Equatable {
         public let pitch: CGFloat
@@ -69,7 +70,8 @@ public class FaceKit: NSObject {
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                 prepareTimer = Timer(),
                 measurementTime = Double(), // 측정하는 시간
-                measurementTimer = Timer()
+                measurementTimer = Timer(),
+                motionManager = CMMotionManager()
     
     private var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()
@@ -94,6 +96,14 @@ public class FaceKit: NSObject {
     private var tempG: [Float] = []
     private var totalData: [(Double, Float, Float, Float)] = []
     
+    private var accXdata: [Float] = []
+    private var accYdata: [Float] = []
+    private var accZdata: [Float] = []
+    
+    private var gyroXdata: [Float] = []
+    private var gyroYdata: [Float] = []
+    private var gyroZdata: [Float] = []
+    
     private var yuvY: [Float] = []
     
     private var bytesArray: [[UInt8]] = []
@@ -115,7 +125,6 @@ public class FaceKit: NSObject {
         _ pitchYawRoll: @escaping((HeaderAngles) -> ())
     ) {
         let headAnglesRelay = measurementModel.headAnglesRelay
-        
         headAnglesRelay
             .asDriver()
             .compactMap { $0 }
@@ -135,19 +144,6 @@ public class FaceKit: NSObject {
             .distinctUntilChanged(==)
             .drive(onNext: { value in
                 y(value)
-            })
-            .disposed(by: bag)
-    }
-    
-    public func iso(
-        _ iso: @escaping((Float) -> ())
-    ) {
-        let value = measurementModel.isoValue
-        value
-            .asDriver(onErrorJustReturn: 0)
-            .distinctUntilChanged(==)
-            .drive(onNext: { value in
-                iso(value)
             })
             .disposed(by: bag)
     }
@@ -218,6 +214,8 @@ public class FaceKit: NSObject {
                     output = .filePath(result: res, path: path)
                 case .rawData:
                     output = .rawData(result: res, dataSet: (ts, r, g, b))
+                case .all:
+                    output = .all(result: res, path: path, dataSet: (ts, r, g, b))
             }
             isSuccess(output)
         })
@@ -322,7 +320,7 @@ public class FaceKit: NSObject {
             self.cameraSetup.useSession().stopRunning()
         }
     }
-    
+    // MARK: 측정완료
     private func collectDatas() {
         measurementModel.measurementStop.onNext(false)
         
@@ -356,7 +354,6 @@ public class FaceKit: NSObject {
                 self.screenCapture()
             }
             secondRemaining.onNext(Int(self.measurementTime))
-            // MARK: 측정완료
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
                 if let rgbPath = self.document.make(
@@ -395,13 +392,81 @@ public class FaceKit: NSObject {
         return nil
     }
 }
-
+// MARK: ACC, GYRO
 extension FaceKit {
+    public enum MotionDataType {
+        case accelerometer
+        case gyroscope
+    }
     
+    public func startAccelerometer() {
+        motionManager.accelerometerUpdateInterval = 1 / 30
+        guard OperationQueue.current != nil else {
+            print("acc operation queue return")
+            return
+        }
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] (data, error) in
+            guard let self = self else { return }
+            self.collectMotionData(data?.acceleration, type: .accelerometer, error: error)
+        }
+    }
+    
+    public func startGryoscope() {
+        motionManager.gyroUpdateInterval = 1 / 30
+        guard OperationQueue.current != nil else {
+            print("acc operation queue return")
+            return
+        }
+        motionManager.startGyroUpdates(to: .main) { [weak self] (data, error) in
+            guard let self = self else { return }
+            self.collectMotionData(data?.rotationRate, type: .accelerometer, error: error)
+        }
+    }
+    
+    private func collectMotionData<T: MotionDataProtocol>(
+        _ data: T?,
+        type: MotionDataType,
+        error: Error?
+    ) {
+        if let err = error {
+            print("\(type) error: \(err.localizedDescription)")
+            return
+        }
+        
+        guard let motionData = data else {
+            print("\(type) data is nil")
+            return
+        }
+        
+        let x = Float(motionData.x)
+        let y = Float(motionData.y)
+        let z = Float(motionData.z)
+        
+        switch type {
+            case .accelerometer:
+                accXdata.append(x)
+                accYdata.append(y)
+                accZdata.append(z)
+            case .gyroscope:
+                gyroXdata.append(x)
+                gyroYdata.append(y)
+                gyroZdata.append(z)
+        }
+    }
 }
 
+protocol MotionDataProtocol {
+    var x: Double { get }
+    var y: Double { get }
+    var z: Double { get }
+}
+
+extension CMAcceleration: MotionDataProtocol {}
+extension CMRotationRate: MotionDataProtocol {}
+
+// MARK: 카메라 이미지에서 데이터 수집을 위한 delegate
 @available(iOS 13.0, *)
-extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 이미지에서 데이터 수집을 위한 delegate
+extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     public func captureOutput(
         _ output: AVCaptureOutput,
         didOutput sampleBuffer: CMSampleBuffer,
@@ -540,8 +605,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
                     whiteBalanceMode: whiteBalanceMode,
                 )
             )
-            
-            measurementModel.isoValue.onNext(iso)
             if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
                 if tempG.count >= 30 {
                     measurementModel.checkRealFace.onNext(true)
@@ -975,6 +1038,7 @@ extension FaceKit {
         sampleBuffer: CMSampleBuffer,
     ) {
         let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
+        yuvY.append(yMean)
         measurementModel.yMean.onNext(yMean)
     }
   

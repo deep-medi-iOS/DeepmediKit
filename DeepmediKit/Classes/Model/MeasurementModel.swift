@@ -25,7 +25,6 @@ class MeasurementModel {
     let secondRemaining = PublishSubject<Int>()
     let measurementCompleteRatio = PublishSubject<String>()
     let measurementStop = PublishSubject<Bool>()
-    let isoValue: BehaviorSubject<Float> = .init(value: 0)
     
     //손가락 전용
     let outputFingerStatus = PublishSubject<MeasurementModel.status>()

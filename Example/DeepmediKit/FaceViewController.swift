@@ -98,9 +98,9 @@ class FaceViewController: UIViewController {
             }
         }
         
-        faceMeasureKit.iso { iso in
+        faceMeasureKit.captureDeviceMode { metaData in
 //            print("[++\(#fileID):\(#line)]- iso: ", iso)
-            self.isoLabel.text = "\(iso)"
+            self.isoLabel.text = "\(metaData.iso)"
         }
         
         faceMeasureKit.pitchYawRoll { pitchYawRoll in
