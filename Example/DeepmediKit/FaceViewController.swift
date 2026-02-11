@@ -70,11 +70,6 @@ class FaceViewController: UIViewController {
         faceMeasureKit.startSession()
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        print("[++\(#fileID):\(#line)]- view did appear ")
-    }
-    
     deinit {
         print("[++\(#fileID):\(#line)]- vc deinit ")
     }

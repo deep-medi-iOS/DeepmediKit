@@ -78,43 +78,48 @@ class CameraSetup: NSObject {
     }
     
     func setupCameraFormat(
-        _ part: CameraObject.Part,
         _ framePerSec: Double
     ) {
         var currentFormat: AVCaptureDevice.Format?,
             tempFramePerSec = Double()
         
         guard let captureDeviceFormats = captureDevice?.formats else { fatalError("capture device") }
-        self.part = part
+        
         for format in captureDeviceFormats {
             let ranges = format.videoSupportedFrameRateRanges
             let frameRates = ranges[0]
             let videoFormatDimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-            
-            if (frameRates.maxFrameRate == framePerSec) {
-                if part == .face {
-                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
-                        currentFormat = format
-                        tempFramePerSec = 30.0
-                    }
-                } else {
-                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
-                        currentFormat = format
-                        tempFramePerSec = framePerSec
-                    }
-                }
-            } else {
-                tempFramePerSec = 30.0
-                if part == .face {
-                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100)  {
-                        currentFormat = format
-                    }
-                } else {
-                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500)  {
-                        currentFormat = format
-                    }
-                }
+            print("[++\(#fileID):\(#line)]- max: ", frameRates.maxFrameRate)
+                
+            guard videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) else {
+                return
             }
+
+            currentFormat = format
+//            if frameRates.maxFrameRate == framePerSec {
+//                if part == .face {
+//                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100) {
+//                        currentFormat = format
+//                        tempFramePerSec = 30.0
+//                    }
+//                } else {
+//                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500) {
+//                        currentFormat = format
+//                        tempFramePerSec = framePerSec
+//                    }
+//                }
+//            } else {
+//                tempFramePerSec = 30.0
+//                if part == .face {
+//                    if videoFormatDimensions.width <= Int32(2000) && videoFormatDimensions.height <= Int32(1100)  {
+//                        currentFormat = format
+//                    }
+//                } else {
+//                    if videoFormatDimensions.width <= Int32(700) && videoFormatDimensions.height <= Int32(500)  {
+//                        currentFormat = format
+//                    }
+//                }
+//            }
         }
         
         guard let tempCurrentFormat = currentFormat,

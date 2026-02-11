@@ -28,7 +28,7 @@ public class CameraObject: NSObject {
         )
         
         self.cameraSetup.startDetection(part)
-        self.cameraSetup.setupCameraFormat(part, part == .face ? 30.0 : 60.0)
+        self.cameraSetup.setupCameraFormat(30.0)
         self.cameraSetup.setupVideoOutput(part, object)
         self.model.measurePart = part
     }
