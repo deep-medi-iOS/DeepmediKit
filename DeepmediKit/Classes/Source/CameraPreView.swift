@@ -28,8 +28,8 @@ public class CameraPreview: UIView {
                              width: frame.width,
                              height: frame.height)
         
-        guard useCornerRadius ?? false && model.measurePart == .finger else { return }
-        layer.cornerRadius = frame.width / 2
+//        guard useCornerRadius ?? false && model.measurePart == .finger else { return }
+//        layer.cornerRadius = frame.width / 2
     }
     
     required init?(coder: NSCoder) {

@@ -30,15 +30,14 @@ public class FaceKit: NSObject {
         public let roll:  CGFloat
     }
     public struct Metadata: Equatable {
-        public let brightness: CGFloat
         public let iso: Float
         //AE
-        public let exposureMode: AVCaptureDevice.ExposureMode
+        public let exposureMode: String
 //        public let exposureOffset: Float
         //AF
-        public let focusMode: AVCaptureDevice.FocusMode
+        public let focusMode: String
         //AWB
-        public let whiteBalanceMode: AVCaptureDevice.WhiteBalanceMode
+        public let whiteBalanceMode: String
     }
     public struct Capture {
         public let screen: UIImage?
@@ -47,6 +46,34 @@ public class FaceKit: NSObject {
             self.screen = screen
             self.face = face
         }
+    }
+    
+    public struct Acceleration: Equatable {
+        let ts: Double
+        let x: Double
+        let y: Double
+        let z: Double
+    }
+    
+    public struct Gyroscope: Equatable {
+        let ts: Double
+        let x: Double
+        let y: Double
+        let z: Double
+    }
+    
+    struct FrameData {
+        let timestampUS: Double
+        let width: Int
+        let height: Int
+        let brightness: Float
+        let faceYaw: Double
+        let facePitch: Double
+        let faceRoll: Double
+        let iso: Float
+        let aeState: String
+        let awbState: String
+        let afState: String
     }
     
     enum MeasurementErr: Error {
@@ -96,17 +123,25 @@ public class FaceKit: NSObject {
     private var tempG: [Float] = []
     private var totalData: [(Double, Float, Float, Float)] = []
     
-    private var accXdata: [Float] = []
-    private var accYdata: [Float] = []
-    private var accZdata: [Float] = []
-    
-    private var gyroXdata: [Float] = []
-    private var gyroYdata: [Float] = []
-    private var gyroZdata: [Float] = []
-    
-    private var yuvY: [Float] = []
+    private var acc: [Acceleration] = []
+    private var gyro: [Gyroscope] = []
     
     private var bytesArray: [[UInt8]] = []
+    
+    private var frameDataArr: [FrameData] = []
+    
+    public func collectDataCount(
+        _ count: @escaping((Int) -> ())
+    ) {
+        let countRelay = measurementModel.measurementCount
+        countRelay
+            .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                count(value)
+            })
+            .disposed(by: bag)
+    }
     
     public func captureDeviceMode(
         _ mode: @escaping((Metadata) -> ())
@@ -117,6 +152,31 @@ public class FaceKit: NSObject {
             .distinctUntilChanged(==)
             .drive(onNext: { value in
                 mode(value)
+            })
+            .disposed(by: bag)
+    }
+    
+    public func acceleration(
+        _ sensorData: @escaping((Acceleration) -> ())
+    ) {
+        let accRelay = measurementModel.acc
+        accRelay
+            .asDriver(onErrorJustReturn: .init(ts: 0, x: 0, y: 0, z: 0))
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                sensorData(value)
+            })
+            .disposed(by: bag)
+    }
+    public func gyroscope(
+        _ sensorData: @escaping((Gyroscope) -> ())
+    ) {
+        let gyroRelay = measurementModel.gyro
+        gyroRelay
+            .asDriver(onErrorJustReturn: .init(ts: 0, x: 0, y: 0, z: 0))
+            .distinctUntilChanged(==)
+            .drive(onNext: { value in
+                sensorData(value)
             })
             .disposed(by: bag)
     }
@@ -327,7 +387,11 @@ public class FaceKit: NSObject {
         let secondRemaining          = measurementModel.secondRemaining,
             measurementCompleteRatio = measurementModel.measurementCompleteRatio,
             measurementComplete      = measurementModel.measurementComplete,
-            rgbFilePath              = measurementModel.rgbFilePath
+            rgbFilePath              = measurementModel.rgbFilePath,
+            frameFilePath            = measurementModel.csvFilePath,
+            accFilePath              = measurementModel.accFilePath,
+            gyroFilePath             = measurementModel.gyroFilePath,
+            measurementCount         = measurementModel.measurementCount
 
         initRGBData()
         preparingSec    = model.prepareTime
@@ -354,12 +418,26 @@ public class FaceKit: NSObject {
                 self.screenCapture()
             }
             secondRemaining.onNext(Int(self.measurementTime))
+            measurementCount.onNext(sigR.count)
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
                 if let rgbPath = self.document.make(
                     data: .rgb,
                     dataSet: totalData
-                ) {
+                ),
+                   let frameDataPath = self.document.saveFrameCSV(
+                    data: frameDataArr
+                   ),
+                   let accCSV = self.document.saveSensorCSV(
+                    fileName: "sensor_accelerometer.csv",
+                    data: acc,
+                    timestamp: \.ts, x: \.x, y: \.y, z: \.z
+                   ),
+                   let gyroCSV = self.document.saveSensorCSV(
+                    fileName: "sensor_gyroscope.csv",
+                    data: gyro,
+                    timestamp: \.ts, x: \.x, y: \.y, z: \.z
+                   ) {
 //                    guard let dataBin = self.document.makeBin(
 //                        dataSet: totalData,
 //                        bytesArr: bytesArray
@@ -369,9 +447,15 @@ public class FaceKit: NSObject {
 //                    }
                     measurementComplete.onNext(true)
                     rgbFilePath.onNext(rgbPath)
+                    frameFilePath.onNext(frameDataPath)
+                    accFilePath.onNext(accCSV)
+                    gyroFilePath.onNext(gyroCSV)
                 } else {
                     measurementComplete.onNext(false)
                     rgbFilePath.onNext(URL(fileURLWithPath: ""))
+                    frameFilePath.onNext(URL(fileURLWithPath: ""))
+                    accFilePath.onNext(URL(fileURLWithPath: ""))
+                    gyroFilePath.onNext(URL(fileURLWithPath: ""))
                 }
                 self.dispatchTimer?.cancel()
                 self.isTimerRunning = false
@@ -400,7 +484,7 @@ extension FaceKit {
     }
     
     public func startAccelerometer() {
-        motionManager.accelerometerUpdateInterval = 1 / 30
+        motionManager.accelerometerUpdateInterval = 1 / 50
         guard OperationQueue.current != nil else {
             print("acc operation queue return")
             return
@@ -412,7 +496,7 @@ extension FaceKit {
     }
     
     public func startGryoscope() {
-        motionManager.gyroUpdateInterval = 1 / 30
+        motionManager.gyroUpdateInterval = 1 / 50
         guard OperationQueue.current != nil else {
             print("acc operation queue return")
             return
@@ -438,19 +522,20 @@ extension FaceKit {
             return
         }
         
-        let x = Float(motionData.x)
-        let y = Float(motionData.y)
-        let z = Float(motionData.z)
+        let x = motionData.x
+        let y = motionData.y
+        let z = motionData.z
+        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
         
         switch type {
             case .accelerometer:
-                accXdata.append(x)
-                accYdata.append(y)
-                accZdata.append(z)
+                let accData = Acceleration.init(ts: ts, x: x, y: y, z: z)
+                acc.append(accData)
+                measurementModel.acc.accept(accData)
             case .gyroscope:
-                gyroXdata.append(x)
-                gyroYdata.append(y)
-                gyroZdata.append(z)
+                let gyroData = Gyroscope.init(ts: ts, x: x, y: y, z: z)
+                gyro.append(gyroData)
+                measurementModel.gyro.accept(gyroData)
         }
     }
 }
@@ -460,7 +545,6 @@ protocol MotionDataProtocol {
     var y: Double { get }
     var z: Double { get }
 }
-
 extension CMAcceleration: MotionDataProtocol {}
 extension CMRotationRate: MotionDataProtocol {}
 
@@ -586,25 +670,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 return
             }
             // MARK: Metadata
-            let brightness = UIScreen.main.brightness
-            let device = cameraSetup.useCaptureDevice()
-            let iso = device.iso
-            //AE
-            let exposureMode = device.exposureMode
-            //AF
-            let focusMode = device.focusMode
-            //AWB
-            let whiteBalanceMode = device.whiteBalanceMode
-            
-            measurementModel.metaData.accept(
-                .init(
-                    brightness: brightness,
-                    iso: iso,
-                    exposureMode: exposureMode,
-                    focusMode: focusMode,
-                    whiteBalanceMode: whiteBalanceMode,
-                )
-            )
             if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
                 if tempG.count >= 30 {
                     measurementModel.checkRealFace.onNext(true)
@@ -670,13 +735,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                     imageWidth: imageWidth,
                     imageHeight: imageHeight
                 )
-                
-                //degree
-                let pitch = face.headEulerAngleX  // 위/아래
-                let yaw   = face.headEulerAngleY  // 좌/우 회전
-                let roll  = face.headEulerAngleZ  // 좌/우 기울기(tilt)
-                measurementModel.headAnglesRelay.accept(HeaderAngles.init(pitch: pitch, yaw: yaw, roll: roll))
-                
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
@@ -761,6 +819,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         tempG.removeAll()
         totalData.removeAll()
         bytesArray.removeAll()
+        
+        frameDataArr.removeAll()
     }
     
     private func timerReset() {
@@ -768,6 +828,14 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         dispatchTimer?.cancel()
         measurementTimer.invalidate()
         prepareTimer.invalidate()
+    }
+    
+    private func modeState(mode: Int) -> String {
+        return mode == 0
+        ? "LOCKED"
+        : mode == 1
+        ? "AUTO"
+        : "CONTINUOUS"
     }
 }
 
@@ -808,9 +876,7 @@ extension FaceKit {
             var lipsPath = UIBezierPath().then { p in
                 p.lineWidth = 1
             }
-//            face.contours.forEach { faceContour in
-//                print(faceContour.points)
-//            }
+
             if willCheckRealFace {
                 if !isTimerRunning {
                     let (left, right) = antiSpoofing.checkReal(face)
@@ -920,10 +986,15 @@ extension FaceKit {
                 ),
                       let sampleBuffer = cropLandMarkFace.createCMSampleBuffer() else { fatalError("face crop image return") }
 //                self.cropView.image = cropImage
-//                self.landMarkView.image = cropLandMarkFace
+//                landMarkView.image = cropLandMarkFace
+           
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
                 collectionByteData(sampleBuffer: sampleBuffer)
-                extractYUVFromDetectFace(sampleBuffer: sampleBuffer)
+                extractYUVFromDetectFace(
+                    sampleBuffer: sampleBuffer,
+                    face: face,
+                    cropLandMarkFace: cropLandMarkFace
+                )
             }
         } else {
             print("[++\(#fileID):\(#line)]- face is nil")
@@ -980,6 +1051,7 @@ extension FaceKit {
         let rect = CGRect(origin: .zero, size: flipped.size)
         let maskPath = (flippedPath.resized(to: rect) ?? flippedPath)
         
+//        UIGraphicsBeginImageContextWithOptions(picture.size, false, 1.0)
         UIGraphicsBeginImageContextWithOptions(picture.size, false, 0.8)
         defer { UIGraphicsEndImageContext() }
         
@@ -1036,9 +1108,68 @@ extension FaceKit {
     
     private func extractYUVFromDetectFace(
         sampleBuffer: CMSampleBuffer,
+        face: Face,
+        cropLandMarkFace: UIImage
     ) {
         let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
-        yuvY.append(yMean)
+        //degree
+        let pitch = face.headEulerAngleX  // 위/아래
+        let yaw   = face.headEulerAngleY  // 좌/우 회전
+        let roll  = face.headEulerAngleZ  // 좌/우 기울기(tilt)
+        let device = cameraSetup.useCaptureDevice()
+        let iso = device.iso
+        //AE locked = 0, autoExpose = 1, continuousAutoExposure = 2
+        let exposureMode = device.exposureMode.rawValue
+        let expousreState = modeState(mode: exposureMode)
+        //AF locked = 0, autoFocus = 1, continuousAutoFocus = 2
+        let focusMode = device.focusMode.rawValue
+        let focusState = modeState(mode: focusMode)
+        //AWB locked = 0, autoWhiteBalance = 1, continuousAutoWhiteBalance = 2
+        let whiteBalanceMode = device.whiteBalanceMode.rawValue
+        let wbState = modeState(mode: whiteBalanceMode)
+        let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
+        
+        frameDataArr.append(
+            .init(
+                timestampUS: ts,
+                width: Int(cropLandMarkFace.size.width),
+                height: Int(cropLandMarkFace.size.height),
+                brightness: yMean,
+                faceYaw: yaw,
+                facePitch: pitch,
+                faceRoll: roll,
+                iso: iso,
+                aeState: expousreState,
+                awbState: wbState,
+                afState: focusState
+            )
+        )
+        
+//        yuvY.append(yMean)
+//        pitchArr.append(pitch)
+//        yawArr.append(yaw)
+//        rollArr.append(roll)
+//        imgWidth.append(Int(cropLandMarkFace.size.width))
+//        imgHeight.append(Int(cropLandMarkFace.size.height))
+//        aeArr.append(expousreState)
+//        afArr.append(focusState)
+//        awbArr.append(wbState)
+        
+        measurementModel.headAnglesRelay.accept(
+            HeaderAngles.init(
+                pitch: pitch,
+                yaw: yaw,
+                roll: roll
+            )
+        )
+        measurementModel.metaData.accept(
+            .init(
+                iso: iso,
+                exposureMode: expousreState,
+                focusMode: focusState,
+                whiteBalanceMode: wbState,
+            )
+        )
         measurementModel.yMean.onNext(yMean)
     }
   
@@ -1053,3 +1184,8 @@ extension FaceKit {
     }
 }
 
+extension FaceKit {
+    public func collectData() {
+       
+    }
+}

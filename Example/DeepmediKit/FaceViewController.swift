@@ -53,15 +53,14 @@ class FaceViewController: UIViewController {
         completionMethod()
         
         camera.initalized(
-            part: .face,
             delegate: faceMeasureKit,
             session: session,
             captureDevice: captureDevice
         )
         faceMeasureKitModel.setMeasurementTime(15)
-        faceMeasureKitModel.setPrepareTime(3)
+        faceMeasureKitModel.setPrepareTime(1)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
-        faceMeasureKitModel.willCheckRealFace(true)
+        faceMeasureKitModel.willCheckRealFace(false)
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         

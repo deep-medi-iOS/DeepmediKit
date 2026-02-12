@@ -21,10 +21,7 @@ final class SampleBufferConverter {
         
         let w = CVPixelBufferGetWidth(pixelBuffer)
         let h = CVPixelBufferGetHeight(pixelBuffer)
-        let scaledX = Double(w) * 0.24
-        let scaledY = Double(h) * 0.24
-//        let rect = CGRect(x: scaledX, y: scaledY, width: w, height: h)
-        let rect = CGRect(x: 0, y: 0, width: w, height: h).insetBy(dx: CGFloat(scaledX), dy: CGFloat(scaledY))
+        let rect = CGRect(x: 0, y: 0, width: w, height: h)
         
         guard let cgImage = ciContext.createCGImage(ciImage, from: rect) else { return nil }
         
@@ -32,8 +29,8 @@ final class SampleBufferConverter {
         // - 미러 포함해서 셀카 프리뷰처럼 보이게 하려면 보통 rightMirrored
         return UIImage(
             cgImage: cgImage,
-            scale: 1.0,
-//            scale: 0.8,
+//            scale: 1.0,
+            scale: 0.8,
             orientation: .leftMirrored
         )
     }
@@ -132,11 +129,10 @@ final class SampleBufferConverter {
         }
         
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-        
+
         // YUV 420 포맷 처리 (일반적으로 카메라에서 사용)
-        if pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange ||
-            pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange {
-            
+        if pixelFormat == kCVPixelFormatType_32BGRA {
+            print("[++\(#fileID):\(#line)]- in YUV 420 format ")
             // Y plane
             guard let yBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
                 print("Failed to get Y plane")
@@ -149,13 +145,20 @@ final class SampleBufferConverter {
             // Y 평균값 계산
             var ySum: Float = 0
             var yCount = 0
-            for row in 0..<yHeight {
-                let rowData = yBaseAddress + row * yBytesPerRow
-                for col in 0..<yWidth {
-                    let yValue = rowData.load(fromByteOffset: col, as: UInt8.self)
-                    ySum += Float(yValue)
+            for row in stride(from: 0, to: yHeight, by: 8) {
+                let row = yBaseAddress.advanced(by: row * yBytesPerRow).assumingMemoryBound(to: UInt8.self)
+                for x in stride(from: 0, to: yWidth, by: 8) {
+                    let i = x * 4
+                    // 빠르게 근사: G만 써도 밝기 추정에는 대체로 충분
+                    ySum += Float(row[i + 1]) // G
                     yCount += 1
                 }
+//                let rowData = yBaseAddress + row * yBytesPerRow
+//                for col in 0..<yWidth {
+//                    let yValue = rowData.load(fromByteOffset: col, as: UInt8.self)
+//                    ySum += Float(yValue)
+//                    yCount += 1
+//                }
             }
             return ySum / Float(yCount)
         }

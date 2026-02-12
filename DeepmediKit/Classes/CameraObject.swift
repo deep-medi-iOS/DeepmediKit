@@ -9,15 +9,10 @@ import Foundation
 import AVKit
 
 public class CameraObject: NSObject {
-    public enum Part: String {
-        case face, finger
-    }
-    
     let cameraSetup = CameraSetup.shared
     let model = Model.shared
     
     public func initalized(
-        part: CameraObject.Part,
         delegate object: AVCaptureVideoDataOutputSampleBufferDelegate,
         session: AVCaptureSession,
         captureDevice: AVCaptureDevice?
@@ -27,9 +22,8 @@ public class CameraObject: NSObject {
             captureDevice: captureDevice
         )
         
-        self.cameraSetup.startDetection(part)
+        self.cameraSetup.startDetection()
         self.cameraSetup.setupCameraFormat(30.0)
-        self.cameraSetup.setupVideoOutput(part, object)
-        self.model.measurePart = part
+        self.cameraSetup.setupVideoOutput(object)
     }
 }

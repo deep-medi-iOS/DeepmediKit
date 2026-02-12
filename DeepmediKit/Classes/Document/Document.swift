@@ -21,7 +21,7 @@ public class Document {
         guard let firstTS = dataSet.first?.0 else { return nil }
         let dataSet = dataSet.map { ($0.0 - firstTS, $0.1, $0.2, $0.3) }
         let docuURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let part = model.measurePart.rawValue
+        let part = "face"
         var fileURL: URL
         
         switch type {
@@ -72,9 +72,93 @@ public class Document {
             dataSubStr += "\(dataToArr[i])"
         }
         
-        try? dataSubStr.write(to: file, atomically: true, encoding: String.Encoding.utf8)
+        try? dataSubStr.write(
+            to: file,
+            atomically: true,
+            encoding: String.Encoding.utf8
+        )
     }
     
+    func saveSensorCSV<T>(
+        fileName: String,
+        data: [T],
+        timestamp: KeyPath<T, Double>,
+        x: KeyPath<T, Double>,
+        y: KeyPath<T, Double>,
+        z: KeyPath<T, Double>
+    ) -> URL? {
+        
+        let url = fileManager
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(fileName)
+        
+        var rows: [String] = []
+        rows.append("timestamp_us,x,y,z")
+        rows.reserveCapacity(data.count + 1)
+        
+        for item in data {
+            let row = "\(item[keyPath: timestamp])," +
+            "\(item[keyPath: x])," +
+            "\(item[keyPath: y])," +
+            "\(item[keyPath: z])"
+            rows.append(row)
+        }
+        
+        do {
+            try rows.joined(separator: "\n")
+                .write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            print("CSV save failed:", error)
+            return nil
+        }
+    }
+    
+    func saveFrameCSV(
+        data: [FaceKit.FrameData]
+    ) -> URL? {
+        
+        let url = fileManager
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("frame_data.csv")
+        makeFrameCSV(
+            url: url,
+            data
+        )
+        return url
+    }
+    
+    private func makeFrameCSV(url: URL, _ data: [FaceKit.FrameData]) {
+        var csv = """
+        frame_index,timestamp_us,width,height,brightness,face_yaw,face_pitch,face_roll,iso,ae_state,awb_state,af_state
+        """
+        
+        csv += "\n"
+        
+        data.enumerated().forEach { (i, item) in
+            csv += """
+            \(i),\
+            \(item.timestampUS),\
+            \(item.width),\
+            \(item.height),\
+            \(item.brightness),\
+            \(item.faceYaw),\
+            \(item.facePitch),\
+            \(item.faceRoll),\
+            \(item.iso),\
+            \(item.aeState),\
+            \(item.awbState),\
+            \(item.afState)
+            """
+            csv += "\n"
+        }
+        
+        try? csv.write(
+            to: url,
+            atomically: true,
+            encoding: String.Encoding.utf8
+        )
+    }
     
     func makeBin(
         dataSet: [(Double, Float, Float, Float)],
@@ -91,7 +175,6 @@ public class Document {
         dataSet: [(Double, Float, Float, Float)],
         bytesArr: [[UInt8]]
     ) {
-        
 //        let ts = dataSet.map { $0.0 }
 //        let width = 36
 //        let height = 36

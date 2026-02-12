@@ -12,8 +12,6 @@ import RxSwift
 class Model {
     static let shared = Model()
     
-    var measurePart: CameraObject.Part = .face
-    
     var limitTapTime: Int
     var limitNoTapTime: Int
     var fingerMeasurementTime: Double
