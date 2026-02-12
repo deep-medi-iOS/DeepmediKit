@@ -154,4 +154,12 @@ class CameraSetup: NSObject {
             print("can not output")
         }
     }
+    
+    func setMovieFileOutput(movieOutput: AVCaptureMovieFileOutput) {
+        if self.session.canAddOutput(movieOutput) {
+            self.session.addOutput(movieOutput)
+        } else {
+            print("can not movieOutput")
+        }
+    }
 }

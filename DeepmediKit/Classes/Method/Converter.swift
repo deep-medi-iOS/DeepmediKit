@@ -132,7 +132,6 @@ final class SampleBufferConverter {
 
         // YUV 420 포맷 처리 (일반적으로 카메라에서 사용)
         if pixelFormat == kCVPixelFormatType_32BGRA {
-            print("[++\(#fileID):\(#line)]- in YUV 420 format ")
             // Y plane
             guard let yBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
                 print("Failed to get Y plane")

@@ -10,6 +10,7 @@ import UIKit
 import AVKit
 import DeepmediKit
 
+
 class FaceViewController: UIViewController {
     var faceRecognitionAreaView: UIView = FaceRecognitionAreaView(
         pattern: [24, 10],
@@ -139,10 +140,10 @@ class FaceViewController: UIViewController {
                 }
             } else if case let .rawData(result, dataSet) = result {
                 if result {
-                    let ts = dataSet.0,
-                        sigR = dataSet.1,
-                        sigB = dataSet.2,
-                        sigG = dataSet.3
+                    let ts = dataSet.ts,
+                        sigR = dataSet.sigR,
+                        sigB = dataSet.sigG,
+                        sigG = dataSet.sigB
                     
                     if ts.count > 0
                         && sigR.count > 0

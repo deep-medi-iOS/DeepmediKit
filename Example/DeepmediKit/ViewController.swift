@@ -56,14 +56,15 @@ class ViewController: UIViewController {
     
     @objc func didTapButton(_ sender: UIButton) {
         let faceVC = FaceViewController()
+        let fingerVC = FaceMeasurementViewController()
 //        let fingerVC = FingerViewController()
         
         if sender.titleLabel?.text == "Face" {
             faceVC.modalPresentationStyle = .overFullScreen
             self.present(faceVC, animated: true)
         } else {
-//            fingerVC.modalPresentationStyle = .overFullScreen
-//            self.present(fingerVC, animated: true)
+            fingerVC.modalPresentationStyle = .overFullScreen
+            self.present(fingerVC, animated: true)
         }
     }
 }

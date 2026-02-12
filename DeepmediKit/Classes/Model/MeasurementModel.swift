@@ -27,6 +27,7 @@ class MeasurementModel {
     let csvFilePath = PublishSubject<URL>()
     let accFilePath = PublishSubject<URL>()
     let gyroFilePath = PublishSubject<URL>()
+    let moveFilePath = PublishSubject<URL>()
     let timeStamp = PublishSubject<[Double]>()
     let sigR = PublishSubject<[Float]>()
     let sigG = PublishSubject<[Float]>()

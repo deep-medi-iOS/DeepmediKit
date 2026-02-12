@@ -10,6 +10,7 @@
 		35DADDBE91119F078E164AA9 /* Pods_DeepmediKit_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 498F495A2FB536213AC7129C /* Pods_DeepmediKit_Example.framework */; };
 		46F5E109042892F2BED334FC /* Pods_DeepmediKit_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1E5899C7B45AF3C90415109 /* Pods_DeepmediKit_Tests.framework */; };
 		5C77C30E2A404C0A00AF4D0D /* FaceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */; };
+		5CAC6CE92F3DC3F90074A799 /* FaceMeasurementViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAC6CE82F3DC3F90074A799 /* FaceMeasurementViewController.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
 		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
 		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
@@ -36,6 +37,7 @@
 		531183F51119575460A2D797 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		5BE050168DC41F1A4F330B48 /* Pods-DeepmediKit_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.debug.xcconfig"; sourceTree = "<group>"; };
 		5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceViewController.swift; sourceTree = "<group>"; };
+		5CAC6CE82F3DC3F90074A799 /* FaceMeasurementViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceMeasurementViewController.swift; sourceTree = "<group>"; };
 		607FACD01AFB9204008FA782 /* DeepmediKit_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepmediKit_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 				607FACD51AFB9204008FA782 /* AppDelegate.swift */,
 				607FACD71AFB9204008FA782 /* ViewController.swift */,
 				5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */,
+				5CAC6CE82F3DC3F90074A799 /* FaceMeasurementViewController.swift */,
 				607FACD91AFB9204008FA782 /* Main.storyboard */,
 				607FACDC1AFB9204008FA782 /* Images.xcassets */,
 				607FACDE1AFB9204008FA782 /* LaunchScreen.xib */,
@@ -318,6 +321,8 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework",
+				"${BUILT_PRODUCTS_DIR}/SnapKit/SnapKit.framework",
 				"${BUILT_PRODUCTS_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework",
 				"${BUILT_PRODUCTS_DIR}/GoogleDataTransport/GoogleDataTransport.framework",
 				"${BUILT_PRODUCTS_DIR}/GoogleToolboxForMac/GoogleToolboxForMac.framework",
@@ -331,6 +336,8 @@
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Alamofire.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SnapKit.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GTMSessionFetcher.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleDataTransport.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GoogleToolboxForMac.framework",
@@ -377,6 +384,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5C77C30E2A404C0A00AF4D0D /* FaceViewController.swift in Sources */,
+				5CAC6CE92F3DC3F90074A799 /* FaceMeasurementViewController.swift in Sources */,
 				607FACD81AFB9204008FA782 /* ViewController.swift in Sources */,
 				607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */,
 			);

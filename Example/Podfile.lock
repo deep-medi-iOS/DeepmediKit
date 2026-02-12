@@ -1,4 +1,5 @@
 PODS:
+  - Alamofire (5.11.1)
   - DeepmediKit (2.4.2):
     - GoogleMLKit/FaceDetection (= 6.0.0)
     - OpenCV (= 4.3.0)
@@ -62,13 +63,17 @@ PODS:
   - RxRelay (6.8.0):
     - RxSwift (= 6.8.0)
   - RxSwift (6.8.0)
+  - SnapKit (5.0.1)
   - Then (3.0.0)
 
 DEPENDENCIES:
+  - Alamofire
   - DeepmediKit (from `../`)
+  - SnapKit (~> 5.0.0)
 
 SPEC REPOS:
   trunk:
+    - Alamofire
     - GoogleDataTransport
     - GoogleMLKit
     - GoogleToolboxForMac
@@ -85,6 +90,7 @@ SPEC REPOS:
     - RxCocoa
     - RxRelay
     - RxSwift
+    - SnapKit
     - Then
 
 EXTERNAL SOURCES:
@@ -92,6 +98,7 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
+  Alamofire: eec6cd8f73b242b59e34153a606a909eb9864b14
   DeepmediKit: 8a43a52773980b5b072fe2309bf42e78eb778db4
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 97ac7af399057e99182ee8edfa8249e3226a4065
@@ -109,8 +116,9 @@ SPEC CHECKSUMS:
   RxCocoa: 2d33c1e1e5d66492052ad46b11024ae287572880
   RxRelay: 335c78b926a2aea8d863a6d25f1ed3b5ad8e8705
   RxSwift: 4e28be97cbcfeee614af26d83415febbf2bf6f45
+  SnapKit: 97b92857e3df3a0c71833cce143274bf6ef8e5eb
   Then: 844265ae87834bbe1147d91d5d41a404da2ec27d
 
-PODFILE CHECKSUM: b4486b01c7da3b7f3b278050c58431048d403a0f
+PODFILE CHECKSUM: 2449141dbc43f89506f9e3540af37071fd22d4ac
 
 COCOAPODS: 1.16.2

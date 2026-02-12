@@ -15,14 +15,20 @@ import RxCocoa
 import CoreMotion
 import Then
 
-public class FaceKit: NSObject {
+public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
     public enum Result {
         case filePath, rawData, all
     }
     public enum ResultSelector {
         case filePath(result: Bool, path: URL)
-        case rawData(result: Bool, dataSet: ([Double], [Float], [Float], [Float]))
-        case all(result: Bool, path: URL, dataSet: ([Double], [Float], [Float], [Float]))
+        case rawData(result: Bool, dataSet: DataSet)
+        case all(result: Bool, path: URL, dataSet: DataSet)
+    }
+    public struct DataSet {
+        public let ts: [Double],
+                   sigR: [Float],
+                   sigG: [Float],
+                   sigB: [Float]
     }
     public struct HeaderAngles: Equatable {
         public let pitch: CGFloat
@@ -50,16 +56,16 @@ public class FaceKit: NSObject {
     
     public struct Acceleration: Equatable {
         let ts: Double
-        let x: Double
-        let y: Double
-        let z: Double
+        public let x: Double
+        public let y: Double
+        public let z: Double
     }
     
     public struct Gyroscope: Equatable {
         let ts: Double
-        let x: Double
-        let y: Double
-        let z: Double
+        public let x: Double
+        public let y: Double
+        public let z: Double
     }
     
     struct FrameData {
@@ -92,6 +98,9 @@ public class FaceKit: NSObject {
                 gCIContext: CIContext?,
                 cropFaceRect: CGRect?,
                 cropChestRect: CGRect?
+    
+    private let movieOutput = AVCaptureMovieFileOutput()
+    private var shouldDeleteVideo = false
     
 // MARK: Property 
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
@@ -129,6 +138,12 @@ public class FaceKit: NSObject {
     private var bytesArray: [[UInt8]] = []
     
     private var frameDataArr: [FrameData] = []
+    
+    public func outputPath(
+        path: @escaping((URL) -> ())
+    ) {
+        
+    }
     
     public func collectDataCount(
         _ count: @escaping((Int) -> ())
@@ -262,20 +277,38 @@ public class FaceKit: NSObject {
         )
         .observe(on: MainScheduler.instance)
         .asDriver(onErrorJustReturn: (false, URL(fileURLWithPath: "")))
-        .drive(onNext: {[weak self] (res, path) in
-            guard let self else { return }
-            let output: ResultSelector
-            let ts = timeStamp.map { $0 - (self.timeStamp.first ?? 0.0) }
-            let r  = sigR
-            let g  = sigG
-            let b  = sigB
-            switch kind {
-                case .filePath:
-                    output = .filePath(result: res, path: path)
-                case .rawData:
-                    output = .rawData(result: res, dataSet: (ts, r, g, b))
+        .drive(
+            onNext: {[weak self] (res, path) in
+                guard let self else { return }
+                let output: ResultSelector
+                let ts = timeStamp.map { $0 - (self.timeStamp.first ?? 0.0) }
+                let r  = sigR
+                let g  = sigG
+                let b  = sigB
+                switch kind {
+                    case .filePath:
+                        output = .filePath(result: res, path: path)
+                    case .rawData:
+                        output = .rawData(
+                            result: res,
+                            dataSet: DataSet(
+                                ts: ts,
+                                sigR: r,
+                                sigG: g,
+                                sigB: b
+                            )
+                        )
                 case .all:
-                    output = .all(result: res, path: path, dataSet: (ts, r, g, b))
+                        output = .all(
+                            result: res,
+                            path: path,
+                            dataSet: DataSet(
+                                ts: ts,
+                                sigR: r,
+                                sigG: g,
+                                sigB: b
+                            )
+                        )
             }
             isSuccess(output)
         })
@@ -340,6 +373,9 @@ public class FaceKit: NSObject {
         self.measurementTimer.invalidate()
         self.prepareTimer.invalidate()
         
+        self.startAccelerometer()
+        self.startGryoscope()
+        
         DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self, let previewLayer = self.model.previewLayer else {
                 print("previewLayer is nil")
@@ -380,6 +416,19 @@ public class FaceKit: NSObject {
             self.cameraSetup.useSession().stopRunning()
         }
     }
+    
+    func startRecording() {
+        let url = FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("screen_record.mp4")
+
+        movieOutput.startRecording(to: url, recordingDelegate: self)
+    }
+    
+    func stopRecording() {
+        movieOutput.stopRecording()
+    }
+    
     // MARK: 측정완료
     private func collectDatas() {
         measurementModel.measurementStop.onNext(false)
@@ -408,7 +457,7 @@ public class FaceKit: NSObject {
                 return
             }
             self.isTimerRunning = true
-            
+            self.stopRecording()
             if let ratio = self.completionRate(
                 second: self.measurementTime
             ) {
@@ -421,6 +470,7 @@ public class FaceKit: NSObject {
             measurementCount.onNext(sigR.count)
             self.measurementTime -= 0.01
             if self.measurementTime <= 0.0 {
+                shouldDeleteVideo = false
                 if let rgbPath = self.document.make(
                     data: .rgb,
                     dataSet: totalData
@@ -459,6 +509,9 @@ public class FaceKit: NSObject {
                 }
                 self.dispatchTimer?.cancel()
                 self.isTimerRunning = false
+                self.motionManager.stopAccelerometerUpdates()
+                self.motionManager.stopGyroUpdates()
+                self.stopRecording()
             }
         }
         dispatchTimer?.resume()
@@ -476,6 +529,23 @@ public class FaceKit: NSObject {
         return nil
     }
 }
+// MARK: 녹화 동영상
+extension FaceKit {
+    public func fileOutput(
+        _ output: AVCaptureFileOutput,
+        didFinishRecordingTo outputFileURL: URL,
+        from connections: [AVCaptureConnection],
+        error: Error?
+    ) {
+//        if shouldDeleteVideo {
+//            try? FileManager.default.removeItem(at: outputFileURL)
+//            print("영상 삭제 완료")
+//        } else {
+            measurementModel.moveFilePath.onNext(outputFileURL)
+//        }
+    }
+}
+
 // MARK: ACC, GYRO
 extension FaceKit {
     public enum MotionDataType {
@@ -503,7 +573,7 @@ extension FaceKit {
         }
         motionManager.startGyroUpdates(to: .main) { [weak self] (data, error) in
             guard let self = self else { return }
-            self.collectMotionData(data?.rotationRate, type: .accelerometer, error: error)
+            self.collectMotionData(data?.rotationRate, type: .gyroscope, error: error)
         }
     }
     
@@ -652,6 +722,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 print("On-Device face detector returned no results.")
                 self.lastFrame = nil
                 self.cropFaceRect = nil
+                self.shouldDeleteVideo = true
                 
                 self.initRGBData()
                 self.timerReset()
@@ -695,6 +766,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 measurementModel.checkRealFace.onNext(false)
                 initRGBData()
                 isTimerRunning = false
+                shouldDeleteVideo = true
                 dispatchTimer?.cancel()
                 measurementTimer.invalidate()
                 prepareTimer.invalidate()
@@ -738,6 +810,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
+                self.shouldDeleteVideo = true
                 
                 self.preparingSec    = self.model.prepareTime
                 self.measurementTime = self.model.faceMeasurementTime
@@ -821,6 +894,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         bytesArray.removeAll()
         
         frameDataArr.removeAll()
+        
+        acc.removeAll()
+        gyro.removeAll()
     }
     
     private func timerReset() {
