@@ -11,18 +11,30 @@ import DeepmediKit
 import Alamofire
 import Then
 import SnapKit
+import ReplayKit
 
 class FaceMeasurementViewController: UIViewController {
     var previewLayer = AVCaptureVideoPreviewLayer()
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
+    
+    private var didStartSession = false
+    public var lastVideoPTS: CMTime = kCMTimeInvalid
+    private let targetFPS: Double = 30
+    private var minFrameDuration: CMTime {
+        CMTime(value: 1, timescale: CMTimeScale(targetFPS))
+    }
 
     let camera = CameraObject()
-    
     let faceMeasureKit = FaceKit()
     let faceMeasureKitModel = FaceKitModel()
-
     let preview = CameraPreview()
+    
+    private let recorder = RPScreenRecorder.shared()
+        private var writer: AVAssetWriter?
+        private var videoInput: AVAssetWriterInput?
+        private var audioInput: AVAssetWriterInput?
+        private var outputURL: URL?
     
     // MARK: - Properties
     private let faceRecognitionAreaView = UIView()
@@ -108,9 +120,7 @@ class FaceMeasurementViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupConstraints()
-    
         completionMethod()
-        
         camera.initalized(
             delegate: faceMeasureKit,
             session: session,
@@ -124,8 +134,8 @@ class FaceMeasurementViewController: UIViewController {
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         setupUI()
-
-        faceMeasureKit.startSession()
+        startUIScreenRecording()
+//        faceMeasureKit.startSession()
     }
 
     deinit {
@@ -192,7 +202,10 @@ class FaceMeasurementViewController: UIViewController {
         
         faceMeasureKit.timesLeft {[weak self] second in
             guard let self = self else { return }
-            self.timerLabel.text = "0:\(second)"
+            if second == 15 {
+                self.writer?.startWriting()
+            }
+            self.timerLabel.text = "0:\(15 - second)"
         }
         
         faceMeasureKit.stopMeasurement {[weak self] stop in
@@ -200,7 +213,8 @@ class FaceMeasurementViewController: UIViewController {
             checkmarkImageView.tintColor = stop ? .red : .green
         }
         
-        faceMeasureKit.finishedMeasurement(for: .all) { result in
+        faceMeasureKit.finishedMeasurement(for: .all) {[weak self] result in
+            guard let self = self else { return }
             if case let .all(result, path, dataSet) = result {
                 let ts = dataSet.ts
                 let sigR = dataSet.sigR
@@ -212,6 +226,15 @@ class FaceMeasurementViewController: UIViewController {
                 print("finish error")
             }
             self.faceMeasureKit.stopSession()
+            self.stopUIScreenRecording()
+        }
+        
+        faceMeasureKit.outputPath { filePath in
+            let frameDataPath = filePath.frameDataPath
+            let accelPath = filePath.accelPath
+            let gyroPath = filePath.gyroPath
+            
+            
         }
     }
     
@@ -282,13 +305,13 @@ class FaceMeasurementViewController: UIViewController {
         
         leftInfoStackView.snp.makeConstraints {
             $0.left.equalToSuperview().offset(16)
-            $0.top.equalTo(headerView.snp.bottom).offset(16)
-            $0.width.equalTo(80)
+            $0.bottom.equalTo(footerView.snp.top).offset(-16)
+            $0.width.equalTo(120)
         }
         
         rightInfoStackView.snp.makeConstraints {
             $0.right.equalToSuperview().offset(-16)
-            $0.top.equalTo(headerView.snp.bottom).offset(16)
+            $0.bottom.equalTo(footerView.snp.top).offset(-16)
             $0.width.equalTo(80)
         }
         
@@ -361,5 +384,88 @@ class InfoItemView: UIView {
     
     func setValue(_ value: String) {
         self.valueLabel.text = value
+    }
+}
+
+extension FaceMeasurementViewController {
+    func startUIScreenRecording() {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("screen_record.mp4")
+        
+        // 기존 파일 삭제
+        try? FileManager.default.removeItem(at: url)
+        outputURL = url
+        
+        do {
+            writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+            
+            let screenSize = UIScreen.main.bounds.size
+            let videoSettings: [String: Any] = [
+                AVVideoCodecKey: AVVideoCodecType.h264,
+                AVVideoWidthKey: screenSize.width * UIScreen.main.scale,
+                AVVideoHeightKey: screenSize.height * UIScreen.main.scale,
+                AVVideoCompressionPropertiesKey: [
+                    AVVideoAverageBitRateKey: 3_000_000,
+                    AVVideoMaxKeyFrameIntervalKey: 30
+                ]
+            ]
+            videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+            videoInput?.expectsMediaDataInRealTime = true
+            
+            if let videoInput = videoInput, writer?.canAdd(videoInput) == true {
+                writer?.add(videoInput)
+            }
+            
+            recorder.isMicrophoneEnabled = false // 마이크 필요 시
+            recorder.startCapture(handler: { [weak self] (sampleBuffer: CMSampleBuffer, sampleType: RPSampleBufferType, error: Error?) in
+                guard let self else { return }
+                if let error { print("capture error:", error); return }
+                
+                guard self.writer?.status == .writing else { return }
+                
+                let ts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                                
+                switch sampleType {
+                case .video:
+                    if !self.didStartSession {
+                        self.writer?.startSession(atSourceTime: ts)
+                        self.didStartSession = true
+                    }
+                    if self.videoInput?.isReadyForMoreMediaData == true {
+                        self.videoInput?.append(sampleBuffer)
+                    }
+                case .audioApp, .audioMic:
+                    break
+                @unknown default:
+                    break
+                }
+            }, completionHandler: { error in
+                if let error { print("startCapture error:", error) }
+                else {
+                    print("✅ screen capture started")
+                    self.faceMeasureKit.startSession()
+                }
+            })
+            
+        } catch {
+            print("❌ writer create error:", error)
+        }
+    }
+    
+    func stopUIScreenRecording() {
+        recorder.stopCapture { [weak self] error in
+            guard let self else { return }
+            if let error { print("stopCapture error:", error) }
+            
+            self.videoInput?.markAsFinished()
+            self.audioInput?.markAsFinished()
+            
+            self.writer?.finishWriting {
+                print("✅ saved:", self.outputURL?.path ?? "")
+                self.writer = nil
+                self.videoInput = nil
+                self.audioInput = nil
+            }
+        }
     }
 }

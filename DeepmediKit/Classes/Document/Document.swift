@@ -26,7 +26,7 @@ public class Document {
         
         switch type {
             case .rgb:
-                fileURL = docuURL.appendingPathComponent("PPG_DATA_\(part)_ios.txt")
+                fileURL = docuURL.appendingPathComponent("rgb_signal_ios.txt")
             case .acc:
                 fileURL = docuURL.appendingPathComponent("ACC_DATA_\(part)_ios.txt")
             case .gyro:

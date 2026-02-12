@@ -15,7 +15,7 @@ import RxCocoa
 import CoreMotion
 import Then
 
-public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
+public class FaceKit: NSObject {
     public enum Result {
         case filePath, rawData, all
     }
@@ -68,6 +68,12 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
         public let z: Double
     }
     
+    public struct FilePath {
+        public let frameDataPath: URL,
+                   accelPath: URL,
+                   gyroPath: URL
+    }
+    
     struct FrameData {
         let timestampUS: Double
         let width: Int
@@ -98,9 +104,6 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
                 gCIContext: CIContext?,
                 cropFaceRect: CGRect?,
                 cropChestRect: CGRect?
-    
-    private let movieOutput = AVCaptureMovieFileOutput()
-    private var shouldDeleteVideo = false
     
 // MARK: Property 
     private var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
@@ -140,9 +143,24 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
     private var frameDataArr: [FrameData] = []
     
     public func outputPath(
-        path: @escaping((URL) -> ())
+        _ path: @escaping((FilePath) -> ())
     ) {
-        
+        let gyroFilePath = measurementModel.gyroFilePath
+        let accFilePath = measurementModel.accFilePath
+        let frameDataPath = measurementModel.frameDataFilePath
+        Observable.combineLatest(
+            frameDataPath,
+            accFilePath,
+            gyroFilePath
+        )
+        .asObservable()
+        .map { frame, acc, gyro in
+            return FilePath.init(frameDataPath: frame, accelPath: acc, gyroPath: gyro)
+        }
+        .subscribe(onNext: { value in
+            path(value)
+        })
+        .disposed(by: bag)
     }
     
     public func collectDataCount(
@@ -334,6 +352,7 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
         let secondRemaining = measurementModel.secondRemaining
         secondRemaining
             .asDriver(onErrorJustReturn: 0)
+            .distinctUntilChanged(==)
             .drive(onNext: { remaining in
                 com(remaining)
             })
@@ -383,6 +402,7 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
             }
             self.previewLayer = previewLayer
             self.willCheckRealFace = model.willCheckRealFace
+            
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.useFaceRecognitionArea = self.model.useFaceRecognitionArea
@@ -417,27 +437,15 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
         }
     }
     
-    func startRecording() {
-        let url = FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("screen_record.mp4")
-
-        movieOutput.startRecording(to: url, recordingDelegate: self)
-    }
-    
-    func stopRecording() {
-        movieOutput.stopRecording()
-    }
-    
     // MARK: 측정완료
     private func collectDatas() {
         measurementModel.measurementStop.onNext(false)
         
         let secondRemaining          = measurementModel.secondRemaining,
-            measurementCompleteRatio = measurementModel.measurementCompleteRatio,
+//            measurementCompleteRatio = measurementModel.measurementCompleteRatio,
             measurementComplete      = measurementModel.measurementComplete,
             rgbFilePath              = measurementModel.rgbFilePath,
-            frameFilePath            = measurementModel.csvFilePath,
+            frameFilePath            = measurementModel.frameDataFilePath,
             accFilePath              = measurementModel.accFilePath,
             gyroFilePath             = measurementModel.gyroFilePath,
             measurementCount         = measurementModel.measurementCount
@@ -457,20 +465,19 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
                 return
             }
             self.isTimerRunning = true
-            self.stopRecording()
-            if let ratio = self.completionRate(
-                second: self.measurementTime
-            ) {
-                measurementCompleteRatio.onNext("\(ratio)%")
-            }
-            if 0.55 <= self.measurementTime && self.measurementTime <= 0.59 {
-                self.screenCapture()
-            }
+//            if let ratio = self.completionRate(
+//                second: self.measurementTime
+//            ) {
+//                measurementCompleteRatio.onNext("\(ratio)%")
+//            }
+//            if 0.55 <= self.measurementTime && self.measurementTime <= 0.59 {
+//                self.screenCapture()
+//            }
             secondRemaining.onNext(Int(self.measurementTime))
             measurementCount.onNext(sigR.count)
             self.measurementTime -= 0.01
-            if self.measurementTime <= 0.0 {
-                shouldDeleteVideo = false
+//            if self.measurementTime <= 0.0 {
+            if self.sigR.count == 450 {
                 if let rgbPath = self.document.make(
                     data: .rgb,
                     dataSet: totalData
@@ -511,7 +518,6 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
                 self.isTimerRunning = false
                 self.motionManager.stopAccelerometerUpdates()
                 self.motionManager.stopGyroUpdates()
-                self.stopRecording()
             }
         }
         dispatchTimer?.resume()
@@ -527,22 +533,6 @@ public class FaceKit: NSObject, AVCaptureFileOutputRecordingDelegate {
             return r
         }
         return nil
-    }
-}
-// MARK: 녹화 동영상
-extension FaceKit {
-    public func fileOutput(
-        _ output: AVCaptureFileOutput,
-        didFinishRecordingTo outputFileURL: URL,
-        from connections: [AVCaptureConnection],
-        error: Error?
-    ) {
-//        if shouldDeleteVideo {
-//            try? FileManager.default.removeItem(at: outputFileURL)
-//            print("영상 삭제 완료")
-//        } else {
-            measurementModel.moveFilePath.onNext(outputFileURL)
-//        }
     }
 }
 
@@ -722,7 +712,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 print("On-Device face detector returned no results.")
                 self.lastFrame = nil
                 self.cropFaceRect = nil
-                self.shouldDeleteVideo = true
                 
                 self.initRGBData()
                 self.timerReset()
@@ -766,7 +755,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 measurementModel.checkRealFace.onNext(false)
                 initRGBData()
                 isTimerRunning = false
-                shouldDeleteVideo = true
                 dispatchTimer?.cancel()
                 measurementTimer.invalidate()
                 prepareTimer.invalidate()
@@ -810,7 +798,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
-                self.shouldDeleteVideo = true
                 
                 self.preparingSec    = self.model.prepareTime
                 self.measurementTime = self.model.faceMeasurementTime
