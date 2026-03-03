@@ -30,8 +30,8 @@ final class SampleBufferConverter {
         return UIImage(
             cgImage: cgImage,
             scale: 1.0,
-            //            scale: 0.8,
             orientation: .leftMirrored
+//            orientation: .up
         )
     }
     

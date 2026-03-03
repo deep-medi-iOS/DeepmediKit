@@ -52,7 +52,6 @@ public class FaceKit: NSObject {
                 cameraSetup = CameraSetup.shared
     
     private var lastFrame: CMSampleBuffer?,
-                gCIContext: CIContext?,
                 cropFaceRect: CGRect?,
                 cropChestRect: CGRect?
     
@@ -259,13 +258,13 @@ public class FaceKit: NSObject {
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
                 self.useFaceRecognitionArea = self.model.useFaceRecognitionArea
                 self.faceRecognitionAreaView = faceRecognitionAreaView
-//                DispatchQueue.main.async {
-//                    self.faceRecognitionAreaView.addSubview(self.cropView)
-//                    self.faceRecognitionAreaView.addSubview(self.landMarkView)
+                DispatchQueue.main.async {
+                    self.faceRecognitionAreaView.addSubview(self.cropView)
+                    self.faceRecognitionAreaView.addSubview(self.landMarkView)
 //                    self.faceRecognitionAreaView.addSubview(self.recogView)
 //                    self.faceRecognitionAreaView.addSubview(self.faceDetecView)
 //                    self.faceRecognitionAreaView.addSubview(self.smallView)
-//                }
+                }
             }
             self.cameraSetup.useSession().startRunning()
         }
@@ -585,9 +584,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
         let faceMaxY = faceFrame.maxY - faceFrame.height * 0.2
         
 //        Debug용 View 설정 - 측정구역(대, 소), 감지된 얼굴
-//        DispatchQueue.main.async {
-//            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
-//            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
+        DispatchQueue.main.async {
+            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
 //
 //            self.recogView.layer.borderColor = UIColor.red.cgColor
 //            self.recogView.layer.borderWidth = 1
@@ -611,7 +610,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate { // 카메라 �
 //                width: smallMaxX - smallMinX,
 //                height: smallMaxY - smallMinY
 //            )
-//        }
+        }
 
         let useRecognitionArea = (minX <= faceMinX && faceMinX <= smallMinX)
         && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
@@ -746,7 +745,7 @@ extension FaceKit {
                 print("[++\(#fileID):\(#line)]- crop face error")
                 return
             }
-            
+
             draw(
                 previewLayer: previewLayer,
                 facePoints: faceContour.points,
@@ -839,8 +838,8 @@ extension FaceKit {
                     cgPath: facePath.cgPath
                 ),
                       let sampleBuffer = cropLandMarkFace.createCMSampleBuffer() else { fatalError("face crop image return") }
-//                self.cropView.image = cropImage
-//                self.landMarkView.image = cropLandMarkFace
+                self.cropView.image = cropImage
+                self.landMarkView.image = cropLandMarkFace
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)
                 collectionByteData(sampleBuffer: sampleBuffer)
             }
@@ -912,6 +911,5 @@ extension FaceKit {
         
         return UIGraphicsGetImageFromCurrentImageContext()
     }
-    
 }
 
