@@ -13,566 +13,566 @@ import RxCocoa
 import Then
 
 open class FingerKit: NSObject {
-    public enum StopStatus: String {
-        case noTap, flipDevice, notThing
-    }
-    
-    private let bag = DisposeBag()
-    
-    private let document = Document(),
-                measurementModel = MeasurementModel(),
-                notiGenerator = UINotificationFeedbackGenerator()
-    
-    private let model       = Model.shared,
-                cameraSetup = CameraSetup.shared
-    
-    private let device = UIDevice.current
-    
-    // MARK: property
-    private var tap = [MeasurementModel.status](),
-                noTap = [MeasurementModel.status](),
-                stopMeasureStatus = [MeasurementModel.status]()
-    
-    private var FRAMES_PER_SECOND: Double = 60,
-                measurementTime = Double(),
-                measurementTimer = Timer(),
-                chartTimer = Timer(),
-                motionManager = CMMotionManager()
-    
-    // MARK: isTapCheck
-    private var filterG = [Float]()
-    private let limitTapCount = 30
-    
-    private var chartData: [Float] = [] // green
-    
-    private var sigR: [Float] = []
-    private var sigB: [Float] = []
-    private var sigG: [Float] = []
-    private var totalData: [(Double, Float, Float, Float)] = []
-    
-    private var accXdata = [Float](),
-                accYdata = [Float](),
-                accZdata = [Float](),
-                accData  = [(Double(),Float(),Float(),Float())]
-    
-    private var gyroXdata = [Float](),
-                gyroYdata = [Float](),
-                gyroZdata = [Float](),
-                gyroData  = [(Double(),Float(),Float(),Float())]
-    
-    // MARK: Flag
-    private var isDeviceBack = false,
-                isTorch = true,
-                isComplete = Bool()
-    
-    public func timesLeft(
-        _ time: @escaping (Int)->()
-    ) {
-        let secondRemaining = measurementModel.secondRemaining
-        secondRemaining
-            .observe(on: MainScheduler.asyncInstance)
-            .asDriver(onErrorJustReturn: 0)
-            .drive(onNext: { count in
-                time(count)
-            })
-            .disposed(by: bag)
-    }
-    
-    public func measurementCompleteRatio(
-        _ com: @escaping((String) -> ())
-    ) {
-        let ratio = measurementModel.measurementCompleteRatio
-        ratio
-            .asDriver(onErrorJustReturn: "0%")
-            .asDriver()
-            .drive(onNext: { ratio in
-                com(ratio)
-            })
-            .disposed(by: self.bag)
-    }
-    ///success: Bool, rgb: URL?, acc: URL?, gyro: URL?
-    public func finishedMeasurement(
-        _ isSuccess: @escaping((_ success: Bool,_ rgbPath: URL?,_ accPath: URL?,_ gyroPath: URL?) -> ())
-    ) {
-        let completion = measurementModel.fingerMeasurementComplete
-        completion
-            .asDriver(onErrorJustReturn: (false, URL(string: ""), URL(string: ""), URL(string: "")))
-            .drive(onNext: { result in
-                isSuccess(result.0,
-                          result.1,
-                          result.2,
-                          result.3)
-            })
-            .disposed(by: bag)
-    }
-    
-    public func stopMeasurement(
-        _ isStop: @escaping((Bool) -> ())
-    ) {
-        let stop = measurementModel.measurementStop
-        stop
-            .asDriver(onErrorJustReturn: false)
-            .asDriver()
-            .drive(onNext: { stop in
-                isStop(stop)
-            })
-            .disposed(by: bag)
-    }
-    
-    public func stoppedStatus() -> StopStatus {
-        if measurementModel.stoppedByNotTap {
-            return FingerKit.StopStatus.noTap
-        } else if measurementModel.stoppedByFlipingDevice {
-            return FingerKit.StopStatus.flipDevice
-        }
-        return FingerKit.StopStatus.notThing
-    }
-    
-    public func measuredValue(
-        _ filtered: @escaping (Double)->()
-    ) {
-        let value = measurementModel.inputFilteringGvalue
-        value
-            .observe(on: MainScheduler.asyncInstance)
-            .asDriver(onErrorJustReturn: 0)
-            .drive(onNext: { value in
-                filtered(value)
-            })
-            .disposed(by: bag)
-    }
-    
-    public override init() {
-        super.init()
-        UIApplication.shared.isIdleTimerDisabled = true
-        if let openCVstr = OpenCVWrapper.openCVVersionString() {
-            print("[++\(#fileID):\(#line)]- opencv version: ", openCVstr)
-        }
-        measurementRGBfromFinger()
-        measurementModel.bindFingerTap()
-    }
-    
-    deinit {
-        print("[++\(#fileID)] deinit ")
-        UIApplication.shared.isIdleTimerDisabled = false
-    }
-    
-    open func startSession() {
-        startMeasurement()
-        prepareMeasurement()
-    }
-    
-    open func startMeasurement() {
-        isComplete = false
-        accelemeterUpdates()
-        gyroscopeUpdates()
-        deviceMotionUpdates()
-    }
-    
-    private func prepareMeasurement() {
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self else { return }
-            measurementTime = model.fingerMeasurementTime
-            cameraSetup.useSession().startRunning()
-            turnOnThe(torch: true)
-        }
-    }
-    
-    open func stopSession() {
-        stopMeasurement()
-    }
-    
-    private func stopMeasurement() {
-        isComplete = true
-        cameraSetup.useCaptureDevice().exposureMode = .autoExpose
-        cameraSetup.useSession().stopRunning()
-        motionManager.stopAccelerometerUpdates()
-        motionManager.stopGyroUpdates()
-        motionManager.stopDeviceMotionUpdates()
-        turnOnThe(torch: false)
-        elementInitalize()
-    }
-    
-    private func elementInitalize() {
-        measurementTime = model.fingerMeasurementTime
-        measurementTimer.invalidate()
-        chartTimer.invalidate()
-        initRGBData()
-        initAccData()
-        initGyroData()
-        tap.removeAll()
-        noTap.removeAll()
-        stopMeasureStatus.removeAll()
-    }
-    
-    private func turnOnThe(
-        torch: Bool
-    ) {
-        guard cameraSetup.hasTorch() else {
-            print("has not torch")
-            return
-        }
-        
-        switch torch {
-            case true:
-                cameraSetup.useCaptureDevice().torchMode = .on
-            case false:
-                cameraSetup.useCaptureDevice().torchMode = .off
-        }
-    }
-    
-    /// Accelemeter start
-    private func accelemeterUpdates() {
-        motionManager.accelerometerUpdateInterval = 1 / 100
-        guard let operationQueue = OperationQueue.current else {
-            print("acc operation queue return")
-            return
-        }
-        motionManager.startAccelerometerUpdates(to: operationQueue) {[weak self] (acc, err)  in
-            guard let self else { return }
-            collectAccelemeterData(acc, err)
-        }
-    }
-    
-    /// Gyroscope start
-    private func gyroscopeUpdates() {
-        motionManager.gyroUpdateInterval = 1 / 100
-        guard let operationQueue = OperationQueue.current else {
-            print("gyro operation queue return")
-            return
-        }
-        motionManager.startGyroUpdates(to: operationQueue) {[weak self] (gyro, err)  in
-            guard let self else { return }
-            collectGyroscopeData(gyro, err)
-        }
-    }
-    
-    func deviceMotionUpdates() {
-        guard let operationQueue = OperationQueue.current, motionManager.isDeviceMotionAvailable else {
-            print("deviceMotion operation queue return")
-            return
-        }
-        motionManager.deviceMotionUpdateInterval = 0.1  // 업데이트 간격 설정
-        motionManager.startDeviceMotionUpdates(to: operationQueue) {[weak self] (motion, error) in
-            guard let self, let motion = motion else {
-                print("motion return")
-                return
-            }
-            
-            let attitude = motion.attitude,
-                roll = attitude.roll,
-                back = roll < -2.0 || roll > 2.0,
-                forward = !back
-            
-            measurementModel.inputAccZback.onNext(back)
-            measurementModel.inputAccZforward.onNext(forward)
-        }
-    }
-    
-    private func measurementRGBfromFinger() {
-        let status = measurementModel.outputFingerStatus
-        status
-            .observe(on: MainScheduler.instance)
-            .asDriver(onErrorJustReturn: .noTap)
-            .drive(onNext: { [weak self] status in
-                guard let self else { return }
-                self.measurementModel.checkStopStatus(status)
-                if status == .tap && (self.tap.count <= self.limitTapCount * 3) {
-                    
-                    if self.tap.count == 30 && !self.isComplete {
-                        self.chartUpdateTimer()
-                        self.cameraSetup.setUpCaptureDevice(.locked)
-                    }
-                    
-                    self.tap.append(.tap)
-                    self.noTap.removeAll()
-                    self.stopMeasureStatus.removeAll()
-                                                            
-                } else if (status == .noTap) {
-                    self.noTap.append(.noTap)
-                } else if (status == .back || status == .flip) {
-                    self.stopMeasureStatus.append(status)
-                }
-                
-                switch status {
-                    case .tap:
-                        defer {
-                            if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
-                                self.startTimer()
-                            }
-                        }
-                        guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
-                            return
-                        }
-                        self.noTap.removeAll()
-                        self.stopMeasureStatus.removeAll()
-                        self.measurementModel.measurementStop.onNext(false)
-                        
-                    case .noTap:
-//                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
-                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount) else {
-                            print("no tap return")
-                            return
-                        }
-                        self.elementInitalize()
-                        self.measurementModel.measurementStop.onNext(true)
-                        
-                    case .back, .flip:
-                        guard self.stopMeasureStatus.count >= 30 else {
-                            print("back, flip return")
-                            return
-                        }
-                        self.turnOnThe(torch: false)
-                        self.elementInitalize()
-                        self.measurementModel.measurementStop.onNext(true)
-                }
-            })
-            .disposed(by: self.bag)
-    }
-    
-    private func startTimer() {
-        let completion               = measurementModel.fingerMeasurementComplete,
-            secondRemaining          = measurementModel.secondRemaining,
-            measurementCompleteRatio = measurementModel.measurementCompleteRatio
-        
-        isComplete = true
-        initRGBData()
-        initAccData()
-        initGyroData()
-        
-        measurementTimer = Timer.scheduledTimer(
-            withTimeInterval: 0.1,
-            repeats: true
-        ) { [weak self] timer in
-            guard let self else { return }
-            let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.fingerMeasurementTime)
-            measurementCompleteRatio.onNext("\(ratio)%")
-            secondRemaining.onNext(Int(self.measurementTime))
-            self.measurementTime -= 0.1
-            guard self.measurementTime <= 0.0,
-                  let rgbPath = self.document.make(data: .rgb, dataSet: totalData) else {
-                print("rgbPath is nil")
-                completion.onNext(
-                    (
-                        success: false,
-                        rgbURL:  URL(string: "there is not rgb path"),
-                        accURL:  URL(string: "there is not acc path"),
-                        gyroURL: URL(string: "there is not gyro path")
-                    )
-                )
-                return
-            }
-            self.notiGenerator.notificationOccurred(.success)
-            if self.model.breathMeasurement {
-                if let accPath  = self.document.make(data: .acc, dataSet: accData),
-                    let gyroPath = self.document.make(data: .gyro, dataSet: gyroData) {
-                    completion.onNext(
-                        (
-                            success: true,
-                            rgbURL:  rgbPath,
-                            accURL:  accPath,
-                            gyroURL: gyroPath
-                        )
-                    )
-                } else {
-                    completion.onNext(
-                        (
-                            success: false,
-                            rgbURL:  URL(string: "there is not rgb path"),
-                            accURL:  URL(string: "there is not acc path"),
-                            gyroURL: URL(string: "there is not gyro path")
-                        )
-                    )
-                }
-            } else {
-                completion.onNext(
-                    (
-                        success: true,
-                        rgbURL:  rgbPath,
-                        accURL:  URL(string: "there is not acc path"),
-                        gyroURL: URL(string: "there is not gyro path")
-                    )
-                )
-            }
-            self.stopMeasurement()
-        }
-    }
+//    public enum StopStatus: String {
+//        case noTap, flipDevice, notThing
+//    }
+//    
+//    private let bag = DisposeBag()
+//    
+//    private let document = Document(),
+//                measurementModel = MeasurementModel(),
+//                notiGenerator = UINotificationFeedbackGenerator()
+//    
+//    private let model       = Model.shared,
+//                cameraSetup = CameraSetup.shared
+//    
+//    private let device = UIDevice.current
+//    
+//    // MARK: property
+//    private var tap = [MeasurementModel.status](),
+//                noTap = [MeasurementModel.status](),
+//                stopMeasureStatus = [MeasurementModel.status]()
+//    
+//    private var FRAMES_PER_SECOND: Double = 60,
+//                measurementTime = Double(),
+//                measurementTimer = Timer(),
+//                chartTimer = Timer(),
+//                motionManager = CMMotionManager()
+//    
+//    // MARK: isTapCheck
+//    private var filterG = [Float]()
+//    private let limitTapCount = 30
+//    
+//    private var chartData: [Float] = [] // green
+//    
+//    private var sigR: [Float] = []
+//    private var sigB: [Float] = []
+//    private var sigG: [Float] = []
+//    private var totalData: [(Double, Float, Float, Float)] = []
+//    
+//    private var accXdata = [Float](),
+//                accYdata = [Float](),
+//                accZdata = [Float](),
+//                accData  = [(Double(),Float(),Float(),Float())]
+//    
+//    private var gyroXdata = [Float](),
+//                gyroYdata = [Float](),
+//                gyroZdata = [Float](),
+//                gyroData  = [(Double(),Float(),Float(),Float())]
+//    
+//    // MARK: Flag
+//    private var isDeviceBack = false,
+//                isTorch = true,
+//                isComplete = Bool()
+//    
+//    public func timesLeft(
+//        _ time: @escaping (Int)->()
+//    ) {
+//        let secondRemaining = measurementModel.secondRemaining
+//        secondRemaining
+//            .observe(on: MainScheduler.asyncInstance)
+//            .asDriver(onErrorJustReturn: 0)
+//            .drive(onNext: { count in
+//                time(count)
+//            })
+//            .disposed(by: bag)
+//    }
+//    
+//    public func measurementCompleteRatio(
+//        _ com: @escaping((String) -> ())
+//    ) {
+//        let ratio = measurementModel.measurementCompleteRatio
+//        ratio
+//            .asDriver(onErrorJustReturn: "0%")
+//            .asDriver()
+//            .drive(onNext: { ratio in
+//                com(ratio)
+//            })
+//            .disposed(by: self.bag)
+//    }
+//    ///success: Bool, rgb: URL?, acc: URL?, gyro: URL?
+//    public func finishedMeasurement(
+//        _ isSuccess: @escaping((_ success: Bool,_ rgbPath: URL?,_ accPath: URL?,_ gyroPath: URL?) -> ())
+//    ) {
+//        let completion = measurementModel.fingerMeasurementComplete
+//        completion
+//            .asDriver(onErrorJustReturn: (false, URL(string: ""), URL(string: ""), URL(string: "")))
+//            .drive(onNext: { result in
+//                isSuccess(result.0,
+//                          result.1,
+//                          result.2,
+//                          result.3)
+//            })
+//            .disposed(by: bag)
+//    }
+//    
+//    public func stopMeasurement(
+//        _ isStop: @escaping((Bool) -> ())
+//    ) {
+//        let stop = measurementModel.measurementStop
+//        stop
+//            .asDriver(onErrorJustReturn: false)
+//            .asDriver()
+//            .drive(onNext: { stop in
+//                isStop(stop)
+//            })
+//            .disposed(by: bag)
+//    }
+//    
+//    public func stoppedStatus() -> StopStatus {
+//        if measurementModel.stoppedByNotTap {
+//            return FingerKit.StopStatus.noTap
+//        } else if measurementModel.stoppedByFlipingDevice {
+//            return FingerKit.StopStatus.flipDevice
+//        }
+//        return FingerKit.StopStatus.notThing
+//    }
+//    
+//    public func measuredValue(
+//        _ filtered: @escaping (Double)->()
+//    ) {
+//        let value = measurementModel.inputFilteringGvalue
+//        value
+//            .observe(on: MainScheduler.asyncInstance)
+//            .asDriver(onErrorJustReturn: 0)
+//            .drive(onNext: { value in
+//                filtered(value)
+//            })
+//            .disposed(by: bag)
+//    }
+//    
+//    public override init() {
+//        super.init()
+//        UIApplication.shared.isIdleTimerDisabled = true
+//        if let openCVstr = OpenCVWrapper.openCVVersionString() {
+//            print("[++\(#fileID):\(#line)]- opencv version: ", openCVstr)
+//        }
+//        measurementRGBfromFinger()
+//        measurementModel.bindFingerTap()
+//    }
+//    
+//    deinit {
+//        print("[++\(#fileID)] deinit ")
+//        UIApplication.shared.isIdleTimerDisabled = false
+//    }
+//    
+//    open func startSession() {
+//        startMeasurement()
+//        prepareMeasurement()
+//    }
+//    
+//    open func startMeasurement() {
+//        isComplete = false
+//        accelemeterUpdates()
+//        gyroscopeUpdates()
+//        deviceMotionUpdates()
+//    }
+//    
+//    private func prepareMeasurement() {
+//        DispatchQueue.global(qos: .background).async { [weak self] in
+//            guard let self else { return }
+//            measurementTime = model.fingerMeasurementTime
+//            cameraSetup.useSession().startRunning()
+//            turnOnThe(torch: true)
+//        }
+//    }
+//    
+//    open func stopSession() {
+//        stopMeasurement()
+//    }
+//    
+//    private func stopMeasurement() {
+//        isComplete = true
+//        cameraSetup.useCaptureDevice().exposureMode = .autoExpose
+//        cameraSetup.useSession().stopRunning()
+//        motionManager.stopAccelerometerUpdates()
+//        motionManager.stopGyroUpdates()
+//        motionManager.stopDeviceMotionUpdates()
+//        turnOnThe(torch: false)
+//        elementInitalize()
+//    }
+//    
+//    private func elementInitalize() {
+//        measurementTime = model.fingerMeasurementTime
+//        measurementTimer.invalidate()
+//        chartTimer.invalidate()
+//        initRGBData()
+//        initAccData()
+//        initGyroData()
+//        tap.removeAll()
+//        noTap.removeAll()
+//        stopMeasureStatus.removeAll()
+//    }
+//    
+//    private func turnOnThe(
+//        torch: Bool
+//    ) {
+//        guard cameraSetup.hasTorch() else {
+//            print("has not torch")
+//            return
+//        }
+//        
+//        switch torch {
+//            case true:
+//                cameraSetup.useCaptureDevice().torchMode = .on
+//            case false:
+//                cameraSetup.useCaptureDevice().torchMode = .off
+//        }
+//    }
+//    
+//    /// Accelemeter start
+//    private func accelemeterUpdates() {
+//        motionManager.accelerometerUpdateInterval = 1 / 100
+//        guard let operationQueue = OperationQueue.current else {
+//            print("acc operation queue return")
+//            return
+//        }
+//        motionManager.startAccelerometerUpdates(to: operationQueue) {[weak self] (acc, err)  in
+//            guard let self else { return }
+//            collectAccelemeterData(acc, err)
+//        }
+//    }
+//    
+//    /// Gyroscope start
+//    private func gyroscopeUpdates() {
+//        motionManager.gyroUpdateInterval = 1 / 100
+//        guard let operationQueue = OperationQueue.current else {
+//            print("gyro operation queue return")
+//            return
+//        }
+//        motionManager.startGyroUpdates(to: operationQueue) {[weak self] (gyro, err)  in
+//            guard let self else { return }
+//            collectGyroscopeData(gyro, err)
+//        }
+//    }
+//    
+//    func deviceMotionUpdates() {
+//        guard let operationQueue = OperationQueue.current, motionManager.isDeviceMotionAvailable else {
+//            print("deviceMotion operation queue return")
+//            return
+//        }
+//        motionManager.deviceMotionUpdateInterval = 0.1  // 업데이트 간격 설정
+//        motionManager.startDeviceMotionUpdates(to: operationQueue) {[weak self] (motion, error) in
+//            guard let self, let motion = motion else {
+//                print("motion return")
+//                return
+//            }
+//            
+//            let attitude = motion.attitude,
+//                roll = attitude.roll,
+//                back = roll < -2.0 || roll > 2.0,
+//                forward = !back
+//            
+//            measurementModel.inputAccZback.onNext(back)
+//            measurementModel.inputAccZforward.onNext(forward)
+//        }
+//    }
+//    
+//    private func measurementRGBfromFinger() {
+//        let status = measurementModel.outputFingerStatus
+//        status
+//            .observe(on: MainScheduler.instance)
+//            .asDriver(onErrorJustReturn: .noTap)
+//            .drive(onNext: { [weak self] status in
+//                guard let self else { return }
+//                self.measurementModel.checkStopStatus(status)
+//                if status == .tap && (self.tap.count <= self.limitTapCount * 3) {
+//                    
+//                    if self.tap.count == 30 && !self.isComplete {
+//                        self.chartUpdateTimer()
+//                        self.cameraSetup.setUpCaptureDevice(.locked)
+//                    }
+//                    
+//                    self.tap.append(.tap)
+//                    self.noTap.removeAll()
+//                    self.stopMeasureStatus.removeAll()
+//                                                            
+//                } else if (status == .noTap) {
+//                    self.noTap.append(.noTap)
+//                } else if (status == .back || status == .flip) {
+//                    self.stopMeasureStatus.append(status)
+//                }
+//                
+//                switch status {
+//                    case .tap:
+//                        defer {
+//                            if self.tap.count == (self.limitTapCount * self.model.limitTapTime) {
+//                                self.startTimer()
+//                            }
+//                        }
+//                        guard (self.tap.count < self.limitTapCount / 2) && !self.isComplete else {
+//                            return
+//                        }
+//                        self.noTap.removeAll()
+//                        self.stopMeasureStatus.removeAll()
+//                        self.measurementModel.measurementStop.onNext(false)
+//                        
+//                    case .noTap:
+////                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount * self.model.limitNoTapTime / 2) else {
+//                        guard self.tap.count >= 15 && (self.noTap.count == self.limitTapCount) else {
+//                            print("no tap return")
+//                            return
+//                        }
+//                        self.elementInitalize()
+//                        self.measurementModel.measurementStop.onNext(true)
+//                        
+//                    case .back, .flip:
+//                        guard self.stopMeasureStatus.count >= 30 else {
+//                            print("back, flip return")
+//                            return
+//                        }
+//                        self.turnOnThe(torch: false)
+//                        self.elementInitalize()
+//                        self.measurementModel.measurementStop.onNext(true)
+//                }
+//            })
+//            .disposed(by: self.bag)
+//    }
+//    
+//    private func startTimer() {
+//        let completion               = measurementModel.fingerMeasurementComplete,
+//            secondRemaining          = measurementModel.secondRemaining,
+//            measurementCompleteRatio = measurementModel.measurementCompleteRatio
+//        
+//        isComplete = true
+//        initRGBData()
+//        initAccData()
+//        initGyroData()
+//        
+//        measurementTimer = Timer.scheduledTimer(
+//            withTimeInterval: 0.1,
+//            repeats: true
+//        ) { [weak self] timer in
+//            guard let self else { return }
+//            let ratio = Int(100.0 - self.measurementTime * 100.0 / self.model.fingerMeasurementTime)
+//            measurementCompleteRatio.onNext("\(ratio)%")
+//            secondRemaining.onNext(Int(self.measurementTime))
+//            self.measurementTime -= 0.1
+//            guard self.measurementTime <= 0.0,
+//                  let rgbPath = self.document.make(data: .rgb, dataSet: totalData) else {
+//                print("rgbPath is nil")
+//                completion.onNext(
+//                    (
+//                        success: false,
+//                        rgbURL:  URL(string: "there is not rgb path"),
+//                        accURL:  URL(string: "there is not acc path"),
+//                        gyroURL: URL(string: "there is not gyro path")
+//                    )
+//                )
+//                return
+//            }
+//            self.notiGenerator.notificationOccurred(.success)
+//            if self.model.breathMeasurement {
+//                if let accPath  = self.document.make(data: .acc, dataSet: accData),
+//                    let gyroPath = self.document.make(data: .gyro, dataSet: gyroData) {
+//                    completion.onNext(
+//                        (
+//                            success: true,
+//                            rgbURL:  rgbPath,
+//                            accURL:  accPath,
+//                            gyroURL: gyroPath
+//                        )
+//                    )
+//                } else {
+//                    completion.onNext(
+//                        (
+//                            success: false,
+//                            rgbURL:  URL(string: "there is not rgb path"),
+//                            accURL:  URL(string: "there is not acc path"),
+//                            gyroURL: URL(string: "there is not gyro path")
+//                        )
+//                    )
+//                }
+//            } else {
+//                completion.onNext(
+//                    (
+//                        success: true,
+//                        rgbURL:  rgbPath,
+//                        accURL:  URL(string: "there is not acc path"),
+//                        gyroURL: URL(string: "there is not gyro path")
+//                    )
+//                )
+//            }
+//            self.stopMeasurement()
+//        }
+//    }
 }
 
 // MARK: AVCapture Delegate ----------------------------------------------------------------
 extension FingerKit: AVCaptureVideoDataOutputSampleBufferDelegate {
-    public func captureOutput(
-        _ output: AVCaptureOutput,
-        didOutput sampleBuffer: CMSampleBuffer,
-        from connection: AVCaptureConnection
-    ) {
-        guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            fatalError("cvimg ref")
-        }
-        
-        CVPixelBufferLockBaseAddress(
-            cvimgRef,
-            CVPixelBufferLockFlags(rawValue: 0)
-        )
-        // MARK: RGB data
-        guard let openCVDatas = OpenCVWrapper.preccessbuffer(
-            sampleBuffer,
-            device: UIDevice.current.modelName
-        ) else {
-            print("objc casting error")
-            return
-        }
-        guard let tap = openCVDatas[0] as? Bool else { return print("objc bool casting error") }
-        guard let r = openCVDatas[1] as? Float,
-              let g = openCVDatas[2] as? Float,
-              let b = openCVDatas[3] as? Float else { return print("objc rgb casting error") }
-        
-        measurementModel.inputFingerTap.onNext(tap)
-        let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-        guard timeStamp > 100 else { return }
-        collectRGB(
-            timeStamp: timeStamp,
-            r: r, g: g, b: b
-        )
-        
-        CVPixelBufferUnlockBaseAddress(
-            cvimgRef,
-            CVPixelBufferLockFlags(rawValue: 0)
-        )
-    }
-    
-    private func chartUpdateTimer() {
-        chartTimer = Timer.scheduledTimer(
-            timeInterval: 1 / FRAMES_PER_SECOND,
-            target: self,
-            selector: #selector(updatedChartData),
-            userInfo: nil,
-            repeats: true
-        )
-    }
-    
-    @objc private func updatedChartData() {
-        measurementModel.inputFilteringGvalue.onNext(filter(g: chartData))
-    }
-    
-    private func filter(
-        g: [Float]
-    ) -> Double {
-        let a = [1.0, -7.30103128, 23.42566938, -43.14485924, 49.89209273, -37.09502293, 17.31790014, -4.64159393, 0.54684548]
-        let b = [0.00013253, 0.0, -0.00053013, 0.0, 0.0007952, 0.0, -0.00053013, 0.0, 0.00013253]
-        
-        var x: [Double] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        var y: [Double] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        var result = Double()
-        
-        for i in g.indices {
-            x.insert(Double(g[i]), at: 0)
-            
-            result = ((b[0] * x[0])
-                      + (b[1] * x[1])
-                      + (b[2] * x[2])
-                      + (b[3] * x[3])
-                      + (b[4] * x[4])
-                      + (b[5] * x[5])
-                      + (b[6] * x[6])
-                      + (b[7] * x[7])
-                      + (b[8] * x[8])
-                      - (a[1] * y[0])
-                      - (a[2] * y[1])
-                      - (a[3] * y[2])
-                      - (a[4] * y[3])
-                      - (a[5] * y[4])
-                      - (a[6] * y[5])
-                      - (a[7] * y[6])
-                      - (a[8] * y[7]))
-            
-            y.insert(result, at: 0)
-            x.removeLast()
-            y.removeLast()
-        }
-        return result
-    }
-    func collectRGB(
-        timeStamp: Double,
-        r: Float,
-        g: Float,
-        b: Float
-    ) {
-        chartData.append(g)
-        sigR.append(r)
-        sigG.append(g)
-        sigB.append(b)
-        totalData.append((timeStamp, r, g, b))
-    }
-    
-    func collectAccelemeterData(
-        _ acc: CMAccelerometerData?,
-        _ err: Error?
-    ) {
-        if err != nil {
-            print("error")
-            return
-        } else {
-            guard let accMeasureData = acc?.acceleration else {
-                print("accelerometer measured data return")
-                return
-            }
-            var x: Float = 0, y: Float = 0, z: Float = 0
-            x = Float(accMeasureData.x)
-            y = Float(accMeasureData.y)
-            z = Float(accMeasureData.z)
-            
-            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-            guard timeStamp > 100 else { return print("acc timeStamp error") }
-            accXdata.append(x)
-            accYdata.append(y)
-            accZdata.append(z)
-            accData.append((timeStamp, x, y, z))
-        }
-    }
-    
-    func collectGyroscopeData(
-        _ gyro: CMGyroData?,
-        _ err: Error?
-    ) {
-        if err != nil {
-            print("error")
-        } else {
-            guard let gyroMeasureData = gyro?.rotationRate else {
-                print("gyro measured data return")
-                return
-            }
-            var x: Float = 0, y: Float = 0, z: Float = 0
-            x = Float(gyroMeasureData.x)
-            y = Float(gyroMeasureData.y)
-            z = Float(gyroMeasureData.z)
-            
-            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
-            guard timeStamp > 100 else { return print("gyro timeStamp error") }
-            gyroXdata.append(x)
-            gyroYdata.append(y)
-            gyroZdata.append(z)
-            gyroData.append((timeStamp, x, y, z))
-        }
-    }
-    
-    func initRGBData() {
-        sigR.removeAll()
-        sigG.removeAll()
-        sigB.removeAll()
-        totalData.removeAll()
-    }
-    
-    func initAccData() {
-        accXdata.removeAll()
-        accYdata.removeAll()
-        accZdata.removeAll()
-        accData.removeAll()
-    }
-    
-    func initGyroData() {
-        gyroXdata.removeAll()
-        gyroYdata.removeAll()
-        gyroZdata.removeAll()
-        gyroData.removeAll()
-    }
+//    public func captureOutput(
+//        _ output: AVCaptureOutput,
+//        didOutput sampleBuffer: CMSampleBuffer,
+//        from connection: AVCaptureConnection
+//    ) {
+//        guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+//            fatalError("cvimg ref")
+//        }
+//        
+//        CVPixelBufferLockBaseAddress(
+//            cvimgRef,
+//            CVPixelBufferLockFlags(rawValue: 0)
+//        )
+//        // MARK: RGB data
+//        guard let openCVDatas = OpenCVWrapper.preccessbuffer(
+//            sampleBuffer,
+//            device: UIDevice.current.modelName
+//        ) else {
+//            print("objc casting error")
+//            return
+//        }
+//        guard let tap = openCVDatas[0] as? Bool else { return print("objc bool casting error") }
+//        guard let r = openCVDatas[1] as? Float,
+//              let g = openCVDatas[2] as? Float,
+//              let b = openCVDatas[3] as? Float else { return print("objc rgb casting error") }
+//        
+//        measurementModel.inputFingerTap.onNext(tap)
+//        let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
+//        guard timeStamp > 100 else { return }
+//        collectRGB(
+//            timeStamp: timeStamp,
+//            r: r, g: g, b: b
+//        )
+//        
+//        CVPixelBufferUnlockBaseAddress(
+//            cvimgRef,
+//            CVPixelBufferLockFlags(rawValue: 0)
+//        )
+//    }
+//    
+//    private func chartUpdateTimer() {
+//        chartTimer = Timer.scheduledTimer(
+//            timeInterval: 1 / FRAMES_PER_SECOND,
+//            target: self,
+//            selector: #selector(updatedChartData),
+//            userInfo: nil,
+//            repeats: true
+//        )
+//    }
+//    
+//    @objc private func updatedChartData() {
+//        measurementModel.inputFilteringGvalue.onNext(filter(g: chartData))
+//    }
+//    
+//    private func filter(
+//        g: [Float]
+//    ) -> Double {
+//        let a = [1.0, -7.30103128, 23.42566938, -43.14485924, 49.89209273, -37.09502293, 17.31790014, -4.64159393, 0.54684548]
+//        let b = [0.00013253, 0.0, -0.00053013, 0.0, 0.0007952, 0.0, -0.00053013, 0.0, 0.00013253]
+//        
+//        var x: [Double] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+//        var y: [Double] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+//        var result = Double()
+//        
+//        for i in g.indices {
+//            x.insert(Double(g[i]), at: 0)
+//            
+//            result = ((b[0] * x[0])
+//                      + (b[1] * x[1])
+//                      + (b[2] * x[2])
+//                      + (b[3] * x[3])
+//                      + (b[4] * x[4])
+//                      + (b[5] * x[5])
+//                      + (b[6] * x[6])
+//                      + (b[7] * x[7])
+//                      + (b[8] * x[8])
+//                      - (a[1] * y[0])
+//                      - (a[2] * y[1])
+//                      - (a[3] * y[2])
+//                      - (a[4] * y[3])
+//                      - (a[5] * y[4])
+//                      - (a[6] * y[5])
+//                      - (a[7] * y[6])
+//                      - (a[8] * y[7]))
+//            
+//            y.insert(result, at: 0)
+//            x.removeLast()
+//            y.removeLast()
+//        }
+//        return result
+//    }
+//    func collectRGB(
+//        timeStamp: Double,
+//        r: Float,
+//        g: Float,
+//        b: Float
+//    ) {
+//        chartData.append(g)
+//        sigR.append(r)
+//        sigG.append(g)
+//        sigB.append(b)
+//        totalData.append((timeStamp, r, g, b))
+//    }
+//    
+//    func collectAccelemeterData(
+//        _ acc: CMAccelerometerData?,
+//        _ err: Error?
+//    ) {
+//        if err != nil {
+//            print("error")
+//            return
+//        } else {
+//            guard let accMeasureData = acc?.acceleration else {
+//                print("accelerometer measured data return")
+//                return
+//            }
+//            var x: Float = 0, y: Float = 0, z: Float = 0
+//            x = Float(accMeasureData.x)
+//            y = Float(accMeasureData.y)
+//            z = Float(accMeasureData.z)
+//            
+//            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
+//            guard timeStamp > 100 else { return print("acc timeStamp error") }
+//            accXdata.append(x)
+//            accYdata.append(y)
+//            accZdata.append(z)
+//            accData.append((timeStamp, x, y, z))
+//        }
+//    }
+//    
+//    func collectGyroscopeData(
+//        _ gyro: CMGyroData?,
+//        _ err: Error?
+//    ) {
+//        if err != nil {
+//            print("error")
+//        } else {
+//            guard let gyroMeasureData = gyro?.rotationRate else {
+//                print("gyro measured data return")
+//                return
+//            }
+//            var x: Float = 0, y: Float = 0, z: Float = 0
+//            x = Float(gyroMeasureData.x)
+//            y = Float(gyroMeasureData.y)
+//            z = Float(gyroMeasureData.z)
+//            
+//            let timeStamp = (Date().timeIntervalSince1970 * 1000000).rounded()
+//            guard timeStamp > 100 else { return print("gyro timeStamp error") }
+//            gyroXdata.append(x)
+//            gyroYdata.append(y)
+//            gyroZdata.append(z)
+//            gyroData.append((timeStamp, x, y, z))
+//        }
+//    }
+//    
+//    func initRGBData() {
+//        sigR.removeAll()
+//        sigG.removeAll()
+//        sigB.removeAll()
+//        totalData.removeAll()
+//    }
+//    
+//    func initAccData() {
+//        accXdata.removeAll()
+//        accYdata.removeAll()
+//        accZdata.removeAll()
+//        accData.removeAll()
+//    }
+//    
+//    func initGyroData() {
+//        gyroXdata.removeAll()
+//        gyroYdata.removeAll()
+//        gyroZdata.removeAll()
+//        gyroData.removeAll()
+//    }
 }
