@@ -28,7 +28,15 @@ class MeasurementModel {
     
     //손가락 전용
     let outputFingerStatus = PublishSubject<MeasurementModel.status>()
-    let fingerMeasurementComplete = BehaviorSubject(value: (false, URL(string: ""), URL(string: ""), URL(string: "")))
+//    let fingerMeasurementComplete = BehaviorSubject(value: (false, URL(string: ""), URL(string: ""), URL(string: "")))
+    let fingerMeasurementComplete = PublishSubject<(
+        success: Bool,
+        rgbURL: URL,
+        accURL: URL,
+        gyroURL: URL
+    )>()
+    let accFilePath = PublishSubject<URL>()
+    let gyroFilePath = PublishSubject<URL>()
     
     var stoppedByNotTap = false
     var stoppedByFlipingDevice = false

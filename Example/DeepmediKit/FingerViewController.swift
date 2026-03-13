@@ -108,7 +108,6 @@ class FingerViewController: UIViewController {
                 DispatchQueue.global(qos: .background).async {
                     self.fingerMeasureKit.stopSession()
                 }
-                self.fingerMeasureKit.stopSession()
             } else {
                 print("error")
             }

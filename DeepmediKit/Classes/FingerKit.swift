@@ -92,18 +92,36 @@ open class FingerKit: NSObject {
     }
     ///success: Bool, rgb: URL?, acc: URL?, gyro: URL?
     public func finishedMeasurement(
-        _ isSuccess: @escaping((_ success: Bool,_ rgbPath: URL?,_ accPath: URL?,_ gyroPath: URL?) -> ())
+        _ isSuccess: @escaping((_ success: Bool,_ rgbPath: URL,_ accPath: URL,_ gyroPath: URL) -> ())
     ) {
-        let completion = measurementModel.fingerMeasurementComplete
-        completion
-            .asDriver(onErrorJustReturn: (false, URL(string: ""), URL(string: ""), URL(string: "")))
-            .drive(onNext: { result in
-                isSuccess(result.0,
-                          result.1,
-                          result.2,
-                          result.3)
-            })
-            .disposed(by: bag)
+        let completion = measurementModel.measurementComplete
+        let filePath = measurementModel.rgbFilePath
+        let accFilePath = measurementModel.accFilePath
+        let gyroFilePath = measurementModel.gyroFilePath
+        
+        Observable.combineLatest(
+            completion,
+            filePath,
+            accFilePath,
+            gyroFilePath
+        )
+        .observe(on: MainScheduler.instance)
+        .asDriver(onErrorJustReturn: (
+            success: false,
+            rgbURL:  URL(fileURLWithPath: ""),
+            accURL:  URL(fileURLWithPath: ""),
+            gyroURL: URL(fileURLWithPath: "")
+            )
+        )
+        .drive(onNext: { result in
+            isSuccess(
+                result.0,
+                result.1,
+                result.2,
+                result.3
+            )
+        })
+        .disposed(by: bag)
     }
     
     public func stopMeasurement(
@@ -183,7 +201,7 @@ open class FingerKit: NSObject {
     
     private func stopMeasurement() {
         isComplete = true
-        cameraSetup.useCaptureDevice().exposureMode = .autoExpose
+        cameraSetup.setUpCaptureDevice(.autoExpose)
         cameraSetup.useSession().stopRunning()
         motionManager.stopAccelerometerUpdates()
         motionManager.stopGyroUpdates()
@@ -330,9 +348,13 @@ open class FingerKit: NSObject {
     }
     
     private func startTimer() {
-        let completion               = measurementModel.fingerMeasurementComplete,
+        let completion               = measurementModel.measurementComplete,
             secondRemaining          = measurementModel.secondRemaining,
             measurementCompleteRatio = measurementModel.measurementCompleteRatio
+        
+        let rgbFilePath = measurementModel.rgbFilePath
+        let accFilePath = measurementModel.accFilePath
+        let gyroFilePath = measurementModel.gyroFilePath
         
         isComplete = true
         initRGBData()
@@ -351,47 +373,31 @@ open class FingerKit: NSObject {
             guard self.measurementTime <= 0.0,
                   let rgbPath = self.document.make(data: .rgb, dataSet: totalData) else {
                 print("rgbPath is nil")
-                completion.onNext(
-                    (
-                        success: false,
-                        rgbURL:  URL(string: "there is not rgb path"),
-                        accURL:  URL(string: "there is not acc path"),
-                        gyroURL: URL(string: "there is not gyro path")
-                    )
-                )
+                completion.onNext(false)
+                rgbFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
+                accFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
+                gyroFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
                 return
             }
             self.notiGenerator.notificationOccurred(.success)
             if self.model.breathMeasurement {
                 if let accPath  = self.document.make(data: .acc, dataSet: accData),
                     let gyroPath = self.document.make(data: .gyro, dataSet: gyroData) {
-                    completion.onNext(
-                        (
-                            success: true,
-                            rgbURL:  rgbPath,
-                            accURL:  accPath,
-                            gyroURL: gyroPath
-                        )
-                    )
+                    completion.onNext(true)
+                    rgbFilePath.onNext(rgbPath)
+                    accFilePath.onNext(accPath)
+                    gyroFilePath.onNext(gyroPath)
                 } else {
-                    completion.onNext(
-                        (
-                            success: false,
-                            rgbURL:  URL(string: "there is not rgb path"),
-                            accURL:  URL(string: "there is not acc path"),
-                            gyroURL: URL(string: "there is not gyro path")
-                        )
-                    )
+                    completion.onNext(false)
+                    rgbFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
+                    accFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
+                    gyroFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
                 }
             } else {
-                completion.onNext(
-                    (
-                        success: true,
-                        rgbURL:  rgbPath,
-                        accURL:  URL(string: "there is not acc path"),
-                        gyroURL: URL(string: "there is not gyro path")
-                    )
-                )
+                completion.onNext(true)
+                rgbFilePath.onNext(rgbPath)
+                accFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
+                gyroFilePath.onNext(URL(fileURLWithPath: "there is not rgb path"))
             }
             self.stopMeasurement()
         }
