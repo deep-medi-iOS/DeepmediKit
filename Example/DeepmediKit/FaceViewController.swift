@@ -110,13 +110,7 @@ class FaceViewController: UIViewController {
             secretKey: "secretKey",
             apiKey: "apikey",
             genderType: .MALE,
-            age: 20,
-            height: 170,
-            weight: 70,
-            belly: Int(),
-            exerciseType: .none,
-            smokeType: .none,
-            diabetesType: .none
+            age: 20
         ) { healthInfo in
             print("[++\(#fileID):\(#line)]- healthInfo: ", healthInfo)
         }

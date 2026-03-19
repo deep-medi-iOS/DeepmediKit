@@ -114,8 +114,8 @@ public class FaceKit: NSObject {
         apiKey: String,
         genderType: HealthCareInfo.genderType,
         age: Int,
-        height: Int,
-        weight: Int,
+        height: Int? = 0,
+        weight: Int? = 0,
         belly: Int? = nil,
         exerciseType: HealthCareInfo.exerciseType? = nil,
         smokeType: HealthCareInfo.smokeType? = nil,
@@ -266,13 +266,13 @@ public class FaceKit: NSObject {
                                let smoke = self.model.smoke,
                                let diabetes = self.model.diabetes {
                                 
-                                self.service.cardiacRisk(
+                                self.service.ca3rdiacRisk(
                                     secretKey: self.model.secretKey,
                                     apiKey: self.model.apiKey,
                                     gender: self.model.gender,
                                     age: self.model.age,
-                                    height: self.model.height,
-                                    weight: self.model.weight,
+                                    height: self.model.height ?? 0,
+                                    weight: self.model.weight ?? 0,
                                     belly: belly,
                                     act: act,
                                     smoke: smoke,

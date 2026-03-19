@@ -23,8 +23,8 @@ class Service {
         rgbPath: URL,
         age: Int,
         gender: Int,
-        weight: Int,
-        height: Int,
+        weight: Int?,
+        height: Int?,
         _ com: @escaping((Error?) -> ())
     ) {
         let ppgHealthURL = "https://siigjmw19n.apigw.ntruss.com"
@@ -46,8 +46,8 @@ class Service {
                 let params: [String: String] = [
                     "age": "\(age)",
                     "gender": "\(gender)",
-                    "weight": "\(weight)",
-                    "height": "\(height)"
+                    "weight": "\(weight ?? 0)",
+                    "height": "\(height ?? 0)"
                 ]
                 
                 // rgb 파일 mimeType은 실제 포맷에 맞게 조정 (예: video/mp4, application/octet-stream 등)

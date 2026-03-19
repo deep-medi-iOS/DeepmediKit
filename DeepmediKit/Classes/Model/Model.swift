@@ -40,8 +40,8 @@ class Model {
 //    var windowSec: Int
 //    var overlappingSec: Int
     var age: Int,
-        height: Int,
-        weight: Int
+        height: Int?,
+        weight: Int?
     
     var belly: Int?,
         act: Int?,
@@ -69,8 +69,6 @@ class Model {
         
         self.age = 20
         self.gender = 0
-        self.height = 160
-        self.weight = 60
 
         self.faceMeasurementTime = 15.0
 //        self.windowSec = 15
