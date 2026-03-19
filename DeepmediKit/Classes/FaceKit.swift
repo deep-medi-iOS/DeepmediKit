@@ -266,7 +266,7 @@ public class FaceKit: NSObject {
                                let smoke = self.model.smoke,
                                let diabetes = self.model.diabetes {
                                 
-                                self.service.ca3rdiacRisk(
+                                self.service.cardiacRisk(
                                     secretKey: self.model.secretKey,
                                     apiKey: self.model.apiKey,
                                     gender: self.model.gender,
