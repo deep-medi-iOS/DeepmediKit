@@ -9,7 +9,7 @@ import Foundation
 import RxSwift
 import RxCocoa
 
-class MeasurementModel {
+internal final class MeasurementModel {
     let acc = PublishRelay<FaceKit.Acceleration>()
     let gyro = PublishRelay<FaceKit.Gyroscope>()
     

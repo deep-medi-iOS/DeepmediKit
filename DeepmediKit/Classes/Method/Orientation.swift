@@ -9,14 +9,13 @@ import AVFoundation
 import AVKit
 
 final class Orientation {
-    
+    // 얼굴 회전 관련
     func flipPathHorizontally(_ path: CGPath, in size: CGSize) -> CGPath {
         var t = CGAffineTransform.identity
         t = t.translatedBy(x: size.width, y: 0)
         t = t.scaledBy(x: -1, y: 1)
         return path.copy(using: &t) ?? path
     }
-    
     func flipImage(
         _ image: UIImage
     ) -> UIImage? {
@@ -31,7 +30,7 @@ final class Orientation {
             image.draw(in: CGRect(origin: .zero, size: image.size))
         }
     }
-    
+    // 디바이스 회전에 맞춰 얼굴 회원 -> 사실상 세워서만 사용 하도록
     func image(
         fromDevicePosition devicePosition: AVCaptureDevice.Position = .back
     ) -> UIImage.Orientation {
@@ -45,7 +44,7 @@ final class Orientation {
         switch deviceOrientation {
             case .portrait:
                 return .leftMirrored
-                //            return devicePosition == .front ? .leftMirrored : .right
+//            return devicePosition == .front ? .leftMirrored : .right
             case .landscapeLeft:
                 return devicePosition == .front ? .downMirrored : .up
             case .portraitUpsideDown:
@@ -58,8 +57,8 @@ final class Orientation {
                 fatalError()
         }
     }
-    
-    func currentUI() -> UIDeviceOrientation {
+    //화면 좌우 반전 설정
+    private func currentUI() -> UIDeviceOrientation {
         let deviceOrientation = { () -> UIDeviceOrientation in
             if #available(iOS 13.0, *) {
                 let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }

@@ -8,7 +8,7 @@
 import UIKit
 import MLKitVision
 import MLKitFaceDetection
-
+//실제얼굴인지 확인하는 클래스
 final class Antispoofing: NSObject {
     private var checkLeftArr: [Bool] = [],
                 checkRightArr: [Bool] = [],
@@ -21,7 +21,7 @@ final class Antispoofing: NSObject {
         diffLeftArr.removeAll()
         diffRightArr.removeAll()
     }
-    
+    //ML Kit에서 제공하는 프레임워크로 확인
     func checkReal(
         _ face: Face
     ) -> (left: Bool, right: Bool) {
@@ -53,7 +53,7 @@ final class Antispoofing: NSObject {
             right: containsPatternTwice(in: checkRightArr)
         )
     }
-    
+    //눈 깜박임 플래그를 수집하여 연속 두번 깜박(true)일 경우 true 반환
     private func containsPatternTwice(in array: [Bool]) -> Bool {
         var count = 0
         // 배열을 반복해서 false, true 패턴을 찾습니다.

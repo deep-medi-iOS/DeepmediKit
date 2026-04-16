@@ -11,6 +11,7 @@ import AVFoundation
 
 final class CropBuffer {
     // MARK: ImageBuffer crop
+    // 화면 전체 샘플버퍼에서 얼굴크기만큼만 크롭해서 샘플버퍼 전달
     func sample(
         _ sampleBuffer: CMSampleBuffer,
         with rect: CGRect

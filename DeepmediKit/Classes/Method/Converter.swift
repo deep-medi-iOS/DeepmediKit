@@ -74,6 +74,7 @@ final class SampleBufferConverter {
         return [NSNumber(value: r), NSNumber(value: g), NSNumber(value: b)]
     }
     
+    // 아래 함수는 보류
     /// OpenCV equivalent:
     /// resize(36x36) -> grayscale -> rotate 90 CW
     /// Returns: 36*36 = 1296 bytes
