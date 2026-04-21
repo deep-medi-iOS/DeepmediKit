@@ -21,6 +21,7 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
+    let header = Header()
     let camera = CameraObject()
     
     let faceMeasureKit = FaceKit()
@@ -66,7 +67,7 @@ class FaceViewController: UIViewController {
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         setupUI()
-
+        
         faceMeasureKit.startSession()
     }
 
