@@ -130,47 +130,53 @@ class FaceViewController: UIViewController {
         }
         
         faceMeasureKit.finishedMeasurement(for: .all) { result in
-            if case let .filePath(result, path) = result {
-                if result {
-                    print("file path: \(path)")
-                } else {
-                    print("result is failed")
-                }
-            } else if case let .rawData(result, dataSet) = result {
-                if result {
-                    let ts = dataSet.ts,
-                        sigR = dataSet.sigR,
-                        sigG = dataSet.sigG,
-                        sigB = dataSet.sigB
-                    
-                    if ts.count > 0
-                        && sigR.count > 0
-                        && sigG.count > 0
-                        && sigB.count > 0 {
-                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
-                    } else {
-                        print("data error")
+            Task {
+                do {
+                    let headers = try await self.header.getHeader(
+                        uri   : "uri",
+                        apiKey: "apikey"
+                    )
+                    if case let .filePath(result, path) = result {
+                        if result {
+                            print("file path: \(path)")
+                        }
+                    } else if case let .rawData(result, dataSet) = result {
+                        if result {
+                            let ts = dataSet.ts,
+                                sigR = dataSet.sigR,
+                                sigG = dataSet.sigG,
+                                sigB = dataSet.sigB
+                            
+                            if ts.count > 0
+                                && sigR.count > 0
+                                && sigG.count > 0
+                                && sigB.count > 0 {
+                                print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
+                            } else {
+                                print("data error")
+                            }
+                        }
+                    } else if case let .all(result, path, dataSet) = result {
+                        if result {
+                            print("file path: \(path)")
+                            let ts = dataSet.ts,
+                                sigR = dataSet.sigR,
+                                sigG = dataSet.sigG,
+                                sigB = dataSet.sigB
+                            
+                            if ts.count > 0
+                                && sigR.count > 0
+                                && sigG.count > 0
+                                && sigB.count > 0 {
+                                print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
+                            } else {
+                                print("data error")
+                            }
+                        }
                     }
+                } catch let error {
+                    print("header error: \(error.localizedDescription)")
                 }
-            } else if case let .all(result, path, dataSet) = result {
-                if result {
-                    print("file path: \(path)")
-                    let ts = dataSet.ts,
-                        sigR = dataSet.sigR,
-                        sigG = dataSet.sigG,
-                        sigB = dataSet.sigB
-                    
-                    if ts.count > 0
-                        && sigR.count > 0
-                        && sigG.count > 0
-                        && sigB.count > 0 {
-                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
-                    } else {
-                        print("data error")
-                    }
-                }
-            } else {
-                print("finish error")
             }
             self.faceMeasureKit.stopSession()
         }
