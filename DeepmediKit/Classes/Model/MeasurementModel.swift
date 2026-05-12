@@ -37,6 +37,8 @@ internal final class MeasurementModel {
     
     let yMean = PublishSubject<Float>()
     
+    let lightingChange = PublishSubject<LightingChangeDetectorResult>()
+    
     let metaData = BehaviorRelay<FaceKit.Metadata>(
         value: FaceKit.Metadata.init(
             iso: 0.0,

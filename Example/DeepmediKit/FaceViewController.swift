@@ -85,7 +85,6 @@ class FaceViewController: UIViewController {
 
     func completionMethod() {
         faceMeasureKit.checkRealFace { check in
-            print("face is real: \(check)")
             if check {
                 self.tempView.backgroundColor = .green
             } else {
@@ -94,7 +93,6 @@ class FaceViewController: UIViewController {
         }
         
         faceMeasureKit.captureDeviceMode { metaData in
-//            print("[++\(#fileID):\(#line)]- iso: ", iso)
             self.isoLabel.text = "\(metaData.iso)"
         }
         
@@ -106,8 +104,11 @@ class FaceViewController: UIViewController {
             
         }
         
+        faceMeasureKit.lightingChanged { result in
+            
+        }
+        
         faceMeasureKit.captureImage { capture in
-            print("[++\(#fileID):\(#line)]- image ")
             if let screen = capture.screen,
                let crop = capture.face {
                 self.captureImageView.image = screen

@@ -167,6 +167,26 @@ public extension FaceKit {
             })
             .disposed(by: bag)
     }
+    
+    func lightingChanged(
+        _ result: @escaping((LightingChangeDetectorResult) -> ())
+    ) {
+        let lightingChange = measurementModel.lightingChange
+        lightingChange
+            .asDriver(
+                onErrorJustReturn: .init(
+                    changed: false,
+                    rawDerivative: 0.0,
+                    smoothedDerivative: 0.0,
+                    brightness: 0.0
+                )
+            )
+            .drive(onNext: { value in
+                result(value)
+            })
+            .disposed(by: bag)
+        
+    }
     // 실제 얼굴 확인 output
     func checkRealFace(
         _ isReal: @escaping((Bool) -> ())

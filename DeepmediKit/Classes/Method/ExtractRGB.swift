@@ -34,6 +34,21 @@ extension FaceKit {
             sigG.append(g)
             sigB.append(b)
             totalData.append(dataSet)
+            let result = lightingChangeDetector.update(
+                sigR: r,
+                sigG: g,
+                sigB: b
+            )
+            if result.changed {
+                measurementModel.lightingChange.onNext(
+                    .init(
+                        changed: result.changed,
+                        rawDerivative: result.rawDerivative,
+                        smoothedDerivative: result.smoothedDerivative,
+                        brightness: result.brightness
+                    )
+                )
+            }
         } else if !isTimerRunning {
             tempG.append(g)
         }

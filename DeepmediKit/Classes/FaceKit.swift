@@ -94,7 +94,7 @@ public class FaceKit: NSObject {
     
     internal let bag = DisposeBag()
     
-    internal let document = Document(), measurementModel = MeasurementModel()
+    internal let document = Document(), measurementModel = MeasurementModel(), lightingChangeDetector = LightingChangeDetector()
     
     internal let model       = Model.shared,
                  cameraSetup = CameraSetup.shared

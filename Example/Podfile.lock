@@ -1,6 +1,6 @@
 PODS:
   - Alamofire (5.11.1)
-  - DeepmediKit (999.1.1):
+  - DeepmediKit (999.2.0):
     - GoogleMLKit/FaceDetection (= 6.0.0)
     - RxCocoa (= 6.8.0)
     - RxSwift (= 6.8.0)
@@ -96,7 +96,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: eec6cd8f73b242b59e34153a606a909eb9864b14
-  DeepmediKit: 64af0ca903515c76f80f36d341d4744c367d0e9b
+  DeepmediKit: 373e98ac2bcba2ad87397cc157e2a105db057e90
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 97ac7af399057e99182ee8edfa8249e3226a4065
   GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8
