@@ -182,7 +182,14 @@ public extension FaceKit {
                 )
             )
             .drive(onNext: { value in
-                result(value)
+                result(
+                    LightingChangeDetectorResult.init(
+                        changed: value.changed,
+                        rawDerivative: value.rawDerivative,
+                        smoothedDerivative: value.smoothedDerivative,
+                        brightness: value.brightness
+                    )
+                )
             })
             .disposed(by: bag)
         

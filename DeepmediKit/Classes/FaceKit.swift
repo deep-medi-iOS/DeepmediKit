@@ -74,6 +74,13 @@ public class FaceKit: NSObject {
                    gyroPath: URL
     }
     
+    public struct LightingChangeDetectorResult {
+        public let changed: Bool
+        public let rawDerivative: Float
+        public let smoothedDerivative: Float
+        public let brightness: Float
+    }
+    
     struct FrameData {
         let timestampUS: Double
         let width: Int
@@ -106,10 +113,10 @@ public class FaceKit: NSObject {
     
 // MARK: Property 
     internal var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
-               prepareTimer = Timer(),
-               measurementTime = Double(), // 측정하는 시간
-               measurementTimer = Timer(),
-               motionManager = CMMotionManager()
+                 prepareTimer = Timer(),
+                 measurementTime = Double(), // 측정하는 시간
+                 measurementTimer = Timer(),
+                 motionManager = CMMotionManager()
     
     internal var previewLayer = AVCaptureVideoPreviewLayer(),
                 faceRecognitionAreaView = UIView()

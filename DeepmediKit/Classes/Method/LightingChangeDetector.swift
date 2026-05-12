@@ -27,7 +27,7 @@ final internal class LightingChangeDetector {
         sigR: Float,
         sigG: Float,
         sigB: Float
-    ) -> LightingChangeDetectorResult {
+    ) -> FaceKit.LightingChangeDetectorResult {
         let brightness =
             Self.luminanceRCoeff * sigR +
             Self.luminanceGCoeff * sigG +
@@ -35,7 +35,7 @@ final internal class LightingChangeDetector {
 
         guard let prev = prevBrightness else {
             prevBrightness = brightness
-            return LightingChangeDetectorResult(
+            return FaceKit.LightingChangeDetectorResult(
                 changed: false,
                 rawDerivative: 0.0,
                 smoothedDerivative: 0.0,
@@ -53,7 +53,7 @@ final internal class LightingChangeDetector {
         prevBrightness = brightness
         let smoothedDerivative =
             derivativeBuffer.reduce(0.0, +) / Float(derivativeBuffer.count)
-        return LightingChangeDetectorResult(
+        return FaceKit.LightingChangeDetectorResult(
             changed: smoothedDerivative > threshold,
             rawDerivative: rawDerivative,
             smoothedDerivative: smoothedDerivative,
@@ -71,11 +71,4 @@ private extension LightingChangeDetector {
     static let luminanceRCoeff: Float = 0.299
     static let luminanceGCoeff: Float = 0.587
     static let luminanceBCoeff: Float = 0.114
-}
-
-public struct LightingChangeDetectorResult {
-    let changed: Bool
-    let rawDerivative: Float
-    let smoothedDerivative: Float
-    let brightness: Float
 }
