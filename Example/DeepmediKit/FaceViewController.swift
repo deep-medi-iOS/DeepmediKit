@@ -62,6 +62,10 @@ class FaceViewController: UIViewController {
         faceMeasureKitModel.setPrepareTime(1)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
+        faceMeasureKitModel.setFaceAngle(5)//얼굴 움직임 제한 각도
+        faceMeasureKitModel.setStatbleRatio(0.05)//얼굴위치 제한 비율
+        faceMeasureKitModel.setStableFrameCount(3)//안정상태 프레임수 조절
+        faceMeasureKitModel.setBaselineAngle(10)//안정상태시 얼굴제한 각도
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         

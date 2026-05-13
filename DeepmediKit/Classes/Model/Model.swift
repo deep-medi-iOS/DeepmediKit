@@ -57,5 +57,6 @@ class Model {
         self.stableRatio = 0.05
         self.faceAngle = 5
         self.baselineAngle = 10
+        self.stableFrameCount = 3
     }
 }
