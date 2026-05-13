@@ -100,10 +100,6 @@ class FaceViewController: UIViewController {
             
         }
         
-        faceMeasureKit.yMean { yMean in
-            
-        }
-        
         faceMeasureKit.lightingChanged { result in
             
         }

@@ -24,6 +24,11 @@ class Model {
     var previewLayer: AVCaptureVideoPreviewLayer?
     var previewLayerBounds: CGRect
     
+    var stableRatio: Double
+    var stableFrameCount: Int
+    var faceAngle: Int
+    var baselineAngle: Int
+    
     var faceMeasurementTime: Double {
         didSet {
             if self.faceMeasurementTime < 15.0 {
@@ -48,5 +53,9 @@ class Model {
         self.limitNoTapTime = 6
         self.fingerMeasurementTime = 15.0
         self.breathMeasurement = true
+        
+        self.stableRatio = 0.05
+        self.faceAngle = 5
+        self.baselineAngle = 10
     }
 }

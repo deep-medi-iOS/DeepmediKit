@@ -28,7 +28,10 @@ public extension FaceKit {
                 return
             }
             self.previewLayer = previewLayer
-            self.willCheckRealFace = model.willCheckRealFace
+            self.willCheckRealFace = self.model.willCheckRealFace
+            self.stableRatio       = self.model.stableRatio
+            self.faceAngle         = self.model.faceAngle
+            self.baselineAngle     = self.model.baselineAngle
             
             if self.model.useFaceRecognitionArea,
                let faceRecognitionAreaView = self.model.faceRecognitionAreaView {

@@ -134,9 +134,14 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 print("sample buffer error")
                 return
             }
+            guard let currentPose = measurementModel.headAnglesRelay.value else {
+                print("[++\(#fileID):\(#line)]- currentPose is nil ")
+                return
+            }
+            setBaselinePose(currentPose: currentPose)
             // MARK: Metadata
-            if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal {
-                guard tempG.count >= 30 else { return } // 1초 딜레이를 위해 사용
+            if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal && isWithinBaselinePose(currentPose: currentPose) {
+                guard tempG.count >= 30 else { return }
                 measurementModel.checkRealFace.onNext(true)
                 tempG.removeAll()
                 isTimerRunning = true
@@ -147,8 +152,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                     guard let self else { return }
                     measurementModel.secondRemaining.onNext(preparingSec)
                     if preparingSec == 0 {
-                        screenCapture()
                         prepareTimer.invalidate()
+                        screenCapture()
                         cameraSetup.setUpCaptureDevice(.locked)
                         saveMeasurementOutputs()
                     }
@@ -184,7 +189,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 useFaceRecognitionArea: useFaceRecognitionArea,
                 recognitionArea: recognitionArea
             )
-
+    
             if isMeasurableFacePosition {
                 self.measurementModel.measurementStop.onNext(false)
                 self.cropFaceRect = CGRect(
@@ -194,6 +199,21 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                     height: face.frame.height
                 ).integral // 얼굴인식 위치 계산
                 
+                
+                let isStablePosition: Bool
+                if let previousFaceFrame = previousFaceFrame {
+                    isStablePosition = isStableFacePosition(
+                        previous: previousFaceFrame,
+                        current: recognitionStandardizedRect,
+                        imageWidth: face.frame.width,
+                        imageHeight: face.frame.height
+                    )
+                } else {
+                    isStablePosition = false
+                }
+                
+                positionStableCount = isStablePosition ? positionStableCount + 1 : 0
+                previousFaceFrame = recognitionStandardizedRect
                 self.processLandmarkCroppedFaceData(
                     for: face,
                     imageWidth: imageWidth,
@@ -213,6 +233,28 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             }
         }
     }
+    
+    private func isStableFacePosition(
+        previous: CGRect,
+        current: CGRect,
+        imageWidth: CGFloat,
+        imageHeight: CGFloat
+    ) -> Bool {
+        guard imageWidth > 0, imageHeight > 0 else {
+            return false
+        }
+        let threshold = model.stableRatio
+        let topDiff    = Double(abs(previous.minY - current.minY) / imageHeight)
+        let bottomDiff = Double(abs(previous.maxY - current.maxY) / imageHeight)
+        let leftDiff   = Double(abs(previous.minX - current.minX) / imageWidth)
+        let rightDiff  = Double(abs(previous.maxX - current.maxX) / imageWidth)
+        
+        return topDiff < threshold
+            && bottomDiff < threshold
+            && leftDiff < threshold
+            && rightDiff < threshold
+    }
+    
     //얼굴인식구역 설정 -> 얼굴 보다 큰 바깥구역(외부구역) 하나와 얼굴보다 작은 안쪽구역(내부구역) 하나 설정
     //얼굴은 외부구역보다는 안쪽, 내부구역보다는 바깥쪽에 존재해야 함
     private func faceDetectAreaCondition(

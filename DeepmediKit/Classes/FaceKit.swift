@@ -147,6 +147,17 @@ public class FaceKit: NSObject {
     internal var bytesArray: [[UInt8]] = []
     internal var frameDataArr: [FrameData] = []
     
+    internal var stableRatio: Double = 0.05
+    internal var faceAngle: Int = 5
+    internal var baselineAngle: Int = 10
+    internal var stableFrameCount: Int = 3
+    
+    internal var previousFaceFrame: CGRect?
+    internal var previousHeadAngle: HeaderAngles?
+    internal var baselineHeadAngle: HeaderAngles?
+    internal var positionStableCount: Int = 0
+    internal var angleStableCount: Int = 0
+    
     public override init() {
         super.init()
         print("[++\(#fileID):\(#line)]- init ")

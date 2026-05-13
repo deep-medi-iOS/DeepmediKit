@@ -40,4 +40,27 @@ public class FaceKitModel: NSObject {
     ) {
         self.model.prepareTime = time ?? 1
     }
+    
+    public func setStatbleRatio(
+        _ ratio: Double?
+    ) {
+        self.model.stableRatio = ratio ?? 0.05
+    }
+    
+    public func setFaceAngle(
+        _ angle: Int?
+    ) {
+        self.model.faceAngle = angle ?? 5
+    }
+    
+    public func setBaselineAngle(
+        _ angle: Int?
+    ) {
+        self.model.baselineAngle = angle ?? 10
+    }
+    public func setStableFrameCount(
+        _ count: Int?
+    ) {
+        self.model.stableFrameCount = count ?? 3
+    }
 }

@@ -69,10 +69,10 @@ extension FaceKit {
         cropLandMarkFace: UIImage
     ) {
         let yMean = SampleBufferConverter.extractYUVFromDetectFace(sampleBuffer)
-        //degree
-        let pitch = face.headEulerAngleX  // 위/아래
-        let yaw   = face.headEulerAngleY  // 좌/우 회전
-        let roll  = face.headEulerAngleZ  // 좌/우 기울기(tilt)
+        let headAngles = extractHeadAngles(from: face)
+        let pitch = headAngles.pitch
+        let yaw = headAngles.yaw
+        let roll = headAngles.roll
         let device = cameraSetup.useCaptureDevice()
         let iso = device.iso
         //AE locked = 0, autoExpose = 1, continuousAutoExposure = 2
@@ -101,7 +101,7 @@ extension FaceKit {
                 afState: focusState
             )
         )
-
+        
         measurementModel.headAnglesRelay.accept(
             HeaderAngles.init(
                 pitch: pitch,
@@ -118,6 +118,37 @@ extension FaceKit {
             )
         )
         measurementModel.yMean.onNext(yMean)
+        
+        let isStableAngle: Bool
+        if let previousHeadAngles = previousHeadAngle {
+            isStableAngle = isStableHeadAngle(
+                previous: previousHeadAngles,
+                current: headAngles
+            )
+        } else {
+            isStableAngle = false
+        }
+        
+        angleStableCount = isStableAngle ? angleStableCount + 1 : 0
+        previousHeadAngle = headAngles
+    }
+    
+    private func extractHeadAngles(from face: Face) -> HeaderAngles {
+        return HeaderAngles(
+            pitch: face.headEulerAngleX, // 위/아래
+            yaw: face.headEulerAngleY,   // 좌/우 회전
+            roll: face.headEulerAngleZ   // 좌/우 기울기(tilt)
+        )
+    }
+    
+    private func isStableHeadAngle(
+        previous: HeaderAngles,
+        current: HeaderAngles
+    ) -> Bool {
+        let threshold = model.faceAngle
+        return Int(abs(previous.yaw - current.yaw)) <= threshold
+            && Int(abs(previous.pitch - current.pitch)) <= threshold
+            && Int(abs(previous.roll - current.roll)) <= threshold
     }
     
     private func modeState(mode: Int) -> String {
