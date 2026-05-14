@@ -231,7 +231,7 @@ public extension FaceKit {
         let stop = measurementModel.measurementStop
         stop
             .asDriver(onErrorJustReturn: true)
-            .distinctUntilChanged()
+            .distinctUntilChanged(==)
             .drive(onNext: { stop in
                 self.notDetectFace = stop
                 isStop(stop)

@@ -13,7 +13,7 @@ internal final class MeasurementModel {
     let acc = PublishRelay<FaceKit.Acceleration>()
     let gyro = PublishRelay<FaceKit.Gyroscope>()
     
-    let measurementStop = PublishSubject<Bool>()
+    let measurementStop = BehaviorSubject<Bool>(value: true)
     let secondRemaining = PublishSubject<Int>()
     
     let checkRealFace = BehaviorSubject(value: false)

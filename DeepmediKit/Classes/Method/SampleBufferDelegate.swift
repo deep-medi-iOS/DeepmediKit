@@ -164,6 +164,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 }
             } else {
                 cameraSetup.setUpCaptureDevice(.autoExpose)
+                measurementModel.measurementStop.onNext(true)
                 measurementModel.checkRealFace.onNext(false)
                 initRGBData()
                 isTimerRunning = false
@@ -194,7 +195,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             )
     
             if isMeasurableFacePosition {
-                self.measurementModel.measurementStop.onNext(false)
+//                    self.measurementModel.measurementStop.onNext(false)
                 self.cropFaceRect = CGRect(
                     x: face.frame.origin.x,
                     y: face.frame.origin.y,
@@ -225,8 +226,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
-                
-                self.preparingSec    = self.model.prepareTime
+//                
+//                self.preparingSec = self.model.prepareTime
                 
                 self.initRGBData()
                 self.timerReset()

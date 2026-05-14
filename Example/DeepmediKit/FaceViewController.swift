@@ -41,6 +41,11 @@ class FaceViewController: UIViewController {
         l.textColor = .white
     }
     
+    let countLabel = UILabel().then { l in
+        l.backgroundColor = .black
+        l.textColor = .white
+    }
+    
     let captureImageView = UIImageView().then { v in
         v.contentMode = .scaleAspectFit
     }
@@ -101,7 +106,7 @@ class FaceViewController: UIViewController {
         }
         
         faceMeasureKit.collectDataCount { count in
-            print("[++\(#fileID):\(#line)]- count: ", count)
+            self.countLabel.text = "\(count)"
         }
 
         faceMeasureKit.captureImage { capture in
@@ -170,6 +175,7 @@ class FaceViewController: UIViewController {
         self.view.addSubview(previousButton)
         self.view.addSubview(tempView)
         self.view.addSubview(isoLabel)
+        self.view.addSubview(countLabel)
         self.view.addSubview(captureImageView)
         self.view.addSubview(cropImageView)
         
@@ -178,6 +184,7 @@ class FaceViewController: UIViewController {
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         tempView.translatesAutoresizingMaskIntoConstraints = false
         isoLabel.translatesAutoresizingMaskIntoConstraints = false
+        countLabel.translatesAutoresizingMaskIntoConstraints = false
         captureImageView.translatesAutoresizingMaskIntoConstraints = false
         cropImageView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -204,6 +211,13 @@ class FaceViewController: UIViewController {
             isoLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             isoLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
             isoLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        NSLayoutConstraint.activate([
+            countLabel.bottomAnchor.constraint(equalTo: previousButton.topAnchor, constant: -20),
+            countLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            countLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
+            countLabel.heightAnchor.constraint(equalToConstant: 50)
         ])
 
         NSLayoutConstraint.activate([

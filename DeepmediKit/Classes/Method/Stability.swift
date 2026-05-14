@@ -31,7 +31,7 @@ extension FaceKit {
         guard let baselinePose = baselineHeadAngle else {
             return false
         }
-        let threshold = model.faceAngle
+        let threshold = model.baselineAngle
         return Int(abs(baselinePose.yaw - currentPose.yaw)) <= threshold
         && Int(abs(baselinePose.pitch - currentPose.pitch)) <= threshold
         && Int(abs(baselinePose.roll - currentPose.roll)) <= threshold
