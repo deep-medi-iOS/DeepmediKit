@@ -121,8 +121,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.timerReset()
                 self.antiSpoofing.initialize()
                 
-                self.measurementModel.checkRealFace.onNext(false)
                 self.measurementModel.measurementStop.onNext(true)
+                self.measurementModel.checkRealFace.onNext(false)
             }
         }
     }
@@ -160,7 +160,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                         cameraSetup.setUpCaptureDevice(.locked)
                         saveMeasurementOutputs()
                     }
-                    preparingSec -= 1
+                    preparingSec = preparingSec == 0 ? 0 : preparingSec - 1
                 }
             } else {
                 cameraSetup.setUpCaptureDevice(.autoExpose)

@@ -187,7 +187,6 @@ public class FaceKit: NSObject {
 
     // MARK: 측정완료
     internal func saveMeasurementOutputs() {
-        print("[++\(#fileID):\(#line)]- stop false2")
         measurementModel.measurementStop.onNext(false)
         
         let measurementComplete      = measurementModel.measurementComplete,

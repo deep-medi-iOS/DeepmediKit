@@ -64,7 +64,7 @@ class FaceViewController: UIViewController {
             captureDevice: captureDevice
         )
         faceMeasureKitModel.setMeasurementDataCount(450)
-        faceMeasureKitModel.setPrepareTime(1)
+        faceMeasureKitModel.setPrepareTime(0)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
         faceMeasureKitModel.setFaceAngle(5)//얼굴 움직임 제한 각도
@@ -94,11 +94,11 @@ class FaceViewController: UIViewController {
 
     func completionMethod() {
         faceMeasureKit.checkRealFace { check in
-            if check {
-                self.tempView.backgroundColor = .green
-            } else {
-                self.tempView.backgroundColor = .red
-            }
+//            if check {
+//                self.tempView.backgroundColor = .green
+//            } else {
+//                self.tempView.backgroundColor = .red
+//            }
         }
         
         faceMeasureKit.captureDeviceMode { metaData in
@@ -127,6 +127,11 @@ class FaceViewController: UIViewController {
         
         faceMeasureKit.stopMeasurement { stop in
             print("stop state: \(stop)")
+            if !stop {
+                self.tempView.backgroundColor = .green
+            } else {
+                self.tempView.backgroundColor = .red
+            }
         }
         
         faceMeasureKit.finishedMeasurement(for: .all) { result in
