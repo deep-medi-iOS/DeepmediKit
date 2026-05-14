@@ -15,7 +15,7 @@ final internal class LightingChangeDetector {
     private var derivativeBuffer: [Float] = []
 
     init(
-        threshold: Float = 10.0,
+        threshold: Float = 5.0,
         smoothingWindow: Int = 5
     ) {
         precondition(smoothingWindow > 0, "smoothingWindow must be a positive number.")
