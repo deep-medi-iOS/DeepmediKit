@@ -126,7 +126,7 @@ class FaceMeasurementViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(15)
+        faceMeasureKitModel.setMeasurementDataCount(450)
         faceMeasureKitModel.setPrepareTime(0)
         faceMeasureKitModel.willUseFaceRecognitionArea(false)
         faceMeasureKitModel.willCheckRealFace(false)
@@ -200,13 +200,13 @@ class FaceMeasurementViewController: UIViewController {
             self.framesLabel.text = "\(count) FRAMES"
         }
         
-        faceMeasureKit.timesLeft {[weak self] second in
-            guard let self = self else { return }
-            if second == 15 {
-                self.writer?.startWriting()
-            }
-            self.timerLabel.text = "0:\(15 - second)"
-        }
+//        faceMeasureKit.timesLeft {[weak self] second in
+//            guard let self = self else { return }
+//            if second == 15 {
+//                self.writer?.startWriting()
+//            }
+//            self.timerLabel.text = "0:\(15 - second)"
+//        }
         
         faceMeasureKit.stopMeasurement {[weak self] stop in
             guard let self = self else { return }

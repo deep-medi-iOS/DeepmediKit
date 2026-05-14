@@ -153,6 +153,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                     measurementModel.secondRemaining.onNext(preparingSec)
                     if preparingSec == 0 {
                         prepareTimer.invalidate()
+                        baselineHeadAngle = nil
+                        previousFaceFrame = nil
+                        previousHeadAngle = nil
                         screenCapture()
                         cameraSetup.setUpCaptureDevice(.locked)
                         saveMeasurementOutputs()
@@ -224,7 +227,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.cropFaceRect = nil
                 
                 self.preparingSec    = self.model.prepareTime
-                self.measurementTime = self.model.faceMeasurementTime
                 
                 self.initRGBData()
                 self.timerReset()
@@ -248,7 +250,6 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         let bottomDiff = Double(abs(previous.maxY - current.maxY) / imageHeight)
         let leftDiff   = Double(abs(previous.minX - current.minX) / imageWidth)
         let rightDiff  = Double(abs(previous.maxX - current.maxX) / imageWidth)
-        
         return topDiff < threshold
             && bottomDiff < threshold
             && leftDiff < threshold

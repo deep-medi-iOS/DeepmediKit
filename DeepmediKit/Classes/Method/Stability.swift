@@ -12,7 +12,14 @@ extension FaceKit {
         currentPose: HeaderAngles
     ) {
         let limitCount = model.stableFrameCount
-        guard positionStableCount > limitCount, angleStableCount > limitCount, baselineHeadAngle == nil else {
+        let currentYaw = abs(currentPose.yaw)
+        let currentPitch = abs(currentPose.pitch)
+        let currentRoll = abs(currentPose.roll)
+        guard positionStableCount > limitCount,
+              angleStableCount > limitCount,
+              currentYaw <= 25,
+              currentPitch <= 20,
+              currentRoll <= 15 else {
             return
         }
         baselineHeadAngle = currentPose
@@ -26,7 +33,7 @@ extension FaceKit {
         }
         let threshold = model.faceAngle
         return Int(abs(baselinePose.yaw - currentPose.yaw)) <= threshold
-            && Int(abs(baselinePose.pitch - currentPose.pitch)) <= threshold
-            && Int(abs(baselinePose.roll - currentPose.roll)) <= threshold
+        && Int(abs(baselinePose.pitch - currentPose.pitch)) <= threshold
+        && Int(abs(baselinePose.roll - currentPose.roll)) <= threshold
     }
 }

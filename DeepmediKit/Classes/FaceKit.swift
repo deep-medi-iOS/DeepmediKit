@@ -114,7 +114,7 @@ public class FaceKit: NSObject {
 // MARK: Property 
     internal var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                  prepareTimer = Timer(),
-                 measurementTime = Double(), // 측정하는 시간
+                 measurementDataCount: Int = 450, //총 측정개수
                  measurementTimer = Timer(),
                  motionManager = CMMotionManager()
     
@@ -146,6 +146,8 @@ public class FaceKit: NSObject {
     
     internal var bytesArray: [[UInt8]] = []
     internal var frameDataArr: [FrameData] = []
+    
+    internal var changeBrightness: Bool = false
     
     internal var stableRatio: Double = 0.05
     internal var faceAngle: Int = 5
@@ -187,9 +189,7 @@ public class FaceKit: NSObject {
     internal func saveMeasurementOutputs() {
         measurementModel.measurementStop.onNext(false)
         
-        let secondRemaining          = measurementModel.secondRemaining,
-//            measurementCompleteRatio = measurementModel.measurementCompleteRatio,
-            measurementComplete      = measurementModel.measurementComplete,
+        let measurementComplete      = measurementModel.measurementComplete,
             rgbFilePath              = measurementModel.rgbFilePath,
             frameFilePath            = measurementModel.frameDataFilePath,
             accFilePath              = measurementModel.accFilePath,
@@ -198,7 +198,6 @@ public class FaceKit: NSObject {
 
         initRGBData()
         preparingSec    = model.prepareTime
-        measurementTime = model.faceMeasurementTime
         
         dispatchTimer = DispatchSource.makeTimerSource()
         dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
@@ -211,19 +210,8 @@ public class FaceKit: NSObject {
                 return
             }
             self.isTimerRunning = true
-//            if let ratio = self.completionRate(
-//                second: self.measurementTime
-//            ) {
-//                measurementCompleteRatio.onNext("\(ratio)%")
-//            }
-//            if 0.55 <= self.measurementTime && self.measurementTime <= 0.59 {
-//                self.screenCapture()
-//            }
-            secondRemaining.onNext(Int(self.measurementTime))
             measurementCount.onNext(sigR.count)
-            self.measurementTime -= 0.01
-//            if self.measurementTime <= 0.0 {
-            if self.sigR.count == 450 {
+            if self.sigR.count == measurementDataCount {
                 if let rgbPath = self.document.make(
                     data: .rgb,
                     dataSet: totalData
@@ -269,15 +257,15 @@ public class FaceKit: NSObject {
         dispatchTimer?.resume()
     }
     
-    private func completionRate(
-        second: Double
-    ) -> Int? {
-        let newValue = Int((100.0 - (second / model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
-        let ratio = newValue != lastValue ? newValue : nil
-        lastValue = newValue
-        if let r = ratio {
-            return r
-        }
-        return nil
-    }
+//    private func completionRate(
+//        second: Double
+//    ) -> Int? {
+//        let newValue = Int((100.0 - (second / model.faceMeasurementTime) * 100.0).rounded(.awayFromZero))
+//        let ratio = newValue != lastValue ? newValue : nil
+//        lastValue = newValue
+//        if let r = ratio {
+//            return r
+//        }
+//        return nil
+//    }
 }

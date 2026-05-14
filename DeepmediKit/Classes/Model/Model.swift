@@ -12,10 +12,14 @@ import RxSwift
 class Model {
     static let shared = Model()
     
-    var limitTapTime: Int
-    var limitNoTapTime: Int
-    var fingerMeasurementTime: Double
-    var breathMeasurement: Bool
+    var measurementDataCount: Int {
+        didSet {
+            if self.measurementDataCount < 450 {
+                self.measurementDataCount = 450
+            }
+        }
+    }
+    var prepareTime: Int
     
     var useFaceRecognitionArea: Bool
     var willCheckRealFace: Bool
@@ -29,14 +33,6 @@ class Model {
     var faceAngle: Int
     var baselineAngle: Int
     
-    var faceMeasurementTime: Double {
-        didSet {
-            if self.faceMeasurementTime < 15.0 {
-                self.faceMeasurementTime = 15.0
-            }
-        }
-    }
-    var prepareTime: Int
     
     init() {
         self.faceRecognitionAreaView = UIView()
@@ -46,13 +42,8 @@ class Model {
         self.useFaceRecognitionArea = true
         self.willCheckRealFace = true
         
-        self.faceMeasurementTime = 15.0
+        self.measurementDataCount = 450
         self.prepareTime = 1
-        
-        self.limitTapTime = 3
-        self.limitNoTapTime = 6
-        self.fingerMeasurementTime = 15.0
-        self.breathMeasurement = true
         
         self.stableRatio = 0.05
         self.faceAngle = 5

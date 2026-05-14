@@ -35,20 +35,23 @@ extension FaceKit {
             sigB.append(b)
             totalData.append(dataSet)
             let result = lightingChangeDetector.update(
-                sigR: r,
-                sigG: g,
-                sigB: b
+                sigR: r, sigG: g, sigB: b
             )
             if result.changed {
-                measurementModel.lightingChange.onNext(
-                    .init(
-                        changed: result.changed,
-                        rawDerivative: result.rawDerivative,
-                        smoothedDerivative: result.smoothedDerivative,
-                        brightness: result.brightness
-                    )
-                )
+                print("[++\(#fileID):\(#line)]- is lighting changed! ")
+                lightingChangeDetector.reset()
+                cropFaceRect = nil
             }
+//            if result.changed {
+//                measurementModel.lightingChange.onNext(
+//                    .init(
+//                        changed: result.changed,
+//                        rawDerivative: result.rawDerivative,
+//                        smoothedDerivative: result.smoothedDerivative,
+//                        brightness: result.brightness
+//                    )
+//                )
+//            }
         } else if !isTimerRunning {
             tempG.append(g)
         }

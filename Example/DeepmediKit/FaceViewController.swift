@@ -58,7 +58,7 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(15)
+        faceMeasureKitModel.setMeasurementDataCount(450)
         faceMeasureKitModel.setPrepareTime(1)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
@@ -100,14 +100,10 @@ class FaceViewController: UIViewController {
             self.isoLabel.text = "\(metaData.iso)"
         }
         
-        faceMeasureKit.pitchYawRoll { pitchYawRoll in
-            
+        faceMeasureKit.collectDataCount { count in
+            print("[++\(#fileID):\(#line)]- count: ", count)
         }
-        
-        faceMeasureKit.lightingChanged { result in
-            
-        }
-        
+
         faceMeasureKit.captureImage { capture in
             if let screen = capture.screen,
                let crop = capture.face {
@@ -120,19 +116,15 @@ class FaceViewController: UIViewController {
             
         }
         
-        faceMeasureKit.measurementCompleteRatio { ratio in
-//            print("complete ratio: \(ratio)")
-        }
-
-        faceMeasureKit.timesLeft { second in
-            print("second: \(second)")
+        faceMeasureKit.timesLeft { times in
+            print("left prepare time : ", times)
         }
         
         faceMeasureKit.stopMeasurement { stop in
             print("stop state: \(stop)")
         }
         
-        faceMeasureKit.finishedMeasurement(for: .filePath) { result in
+        faceMeasureKit.finishedMeasurement(for: .all) { result in
             if case let .filePath(result, path) = result {
                 if result {
                     print("file path: \(path)")
@@ -155,6 +147,13 @@ class FaceViewController: UIViewController {
                         print("data error")
                     }
                 }
+            } else if case let .all(result, path, dataSet) = result {
+                let ts = dataSet.ts
+                let sigR = dataSet.sigR
+                let sigG = dataSet.sigG
+                let sigB = dataSet.sigB
+                
+                print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
             } else {
                 print("finish error")
             }

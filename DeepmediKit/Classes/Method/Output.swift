@@ -12,7 +12,7 @@ import RxCocoa
 public extension FaceKit {
     // 세션 시작관련 정보
     func startSession() {
-        measurementTime = model.faceMeasurementTime
+        measurementDataCount = model.measurementDataCount
         preparingSec    = model.prepareTime
         isTimerRunning  = false
         dispatchTimer?.cancel()
@@ -228,7 +228,7 @@ public extension FaceKit {
     func stopMeasurement(
         _ isStop: @escaping((Bool) -> ())
     ) {
-        let stop = self.measurementModel.measurementStop
+        let stop = measurementModel.measurementStop
         stop
             .asDriver(onErrorJustReturn: true)
             .distinctUntilChanged()
@@ -290,20 +290,7 @@ public extension FaceKit {
         })
         .disposed(by: bag)
     }
-    // 측정 완료률 전달 output
-    func measurementCompleteRatio(
-        _ com: @escaping((String) -> ())
-    ) {
-        let ratio = measurementModel.measurementCompleteRatio
-        ratio
-            .asDriver(onErrorJustReturn: "0%")
-            .asDriver()
-            .drive(onNext: { ratio in
-                com(ratio)
-            })
-            .disposed(by: self.bag)
-    }
-    // 측정 완료까지 남은 시간 전달 output
+    //준비시간 중 남은 시간
     func timesLeft(
         _ com: @escaping((Int) -> ())
     ) {

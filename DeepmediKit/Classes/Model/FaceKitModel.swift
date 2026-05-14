@@ -29,10 +29,10 @@ public class FaceKitModel: NSObject {
         self.model.willCheckRealFace = check
     }
     
-    public func setMeasurementTime(
-        _ time: Double?
+    public func setMeasurementDataCount(
+        _ count: Int?
     ) {
-        self.model.faceMeasurementTime = time ?? 15.0
+        self.model.measurementDataCount = count ?? 450
     }
     
     public func setPrepareTime(

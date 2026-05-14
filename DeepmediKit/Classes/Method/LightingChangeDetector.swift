@@ -42,7 +42,7 @@ final internal class LightingChangeDetector {
                 brightness: brightness
             )
         }
-
+        
         let rawDerivative = abs(brightness - prev)
         derivativeBuffer.append(rawDerivative)
         
@@ -53,6 +53,7 @@ final internal class LightingChangeDetector {
         prevBrightness = brightness
         let smoothedDerivative =
             derivativeBuffer.reduce(0.0, +) / Float(derivativeBuffer.count)
+        
         return FaceKit.LightingChangeDetectorResult(
             changed: smoothedDerivative > threshold,
             rawDerivative: rawDerivative,
