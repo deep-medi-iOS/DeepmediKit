@@ -24,7 +24,7 @@ class FaceViewController: UIViewController {
 
     let camera = CameraDeviceController()
     
-    let faceMeasureKit = FaceKit()
+    var faceMeasureKit: FaceKit? = FaceKit()
     let faceMeasureKitModel = FaceKitConfiguration()
 
     let preview = CameraPreviewView()
@@ -58,6 +58,7 @@ class FaceViewController: UIViewController {
         self.view.backgroundColor = .white
         completionMethod()
         
+        guard let faceMeasureKit else { return }
         camera.initalized(
             delegate: faceMeasureKit,
             session: session,
@@ -80,6 +81,7 @@ class FaceViewController: UIViewController {
     }
 
     deinit {
+        faceMeasureKit?.releaseSession()
         print("[++\(#fileID):\(#line)]- vc deinit ")
     }
     
@@ -93,7 +95,7 @@ class FaceViewController: UIViewController {
     }
 
     func completionMethod() {
-        faceMeasureKit.checkRealFace { check in
+        faceMeasureKit?.checkRealFace { check in
 //            if check {
 //                self.tempView.backgroundColor = .green
 //            } else {
@@ -101,15 +103,18 @@ class FaceViewController: UIViewController {
 //            }
         }
         
-        faceMeasureKit.captureDeviceMode { metaData in
+        faceMeasureKit?.captureDeviceMode { [weak self] metaData in
+            guard let self else { return }
             self.isoLabel.text = "\(metaData.iso)"
         }
         
-        faceMeasureKit.collectDataCount { count in
+        faceMeasureKit?.collectDataCount { [weak self] count in
+            guard let self else { return }
             self.countLabel.text = "\(count)"
         }
 
-        faceMeasureKit.captureImage { capture in
+        faceMeasureKit?.captureImage { [weak self] capture in
+            guard let self else { return }
             if let screen = capture.screen,
                let crop = capture.face {
                 self.captureImageView.image = screen
@@ -121,11 +126,12 @@ class FaceViewController: UIViewController {
             
         }
         
-        faceMeasureKit.timesLeft { times in
+        faceMeasureKit?.timesLeft { times in
             print("left prepare time : ", times)
         }
         
-        faceMeasureKit.stopMeasurement { stop in
+        faceMeasureKit?.stopMeasurement { [weak self] stop in
+            guard let self else { return }
             print("stop state: \(stop)")
             if !stop {
                 self.tempView.backgroundColor = .green
@@ -134,7 +140,8 @@ class FaceViewController: UIViewController {
             }
         }
         
-        faceMeasureKit.finishedMeasurement(for: .all) { result in
+        faceMeasureKit?.finishedMeasurement(for: .all) { [weak self] result in
+            guard let self else { return }
             if case let .filePath(result, path) = result {
                 if result {
                     print("file path: \(path)")
@@ -167,7 +174,8 @@ class FaceViewController: UIViewController {
             } else {
                 print("finish error")
             }
-            self.faceMeasureKit.stopSession()
+            self.faceMeasureKit?.releaseSession()
+            self.faceMeasureKit = nil
         }
     }
 
@@ -257,7 +265,8 @@ class FaceViewController: UIViewController {
     }
     
     @objc func prev() {
-        self.faceMeasureKit.stopSession()
+        self.faceMeasureKit?.releaseSession()
+        self.faceMeasureKit = nil
         self.dismiss(animated: true)
     }
 }

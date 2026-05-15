@@ -26,7 +26,7 @@ class FaceMeasurementViewController: UIViewController {
     }
 
     let camera = CameraDeviceController()
-    let faceMeasureKit = FaceKit()
+    var faceMeasureKit: FaceKit? = FaceKit()
     let faceMeasureKitModel = FaceKitConfiguration()
     let preview = CameraPreviewView()
     
@@ -121,6 +121,7 @@ class FaceMeasurementViewController: UIViewController {
         setupUI()
         setupConstraints()
         completionMethod()
+        guard let faceMeasureKit else { return }
         camera.initalized(
             delegate: faceMeasureKit,
             session: session,
@@ -139,6 +140,7 @@ class FaceMeasurementViewController: UIViewController {
     }
 
     deinit {
+        faceMeasureKit?.releaseSession()
         print("[++\(#fileID):\(#line)]- vc deinit ")
     }
     
@@ -151,7 +153,7 @@ class FaceMeasurementViewController: UIViewController {
     }
     
     func completionMethod() {
-        faceMeasureKit.captureDeviceMode {[weak self] metaData in
+        faceMeasureKit?.captureDeviceMode {[weak self] metaData in
             guard let self = self else { return }
             self.isoItem.setValue("\(metaData.iso)")
             self.aeItem.setValue(metaData.exposureMode)
@@ -159,7 +161,7 @@ class FaceMeasurementViewController: UIViewController {
             self.awbItem.setValue(metaData.whiteBalanceMode)
         }
         
-        faceMeasureKit.pitchYawRoll {[weak self] pitchYawRoll in
+        faceMeasureKit?.pitchYawRoll {[weak self] pitchYawRoll in
             guard let self = self else { return }
             let pitch = (pitchYawRoll.pitch * 10).rounded() / 10
             let yaw = (pitchYawRoll.yaw * 10).rounded() / 10
@@ -169,13 +171,13 @@ class FaceMeasurementViewController: UIViewController {
             self.rollItem.setValue("\(roll)")
         }
         
-        faceMeasureKit.yMean {[weak self] yMean in
+        faceMeasureKit?.yMean {[weak self] yMean in
             guard let self = self else { return }
             let y = (yMean * 100).rounded() / 100
             self.yItem.setValue("\(y)")
         }
         
-        faceMeasureKit.acceleration {[weak self] acc in
+        faceMeasureKit?.acceleration {[weak self] acc in
             guard let self = self else { return }
             let x = (acc.x * 100).rounded() / 100
             let y = (acc.y * 100).rounded() / 100
@@ -185,7 +187,7 @@ class FaceMeasurementViewController: UIViewController {
             self.accelZItem.setValue("\(z)")
         }
         
-        faceMeasureKit.gyroscope {[weak self] gyro in
+        faceMeasureKit?.gyroscope {[weak self] gyro in
             guard let self = self else { return }
             let x = (gyro.x * 100).rounded() / 100
             let y = (gyro.y * 100).rounded() / 100
@@ -195,7 +197,7 @@ class FaceMeasurementViewController: UIViewController {
             self.gyroZItem.setValue("\(z)")
         }
         
-        faceMeasureKit.collectDataCount {[weak self] count in
+        faceMeasureKit?.collectDataCount {[weak self] count in
             guard let self = self else { return }
             self.framesLabel.text = "\(count) FRAMES"
         }
@@ -208,12 +210,12 @@ class FaceMeasurementViewController: UIViewController {
 //            self.timerLabel.text = "0:\(15 - second)"
 //        }
         
-        faceMeasureKit.stopMeasurement {[weak self] stop in
+        faceMeasureKit?.stopMeasurement {[weak self] stop in
             guard let self = self else { return }
             checkmarkImageView.tintColor = stop ? .red : .green
         }
         
-        faceMeasureKit.finishedMeasurement(for: .all) {[weak self] result in
+        faceMeasureKit?.finishedMeasurement(for: .all) {[weak self] result in
             guard let self = self else { return }
             if case let .all(result, path, dataSet) = result {
                 let ts = dataSet.ts
@@ -225,11 +227,14 @@ class FaceMeasurementViewController: UIViewController {
             } else {
                 print("finish error")
             }
-            self.faceMeasureKit.stopSession()
-            self.stopUIScreenRecording()
+            DispatchQueue.main.async {
+                self.faceMeasureKit?.releaseSession()
+                self.faceMeasureKit = nil
+                self.stopUIScreenRecording()
+            }
         }
         
-        faceMeasureKit.outputPath { filePath in
+        faceMeasureKit?.outputPath { filePath in
             let frameDataPath = filePath.frameDataPath
             let accelPath = filePath.accelPath
             let gyroPath = filePath.gyroPath
@@ -443,7 +448,7 @@ extension FaceMeasurementViewController {
                 if let error { print("startCapture error:", error) }
                 else {
                     print("✅ screen capture started")
-                    self.faceMeasureKit.startSession()
+                    self.faceMeasureKit?.startSession()
                 }
             })
             

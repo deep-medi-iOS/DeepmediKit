@@ -66,6 +66,12 @@ public extension FaceKit {
             self.cameraSessionManager.useSession().stopRunning()
         }
     }
+    
+    // 세션 종료 + delegate 해제를 통해 FaceKit 인스턴스 해제를 돕는다.
+    func releaseSession() {
+        stopSession()
+        cameraSessionManager.clearVideoOutputDelegate()
+    }
     // 결과전송 파일 URL
     func outputPath(
         _ path: @escaping((FilePath) -> ())

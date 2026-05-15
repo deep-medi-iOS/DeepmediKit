@@ -169,7 +169,7 @@ public class FaceKit: NSObject {
     public override init() {
         super.init()
         print("[++\(#fileID):\(#line)]- init ")
-        UIApplication.shared.isIdleTimerDisabled = true //측정중 화면 자동잠금을 막기 위해 설정
+        setIdleTimerDisabled(true) //측정중 화면 자동잠금을 막기 위해 설정
     }
     
     deinit {
@@ -178,7 +178,18 @@ public class FaceKit: NSObject {
         motionManager.stopGyroUpdates()
         cameraSessionManager.clearVideoOutputDelegate()
         print("[++\(#fileID)] deinit ")
-        UIApplication.shared.isIdleTimerDisabled = false
+        setIdleTimerDisabled(false)
+    }
+
+    private func setIdleTimerDisabled(_ disabled: Bool) {
+        let apply = {
+            UIApplication.shared.isIdleTimerDisabled = disabled
+        }
+        if Thread.isMainThread {
+            apply()
+        } else {
+            DispatchQueue.main.async(execute: apply)
+        }
     }
     
     internal var cropView = UIImageView().then { imv in
