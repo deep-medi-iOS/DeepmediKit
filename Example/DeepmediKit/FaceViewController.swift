@@ -22,12 +22,12 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
-    let camera = CameraObject()
+    let camera = CameraDeviceController()
     
     let faceMeasureKit = FaceKit()
-    let faceMeasureKitModel = FaceKitModel()
+    let faceMeasureKitModel = FaceKitConfiguration()
 
-    let preview = CameraPreview()
+    let preview = CameraPreviewView()
     let previousButton = UIButton().then { b in
         b.setTitle("Previous", for: .normal)
         b.setTitleColor(.white, for: .normal)

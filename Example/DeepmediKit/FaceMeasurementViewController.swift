@@ -25,10 +25,10 @@ class FaceMeasurementViewController: UIViewController {
         CMTime(value: 1, timescale: CMTimeScale(targetFPS))
     }
 
-    let camera = CameraObject()
+    let camera = CameraDeviceController()
     let faceMeasureKit = FaceKit()
-    let faceMeasureKitModel = FaceKitModel()
-    let preview = CameraPreview()
+    let faceMeasureKitModel = FaceKitConfiguration()
+    let preview = CameraPreviewView()
     
     private let recorder = RPScreenRecorder.shared()
         private var writer: AVAssetWriter?
