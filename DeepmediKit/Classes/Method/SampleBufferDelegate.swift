@@ -81,7 +81,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             if !faces.isEmpty {
                 for face in faces {
                     guard face.contours.count != 0 else {
-                        print("[++\(#fileID):\(#line)]- face have not contours")
+//                        print("[++\(#fileID):\(#line)]- face have not contours")
                         return
                     }
                     let previewBounds = self.model.previewLayerBounds
@@ -120,9 +120,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.initRGBData()
                 self.timerReset()
                 self.antiSpoofing.initialize()
-                
-                self.measurementModel.measurementStop.onNext(true)
-                self.measurementModel.checkRealFace.onNext(false)
+                self.emitMeasurementState(stop: true, checkRealFace: false)
             }
         }
     }
@@ -138,11 +136,18 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                 print("[++\(#fileID):\(#line)]- currentPose is nil ")
                 return
             }
+            let isWithinPose = isWithinPoseThreshold(
+                currentPose: currentPose
+            )
             setBaselinePose(currentPose: currentPose)
             // MARK: Metadata
-            if cropFaceRect != nil && isLeftEyeReal && isRightEyeReal && isWithinBaselinePose(currentPose: currentPose) {
+            if cropFaceRect != nil
+                && isLeftEyeReal
+                && isRightEyeReal
+                && isWithinPose
+                && isWithinBaselinePose(currentPose: currentPose) {
                 guard tempG.count >= 30 else { return }
-                measurementModel.checkRealFace.onNext(true)
+                emitMeasurementState(stop: false, checkRealFace: true)
                 tempG.removeAll()
                 isTimerRunning = true
                 prepareTimer = Timer.scheduledTimer(
@@ -163,14 +168,33 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                     preparingSec = preparingSec == 0 ? 0 : preparingSec - 1
                 }
             } else {
+                print("[++\(#fileID):\(#line)]- not measurable ")
                 cameraSetup.setUpCaptureDevice(.autoExpose)
-                measurementModel.measurementStop.onNext(true)
-                measurementModel.checkRealFace.onNext(false)
-                initRGBData()
-                isTimerRunning = false
-                dispatchTimer?.cancel()
-                measurementTimer.invalidate()
-                prepareTimer.invalidate()
+                if !isWithinPose {
+                    emitMeasurementState(
+                        stop: true,
+                        checkRealFace: false,
+                        requiredStableFrames: 1
+                    )
+                    initRGBData()
+                    isTimerRunning = false
+                    dispatchTimer?.cancel()
+                    measurementTimer.invalidate()
+                    prepareTimer.invalidate()
+                } else if cropFaceRect == nil {
+                    emitMeasurementState(stop: true, checkRealFace: false)
+                    initRGBData()
+                    isTimerRunning = false
+                    dispatchTimer?.cancel()
+                    measurementTimer.invalidate()
+                    prepareTimer.invalidate()
+                } else {
+                    emitMeasurementState(
+                        stop: false,
+                        checkRealFace: false,
+                        requiredStableFrames: 1
+                    )
+                }
             }
         }
     }
@@ -195,7 +219,14 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             )
     
             if isMeasurableFacePosition {
-//                    self.measurementModel.measurementStop.onNext(false)
+                    let isWithinPose = self.measurementModel.headAnglesRelay.value
+                        .map { self.isWithinPoseThreshold(currentPose: $0) }
+                        ?? false
+                    self.emitMeasurementState(
+                        stop: !isWithinPose,
+                        checkRealFace: false,
+                        requiredStableFrames: 1
+                    )
                 self.cropFaceRect = CGRect(
                     x: face.frame.origin.x,
                     y: face.frame.origin.y,
@@ -226,13 +257,13 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             } else {
                 self.lastFrame = nil
                 self.cropFaceRect = nil
-//                
-//                self.preparingSec = self.model.prepareTime
+                
+                self.preparingSec = self.model.prepareTime
                 
                 self.initRGBData()
                 self.timerReset()
                 self.antiSpoofing.initialize()
-                self.measurementModel.measurementStop.onNext(true)
+                self.emitMeasurementState(stop: true, checkRealFace: false)
             }
         }
     }
@@ -320,4 +351,3 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         return areaCondition
     }
 }
-

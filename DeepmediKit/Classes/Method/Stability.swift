@@ -8,18 +8,28 @@
 import Foundation
 
 extension FaceKit {
+    private var maxMeasurableYaw: CGFloat { 25 }
+    private var maxMeasurablePitch: CGFloat { 20 }
+    private var maxMeasurableRoll: CGFloat { 15 }
+    
+    func isWithinPoseThreshold(
+        currentPose: HeaderAngles
+    ) -> Bool {
+        let currentYaw = abs(currentPose.yaw)
+        let currentPitch = abs(currentPose.pitch)
+        let currentRoll = abs(currentPose.roll)
+        return currentYaw <= maxMeasurableYaw
+        && currentPitch <= maxMeasurablePitch
+        && currentRoll <= maxMeasurableRoll
+    }
+    
     func setBaselinePose(
         currentPose: HeaderAngles
     ) {
         let limitCount = model.stableFrameCount
-        let currentYaw = abs(currentPose.yaw)
-        let currentPitch = abs(currentPose.pitch)
-        let currentRoll = abs(currentPose.roll)
         guard positionStableCount > limitCount,
               angleStableCount > limitCount,
-              currentYaw <= 25,
-              currentPitch <= 20,
-              currentRoll <= 15 else {
+              isWithinPoseThreshold(currentPose: currentPose) else {
             return
         }
         baselineHeadAngle = currentPose

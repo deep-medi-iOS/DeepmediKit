@@ -126,6 +126,12 @@ public class FaceKit: NSObject {
                  isRightEyeReal = false
     
     internal var willCheckRealFace = false
+    internal var currentMeasurementStopState = true
+    internal var currentCheckRealFaceState = false
+    internal var pendingMeasurementStopState: Bool?
+    internal var pendingMeasurementStopFrameCount = 0
+    internal var stableFramesForStopTrue = 2
+    internal var stableFramesForStopFalse = 1
     
     internal var lastValue: Int? = nil
     internal var lastImage: UIImage?
@@ -185,9 +191,57 @@ public class FaceKit: NSObject {
     internal var faceDetecView = UIView()
     internal var smallView = UIView()
 
+    // MARK: Measurement State
+    internal func emitMeasurementState(
+        stop: Bool,
+        checkRealFace: Bool,
+        requiredStableFrames: Int? = nil
+    ) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.emitMeasurementState(
+                    stop: stop,
+                    checkRealFace: checkRealFace,
+                    requiredStableFrames: requiredStableFrames
+                )
+            }
+            return
+        }
+
+        let defaultFrames = stop ? stableFramesForStopTrue : stableFramesForStopFalse
+        let minimumFrames = max(1, requiredStableFrames ?? defaultFrames)
+
+        if stop == currentMeasurementStopState {
+            pendingMeasurementStopState = nil
+            pendingMeasurementStopFrameCount = 0
+
+            if checkRealFace != currentCheckRealFaceState {
+                currentCheckRealFaceState = checkRealFace
+                measurementModel.checkRealFace.onNext(checkRealFace)
+            }
+            return
+        }
+
+        if pendingMeasurementStopState != stop {
+            pendingMeasurementStopState = stop
+            pendingMeasurementStopFrameCount = 1
+            return
+        }
+
+        pendingMeasurementStopFrameCount += 1
+        guard pendingMeasurementStopFrameCount >= minimumFrames else { return }
+
+        pendingMeasurementStopState = nil
+        pendingMeasurementStopFrameCount = 0
+        currentMeasurementStopState = stop
+        currentCheckRealFaceState = checkRealFace
+        measurementModel.measurementStop.onNext(stop)
+        measurementModel.checkRealFace.onNext(checkRealFace)
+    }
+
     // MARK: 측정완료
     internal func saveMeasurementOutputs() {
-        measurementModel.measurementStop.onNext(false)
+        emitMeasurementState(stop: false, checkRealFace: true, requiredStableFrames: 1)
         
         let measurementComplete      = measurementModel.measurementComplete,
             rgbFilePath              = measurementModel.rgbFilePath,
