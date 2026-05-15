@@ -13,6 +13,7 @@ class CameraSessionManager: NSObject {
 
     private var session = AVCaptureSession()
     private var captureDevice: AVCaptureDevice?
+    private let captureQueue = DispatchQueue(label: "captureQueue")
     private var customISO: Float?
     private let device = UIDevice.current
     
@@ -136,8 +137,12 @@ class CameraSessionManager: NSObject {
     func setupVideoOutput(
         _ delegate: AVCaptureVideoDataOutputSampleBufferDelegate
     ) {
+        if let existingOutput = session.outputs.first(where: { $0 is AVCaptureVideoDataOutput }) as? AVCaptureVideoDataOutput {
+            existingOutput.setSampleBufferDelegate(delegate, queue: captureQueue)
+            return
+        }
+
         let videoOutput = AVCaptureVideoDataOutput()
-        let captureQueue = DispatchQueue(label: "catpureQueue")
         
         videoOutput.setSampleBufferDelegate(
             delegate,
@@ -153,6 +158,13 @@ class CameraSessionManager: NSObject {
         } else {
             print("can not output")
         }
+    }
+    
+    func clearVideoOutputDelegate() {
+        guard let videoOutput = session.outputs.first(where: { $0 is AVCaptureVideoDataOutput }) as? AVCaptureVideoDataOutput else {
+            return
+        }
+        videoOutput.setSampleBufferDelegate(nil, queue: nil)
     }
     
     func setMovieFileOutput(movieOutput: AVCaptureMovieFileOutput) {

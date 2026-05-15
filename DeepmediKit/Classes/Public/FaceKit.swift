@@ -173,6 +173,10 @@ public class FaceKit: NSObject {
     }
     
     deinit {
+        timerReset()
+        motionManager.stopAccelerometerUpdates()
+        motionManager.stopGyroUpdates()
+        cameraSessionManager.clearVideoOutputDelegate()
         print("[++\(#fileID)] deinit ")
         UIApplication.shared.isIdleTimerDisabled = false
     }

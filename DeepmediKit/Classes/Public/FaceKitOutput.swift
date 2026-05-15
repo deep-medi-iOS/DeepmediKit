@@ -232,8 +232,8 @@ public extension FaceKit {
         stop
             .asDriver(onErrorJustReturn: true)
             .distinctUntilChanged(==)
-            .drive(onNext: { stop in
-                self.notDetectFace = stop
+            .drive(onNext: { [weak self] stop in
+                self?.notDetectFace = stop
                 isStop(stop)
             })
             .disposed(by: bag)
