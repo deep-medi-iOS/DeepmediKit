@@ -21,13 +21,12 @@ class FaceViewController: UIViewController {
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FaceCapture")
 
-    let header = Header()
-    let camera = CameraObject()
+    let camera = CameraDeviceController()
     
-    let faceMeasureKit = FaceKit()
-    let faceMeasureKitModel = FaceKitModel()
+    var faceMeasureKit: FaceKit? = FaceKit()
+    let faceMeasureKitModel = FaceKitConfiguration()
 
-    let preview = CameraPreview()
+    let preview = CameraPreviewView()
     let previousButton = UIButton().then { b in
         b.setTitle("Previous", for: .normal)
         b.setTitleColor(.white, for: .normal)
@@ -37,6 +36,11 @@ class FaceViewController: UIViewController {
     let tempView = UIView()
    
     let isoLabel = UILabel().then { l in
+        l.backgroundColor = .black
+        l.textColor = .white
+    }
+    
+    let countLabel = UILabel().then { l in
         l.backgroundColor = .black
         l.textColor = .white
     }
@@ -53,30 +57,31 @@ class FaceViewController: UIViewController {
         self.view.backgroundColor = .white
         completionMethod()
         
+        guard let faceMeasureKit else { return }
         camera.initalized(
             part: .face,
             delegate: faceMeasureKit,
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementTime(15)
-        faceMeasureKitModel.setPrepareTime(3)
+        faceMeasureKitModel.setMeasurementDataCount(450)
+        faceMeasureKitModel.setPrepareTime(0)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
-        faceMeasureKitModel.willCheckRealFace(true)
+        faceMeasureKitModel.willCheckRealFace(false)
+        faceMeasureKitModel.setFaceAngle(5)//얼굴 움직임 제한 각도
+        faceMeasureKitModel.setStatbleRatio(0.05)//얼굴위치 제한 비율
+        faceMeasureKitModel.setStableFrameCount(3)//안정상태 프레임수 조절
+        faceMeasureKitModel.setBaselineAngle(10)//안정상태시 얼굴제한 각도
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         setupUI()
-        
+
         faceMeasureKit.startSession()
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        print("[++\(#fileID):\(#line)]- view did appear ")
-    }
-    
     deinit {
+        faceMeasureKit?.releaseSession()
         print("[++\(#fileID):\(#line)]- vc deinit ")
     }
     
@@ -90,22 +95,26 @@ class FaceViewController: UIViewController {
     }
 
     func completionMethod() {
-        faceMeasureKit.checkRealFace { check in
-            print("face is real: \(check)")
-            if check {
-                self.tempView.backgroundColor = .green
-            } else {
-                self.tempView.backgroundColor = .red
-            }
+        faceMeasureKit?.checkRealFace { check in
+//            if check {
+//                self.tempView.backgroundColor = .green
+//            } else {
+//                self.tempView.backgroundColor = .red
+//            }
         }
         
-        faceMeasureKit.iso { iso in
-//            print("[++\(#fileID):\(#line)]- iso: ", iso)
-            self.isoLabel.text = "\(iso)"
+        faceMeasureKit?.captureDeviceMode { [weak self] metaData in
+            guard let self else { return }
+            self.isoLabel.text = "\(metaData.iso)"
         }
         
-        faceMeasureKit.captureImage { capture in
-            print("[++\(#fileID):\(#line)]- image ")
+        faceMeasureKit?.collectDataCount { [weak self] count in
+            guard let self else { return }
+            self.countLabel.text = "\(count)"
+        }
+
+        faceMeasureKit?.captureImage { [weak self] capture in
+            guard let self else { return }
             if let screen = capture.screen,
                let crop = capture.face {
                 self.captureImageView.image = screen
@@ -117,68 +126,56 @@ class FaceViewController: UIViewController {
             
         }
         
-        faceMeasureKit.measurementCompleteRatio { ratio in
-//            print("complete ratio: \(ratio)")
-        }
-
-        faceMeasureKit.timesLeft { second in
-            print("second: \(second)")
+        faceMeasureKit?.timesLeft { times in
+            print("left prepare time : ", times)
         }
         
-        faceMeasureKit.stopMeasurement { stop in
+        faceMeasureKit?.stopMeasurement { [weak self] stop in
+            guard let self else { return }
             print("stop state: \(stop)")
+            if !stop {
+                self.tempView.backgroundColor = .green
+            } else {
+                self.tempView.backgroundColor = .red
+            }
         }
         
-        faceMeasureKit.finishedMeasurement(for: .all) { result in
-            Task {
-                do {
-                    let headers = try await self.header.getHeader(
-                        uri   : "uri",
-                        apiKey: "apikey"
-                    )
-                    if case let .filePath(result, path) = result {
-                        if result {
-                            print("file path: \(path)")
-                        }
-                    } else if case let .rawData(result, dataSet) = result {
-                        if result {
-                            let ts = dataSet.ts,
-                                sigR = dataSet.sigR,
-                                sigG = dataSet.sigG,
-                                sigB = dataSet.sigB
-                            
-                            if ts.count > 0
-                                && sigR.count > 0
-                                && sigG.count > 0
-                                && sigB.count > 0 {
-                                print("data set: \(ts.count, sigR.count, sigB.count, sigG.count)")
-                            } else {
-                                print("data error")
-                            }
-                        }
-                    } else if case let .all(result, path, dataSet) = result {
-                        if result {
-                            print("file path: \(path)")
-                            let ts = dataSet.ts,
-                                sigR = dataSet.sigR,
-                                sigG = dataSet.sigG,
-                                sigB = dataSet.sigB
-                            
-                            if ts.count > 0
-                                && sigR.count > 0
-                                && sigG.count > 0
-                                && sigB.count > 0 {
-                                print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
-                            } else {
-                                print("data error")
-                            }
-                        }
-                    }
-                } catch let error {
-                    print("header error: \(error.localizedDescription)")
+        faceMeasureKit?.finishedMeasurement(for: .all) { [weak self] result in
+            guard let self else { return }
+            if case let .filePath(result, path) = result {
+                if result {
+                    print("file path: \(path)")
+                } else {
+                    print("result is failed")
                 }
+            } else if case let .rawData(result, dataSet) = result {
+                if result {
+                    let ts = dataSet.ts,
+                        sigR = dataSet.sigR,
+                        sigB = dataSet.sigG,
+                        sigG = dataSet.sigB
+                    
+                    if ts.count > 0
+                        && sigR.count > 0
+                        && sigG.count > 0
+                        && sigB.count > 0 {
+                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
+                    } else {
+                        print("data error")
+                    }
+                }
+            } else if case let .all(result, path, dataSet) = result {
+                let ts = dataSet.ts
+                let sigR = dataSet.sigR
+                let sigG = dataSet.sigG
+                let sigB = dataSet.sigB
+                
+                print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
+            } else {
+                print("finish error")
             }
-            self.faceMeasureKit.stopSession()
+            self.faceMeasureKit?.releaseSession()
+            self.faceMeasureKit = nil
         }
     }
 
@@ -191,6 +188,7 @@ class FaceViewController: UIViewController {
         self.view.addSubview(previousButton)
         self.view.addSubview(tempView)
         self.view.addSubview(isoLabel)
+        self.view.addSubview(countLabel)
         self.view.addSubview(captureImageView)
         self.view.addSubview(cropImageView)
         
@@ -199,6 +197,7 @@ class FaceViewController: UIViewController {
         previousButton.translatesAutoresizingMaskIntoConstraints = false
         tempView.translatesAutoresizingMaskIntoConstraints = false
         isoLabel.translatesAutoresizingMaskIntoConstraints = false
+        countLabel.translatesAutoresizingMaskIntoConstraints = false
         captureImageView.translatesAutoresizingMaskIntoConstraints = false
         cropImageView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -225,6 +224,13 @@ class FaceViewController: UIViewController {
             isoLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             isoLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
             isoLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        NSLayoutConstraint.activate([
+            countLabel.bottomAnchor.constraint(equalTo: previousButton.topAnchor, constant: -20),
+            countLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            countLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
+            countLabel.heightAnchor.constraint(equalToConstant: 50)
         ])
 
         NSLayoutConstraint.activate([
@@ -259,7 +265,8 @@ class FaceViewController: UIViewController {
     }
     
     @objc func prev() {
-        self.faceMeasureKit.stopSession()
+        self.faceMeasureKit?.releaseSession()
+        self.faceMeasureKit = nil
         self.dismiss(animated: true)
     }
 }

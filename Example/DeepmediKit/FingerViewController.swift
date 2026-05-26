@@ -11,17 +11,16 @@ import AVKit
 import DeepmediKit
 
 class FingerViewController: UIViewController {
-    
     var previewLayer = AVCaptureVideoPreviewLayer()
     let session = AVCaptureSession()
     let captureDevice = AVCaptureDevice(uniqueID: "FingerCapture")
     
-    let camera = CameraObject()
+    let camera = CameraDeviceController()
     
-    let fingerMeasureKit = FingerKit()
-    let fingerMeasureKitModel = FingerKitModel()
+    var fingerMeasureKit: FingerKit? = FingerKit()
+    let fingerMeasureKitModel = FingerKitConfiguration()
     
-    let preview = CameraPreview()
+    let preview = CameraPreviewView()
     let previousButton = UIButton().then { b in
         b.setTitle("Previous", for: .normal)
         b.setTitleColor(.white, for: .normal)
@@ -32,6 +31,7 @@ class FingerViewController: UIViewController {
         super.viewDidLoad()
         self.view.backgroundColor = .white
         self.completionMethod()
+        guard let fingerMeasureKit else { return }
         
         self.camera.initalized(
             part: .finger,
@@ -39,16 +39,20 @@ class FingerViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        self.fingerMeasureKitModel.setMeasurementTime(15)
+        self.fingerMeasureKitModel.setMeasurementDataCount(900)
         self.fingerMeasureKitModel.doMeasurementBreath(false)
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
         
         self.setupUI()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1 ) {
-            self.fingerMeasureKit.startSession()
-        }
+//        DispatchQueue.main.async {
+            self.fingerMeasureKit?.startSession()
+//        }
+    }
+
+    deinit {
+        fingerMeasureKit?.releaseSession()
     }
     
     override func viewDidLayoutSubviews() {
@@ -60,26 +64,23 @@ class FingerViewController: UIViewController {
     }
     
     @objc func prev() {
-        self.fingerMeasureKit.stopSession()
+        self.fingerMeasureKit?.releaseSession()
+        self.fingerMeasureKit = nil
         self.dismiss(animated: true)
     }
     
     func completionMethod() {
-        fingerMeasureKit.measuredValue { value in
-//            print("value: \(value)")
+        fingerMeasureKit?.measuredValue { value in
+            print("value: \(value)")
         }
         
-        fingerMeasureKit.measurementCompleteRatio { ratio in
-            print("complete ratio: \(ratio)")
+        fingerMeasureKit?.countMeasurementedData { count in
+            print("count: \(count)")
         }
         
-        fingerMeasureKit.timesLeft { time in
-//            print("left time: \(time)")
-        }
-        
-        fingerMeasureKit.stopMeasurement { isStop in
+        fingerMeasureKit?.stopMeasurement { isStop in
             if isStop {
-                self.fingerMeasureKit.stopSession()
+                self.fingerMeasureKit?.stopSession()
                 let alertVC = UIAlertController(
                     title: "Stop",
                     message: "",
@@ -90,7 +91,7 @@ class FingerViewController: UIViewController {
                     style: .default
                 ) { _ in
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                        self.fingerMeasureKit.startSession()
+                        self.fingerMeasureKit?.startSession()
                     }
                 }
                 alertVC.addAction(action)
@@ -100,13 +101,14 @@ class FingerViewController: UIViewController {
             }
         }
         
-        fingerMeasureKit.finishedMeasurement { success, rgbPath, accPath, gyroPath in
+        fingerMeasureKit?.finishedMeasurement { success, rgbPath, accPath, gyroPath in
             print("finger rgb path:",  rgbPath)
             print("finger acc path:",  accPath)
-            print("finger gyr pPath:", gyroPath)
+            print("finger gyro pPath:", gyroPath)
             if success {
-                DispatchQueue.global(qos: .background).async {
-                    self.fingerMeasureKit.stopSession()
+                DispatchQueue.main.async {
+                    self.fingerMeasureKit?.releaseSession()
+                    self.fingerMeasureKit = nil
                 }
             } else {
                 print("error")
