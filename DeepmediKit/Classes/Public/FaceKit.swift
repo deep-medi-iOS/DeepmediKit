@@ -16,6 +16,10 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
+    public private(set) var tfliteReady = false
+    public private(set) var tfliteInitMessage = "not initialized"
+    public private(set) var latestCoreMetrics: PhysMorphNetResult?
+
     public enum Result {
         case filePath, rawData, all
     }
@@ -81,6 +85,12 @@ public class FaceKit: NSObject {
         public let brightness: Float
     }
     
+    public struct PhysMorphNet: Equatable {
+        public let metrics: PhysMorphNetResult
+        public let ts: [Double]
+        public let binPath: URL?
+    }
+    
     struct FrameData {
         let timestampUS: Double
         let width: Int
@@ -107,6 +117,7 @@ public class FaceKit: NSObject {
     
     internal let model       = ConfigurationStore.shared,
                  cameraSessionManager = CameraSessionManager.shared
+    internal var tfliteRunner: TFLiteModelRunner?
     
     internal var lastFrame: CMSampleBuffer?,
                  gCIContext: CIContext?,
@@ -153,6 +164,8 @@ public class FaceKit: NSObject {
     internal var gyro: [Gyroscope] = []
     
     internal var bytesArray: [[UInt8]] = []
+    internal var frameTimestampUS: [UInt64] = []
+    internal var frames = [SampleBufferConverter.FaceBinFrame]()
     internal var frameDataArr: [FrameData] = []
     
     internal var changeBrightness: Bool = false
@@ -172,6 +185,7 @@ public class FaceKit: NSObject {
         super.init()
         print("[++\(#fileID):\(#line)]- init ")
         setIdleTimerDisabled(true) //측정중 화면 자동잠금을 막기 위해 설정
+        initializeTFLiteModel()
     }
     
     deinit {
@@ -191,6 +205,22 @@ public class FaceKit: NSObject {
             apply()
         } else {
             DispatchQueue.main.async(execute: apply)
+        }
+    }
+
+    private func initializeTFLiteModel() {
+        do {
+            let runner = try TFLiteModelRunner(modelName: "model_core", threadCount: 2)
+            let inputBytes = try runner.inputTensorByteCount()
+            tfliteRunner = runner
+            tfliteReady = true
+            tfliteInitMessage = "loaded model_core.tflite (inputBytes=\(inputBytes))"
+            print("[++\(#fileID):\(#line)]- TFLite init success: \(tfliteInitMessage)")
+        } catch {
+            tfliteRunner = nil
+            tfliteReady = false
+            tfliteInitMessage = "failed to load model_core.tflite: \(error.localizedDescription)"
+            print("[++\(#fileID):\(#line)]- TFLite init failed: \(tfliteInitMessage)")
         }
     }
     
@@ -261,48 +291,177 @@ public class FaceKit: NSObject {
         emitMeasurementState(stop: false, checkRealFace: true, requiredStableFrames: 1)
         
         let measurementComplete      = measurementState.measurementComplete,
-            rgbFilePath              = measurementState.rgbFilePath,
             measurementCount         = measurementState.measurementCount
 
         initRGBData()
-        preparingSec    = model.prepareTime
+        preparingSec = model.prepareTime
         
         dispatchTimer = DispatchSource.makeTimerSource()
         dispatchTimer?.schedule(deadline: .now(), repeating: 0.01)
-        dispatchTimer?.setEventHandler { [weak self] in
-            guard let self = self, self.isLeftEyeReal && self.isRightEyeReal else {
-                self?.antiSpoofingValidator.initialize()
-                self?.lastValue = nil
-                self?.isTimerRunning = false
-                self?.dispatchTimer?.cancel()
-                return
-            }
-            self.isTimerRunning = true
-            measurementCount.onNext(sigR.count)
-            if self.sigR.count == model.measurementDataCount {
-                if let rgbPath = self.measurementFileWriter.make(
-                    data: .rgb,
-                    dataSet: totalData
-                ) {
-//                    guard let dataBin = self.measurementFileWriter.makeBin(
-//                        dataSet: totalData,
-//                        bytesArr: bytesArray
-//                    ) else {
-//                        print("byte to bin error")
-//                        return
-//                    }
-                    measurementComplete.onNext(true)
-                    rgbFilePath.onNext(rgbPath)
-                } else {
-                    measurementComplete.onNext(false)
-                    rgbFilePath.onNext(URL(fileURLWithPath: ""))
+        dispatchTimer?.setEventHandler(
+            qos: .default,
+            flags: [],
+            handler:  { [weak self] in
+                guard let self = self,
+                      self.isLeftEyeReal && self.isRightEyeReal else {
+                    self?.antiSpoofingValidator.initialize()
+                    self?.lastValue = nil
+                    self?.isTimerRunning = false
+                    self?.dispatchTimer?.cancel()
+                    return
                 }
-                self.dispatchTimer?.cancel()
-                self.isTimerRunning = false
-                self.motionManager.stopAccelerometerUpdates()
-                self.motionManager.stopGyroUpdates()
+                self.isTimerRunning = true
+                measurementCount.onNext(sigR.count)
+                if self.sigR.count == measurementDataCount {
+                    if let faceBin = self.measurementFileWriter.makeFaceBin(
+                        frames: bytesArray,
+                        timestampsUS: frameTimestampUS
+                    ) {
+                        measurementComplete.onNext(true)
+                        guard let coreResult = self.runCoreFromFaceBin(faceBin) else {
+                            print("[++\(#fileID):\(#line)]- face bin error ")
+                            return
+                        }
+                        self.publishCoreMetrics(coreResult, faceBin)
+                    } else {
+                        self.measurementState.coreMetrics.accept(
+                            PhysMorphNetResult.init(
+                                sdnn: 0.0,
+                                rmssd: 0.0,
+                                hr: 0.0,
+                                quality: 0.0,
+                                rrList: [],
+                                ppg: []
+                            )
+                        )
+                        measurementComplete.onNext(false)
+                        self.publishCoreMetrics(
+                            .init(
+                                sdnn: 0.0,
+                                rmssd: 0.0,
+                                hr: 0.0,
+                                quality: 0.0,
+                                rrList: [],
+                                ppg: []
+                            ),
+                        URL(fileURLWithPath: "")
+                        )
+                    }
+                    self.dispatchTimer?.cancel()
+                    self.isTimerRunning = false
+                    self.motionManager.stopAccelerometerUpdates()
+                    self.motionManager.stopGyroUpdates()
+                }
             }
-        }
+        )
         dispatchTimer?.resume()
+    }
+
+    private func runCoreFromFrames(
+        _ frames: [SampleBufferConverter.FaceBinFrame]
+    ) -> PhysMorphNetResult? {
+        do {
+            if tfliteRunner == nil {
+                tfliteRunner = try TFLiteModelRunner(modelName: "model_core", threadCount: 2)
+            }
+            guard let runner = tfliteRunner else {
+                print("[++\(#fileID):\(#line)]- TFLite runner is nil")
+                return nil
+            }
+            return try FaceCoreMetricsCalculator.analyze(frames: frames, runner: runner)
+        } catch {
+            print("[++\(#fileID):\(#line)]- core inference failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    internal func publishCoreMetrics(
+        _ metrics: PhysMorphNetResult,
+        _ path: URL
+    ) {
+        latestCoreMetrics = metrics
+        measurementState.coreMetrics.accept(metrics)
+        measurementState.binFilePath.onNext(path)
+    }
+
+    internal func runCoreFromFaceBin(
+        _ fileURL: URL
+    ) -> PhysMorphNetResult? {
+        do {
+            let parsedFrames = try loadFaceBinFrames(from: fileURL)
+            return runCoreFromFrames(parsedFrames)
+        } catch {
+            print("[++\(#fileID):\(#line)]- face.bin parse failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func loadFaceBinFrames(
+        from fileURL: URL
+    ) throws -> [SampleBufferConverter.FaceBinFrame] {
+        let data = try Data(contentsOf: fileURL)
+        var offset = 0
+
+        let width = try readBEUInt64(from: data, offset: &offset)
+        let height = try readBEUInt64(from: data, offset: &offset)
+        let frameCount = Int(try readBEUInt64(from: data, offset: &offset))
+
+        guard width == 36, height == 36 else {
+            throw NSError(
+                domain: "FaceKit",
+                code: -2001,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid face.bin size: \(width)x\(height)"]
+            )
+        }
+
+        let frameByteCount = 36 * 36 * 3
+        let totalFrameBytes = frameCount * frameByteCount
+        guard offset + totalFrameBytes <= data.count else {
+            throw NSError(
+                domain: "FaceKit",
+                code: -2002,
+                userInfo: [NSLocalizedDescriptionKey: "face.bin frame payload is truncated"]
+            )
+        }
+
+        let framePayload = data.subdata(in: offset..<(offset + totalFrameBytes))
+        offset += totalFrameBytes
+
+        var timestamps = [UInt64]()
+        timestamps.reserveCapacity(frameCount)
+        for _ in 0..<frameCount {
+            timestamps.append(try readBEUInt64(from: data, offset: &offset))
+        }
+
+        var frames = [SampleBufferConverter.FaceBinFrame]()
+        frames.reserveCapacity(frameCount)
+        for index in 0..<frameCount {
+            let start = index * frameByteCount
+            let end = start + frameByteCount
+            let rgb = Array(framePayload[start..<end])
+            let timestamp = timestamps[index]
+            frames.append(.init(rgb36x36: rgb, timestampUS: timestamp))
+        }
+        return frames
+    }
+
+    private func readBEUInt64(
+        from data: Data,
+        offset: inout Int
+    ) throws -> UInt64 {
+        let nextOffset = offset + 8
+        guard nextOffset <= data.count else {
+            throw NSError(
+                domain: "FaceKit",
+                code: -2003,
+                userInfo: [NSLocalizedDescriptionKey: "face.bin header is truncated"]
+            )
+        }
+
+        let value = data[offset..<nextOffset].reduce(UInt64(0)) { partial, byte in
+            (partial << 8) | UInt64(byte)
+        }
+        offset = nextOffset
+        return value
     }
 }

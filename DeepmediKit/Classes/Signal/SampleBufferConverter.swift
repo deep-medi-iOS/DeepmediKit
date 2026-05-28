@@ -12,6 +12,11 @@ import CoreImage
 
 final class SampleBufferConverter {
     private static let ciContext = CIContext(options: nil)
+
+    struct FaceBinFrame {
+        let rgb36x36: [UInt8]   // 36 * 36 * 3 (RGB)
+        let timestampUS: UInt64 // capture timestamp in microseconds
+    }
     
     /// Front camera: BGRA -> UIImage + 90° clockwise + mirrored
     static func convertingBufferFront(_ sampleBuffer: CMSampleBuffer) -> UIImage? {
@@ -74,45 +79,113 @@ final class SampleBufferConverter {
         return [NSNumber(value: r), NSNumber(value: g), NSNumber(value: b)]
     }
     
-    // 아래 함수는 보류
-    /// OpenCV equivalent:
-    /// resize(36x36) -> grayscale -> rotate 90 CW
-    /// Returns: 36*36 = 1296 bytes
+    /// 36x36 RGB frame bytes for face.bin
+    /// Returns: 36*36*3 = 3888 bytes (RGB interleaved)
     static func dataSampleBuffer36x36(_ sampleBuffer: CMSampleBuffer) -> [UInt8]? {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return nil
         }
-        
+
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let extent = ciImage.extent
+        let extent = ciImage.extent.integral
         guard extent.width > 0, extent.height > 0 else { return nil }
-        
-        // 1) 36x36로 스케일 변환(리사이즈)
+
+        // extent origin이 0이 아닐 때 생기는 검정 offset만 제거하고,
+        // 이후에는 한 번의 render로 36x36을 만든다.
+        let normalizedImage = ciImage.transformed(
+            by: CGAffineTransform(translationX: -extent.origin.x, y: -extent.origin.y)
+        )
         let targetW: CGFloat = 36
         let targetH: CGFloat = 36
-        let sx = targetW / extent.width
-        let sy = targetH / extent.height
-        let resized = ciImage.transformed(by: CGAffineTransform(scaleX: sx, y: sy))
-        
-        // 2) 36x36 영역만 렌더링
-        var out = [UInt8](repeating: 0, count: 36 * 36)
-        
-        // 3) CoreImage에서 1채널 8-bit로 뽑기 (iOS 17+에서 .R8 / .L8 사용 가능)
-        // format 지원이 애매한 OS가 있을 수 있어 아래처럼 "가능하면 R8"로 시도
-        let colorSpace = CGColorSpaceCreateDeviceGray()
-        
-        // 주의: CIContext의 render는 포맷 지원이 기기/OS에 따라 달라질 수 있음
-        // R8이 안되면 아래 대체안(ARGB8888 → 후처리) 참고
+        let resized = normalizedImage.transformed(
+            by: CGAffineTransform(
+                scaleX: targetW / extent.width,
+                y: targetH / extent.height
+            )
+        )
+
+        var rgba = [UInt8](repeating: 0, count: 36 * 36 * 4)
         SampleBufferConverter.ciContext.render(
             resized,
-            toBitmap: &out,
-            rowBytes: 36, // 1byte * width
+            toBitmap: &rgba,
+            rowBytes: 36 * 4,
             bounds: CGRect(x: 0, y: 0, width: 36, height: 36),
-            format: .R8,
-            colorSpace: colorSpace
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
         )
-        
-        return out
+
+        var rgb = [UInt8](repeating: 0, count: 36 * 36 * 3)
+        for i in 0..<(36 * 36) {
+            rgb[(i * 3) + 0] = rgba[(i * 4) + 0]
+            rgb[(i * 3) + 1] = rgba[(i * 4) + 1]
+            rgb[(i * 3) + 2] = rgba[(i * 4) + 2]
+        }
+        return rgb
+    }
+
+    /// Extract one face.bin frame payload from sampleBuffer.
+    static func faceBinFrame36x36(
+        _ sampleBuffer: CMSampleBuffer,
+        timestampUS: UInt64? = nil
+    ) -> FaceBinFrame? {
+        guard let rgb = dataSampleBuffer36x36(sampleBuffer) else {
+            return nil
+        }
+        let tsUS = timestampUS ?? sampleBufferTimestampUS(sampleBuffer)
+        return FaceBinFrame(rgb36x36: rgb, timestampUS: tsUS)
+    }
+
+    /// Build face.bin bytes:
+    /// [uint64_be width][uint64_be height][uint64_be frame_count]
+    /// [frame bytes...][timestamps uint64_be...]
+    static func makeFaceBinData(_ frames: [FaceBinFrame]) -> Data? {
+        guard !frames.isEmpty else { return nil }
+        guard frames.allSatisfy({ $0.rgb36x36.count == 36 * 36 * 3 }) else { return nil }
+
+        var data = Data()
+        data.reserveCapacity((8 * 3) + (frames.count * 36 * 36 * 3) + (8 * frames.count))
+
+        appendBEUInt64(36, to: &data)
+        appendBEUInt64(36, to: &data)
+        appendBEUInt64(UInt64(frames.count), to: &data)
+
+        for frame in frames {
+            data.append(contentsOf: frame.rgb36x36)
+        }
+        let baseTimestamp = frames.first?.timestampUS ?? 0
+        for frame in frames {
+            appendBEUInt64(frame.timestampUS &- baseTimestamp, to: &data)
+        }
+        return data
+    }
+
+    static func writeFaceBin(_ frames: [FaceBinFrame], to fileURL: URL) throws {
+        guard let data = makeFaceBinData(frames) else {
+            throw NSError(
+                domain: "SampleBufferConverter",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid frame data for face.bin"]
+            )
+        }
+        try data.write(to: fileURL, options: .atomic)
+    }
+
+    private static func appendBEUInt64(_ value: UInt64, to data: inout Data) {
+        var be = value.bigEndian
+        withUnsafeBytes(of: &be) { raw in
+            data.append(contentsOf: raw)
+        }
+    }
+
+    static func sampleBufferTimestampUS(_ sampleBuffer: CMSampleBuffer) -> UInt64 {
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        if pts.isValid {
+            let seconds = CMTimeGetSeconds(pts)
+            if seconds.isFinite && seconds >= 0 {
+                return UInt64((seconds * 1_000_000.0).rounded())
+            }
+        }
+        return UInt64((Date().timeIntervalSince1970 * 1_000_000.0).rounded())
     }
     
     // MARK: YUV 추출

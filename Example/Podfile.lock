@@ -1,9 +1,10 @@
 PODS:
-  - DeepmediKit (2.5.2):
+  - DeepmediKit (2.6.0):
     - GoogleMLKit/FaceDetection (= 6.0.0)
     - OpenCV (= 4.3.0)
     - RxCocoa (= 6.8.0)
     - RxSwift (= 6.8.0)
+    - TensorFlowLiteSwift
     - Then (= 3.0.0)
   - GoogleDataTransport (9.4.1):
     - GoogleUtilities/Environment (~> 7.7)
@@ -62,6 +63,15 @@ PODS:
   - RxRelay (6.8.0):
     - RxSwift (= 6.8.0)
   - RxSwift (6.8.0)
+  - TensorFlowLiteC (2.17.0):
+    - TensorFlowLiteC/Core (= 2.17.0)
+  - TensorFlowLiteC/Core (2.17.0)
+  - TensorFlowLiteSwift (2.17.0):
+    - TensorFlowLiteSwift/Core (= 2.17.0)
+  - TensorFlowLiteSwift/Core (2.17.0):
+    - TensorFlowLiteC (= 2.17.0)
+    - TensorFlowLiteSwift/Privacy (= 2.17.0)
+  - TensorFlowLiteSwift/Privacy (2.17.0)
   - Then (3.0.0)
 
 DEPENDENCIES:
@@ -85,6 +95,8 @@ SPEC REPOS:
     - RxCocoa
     - RxRelay
     - RxSwift
+    - TensorFlowLiteC
+    - TensorFlowLiteSwift
     - Then
 
 EXTERNAL SOURCES:
@@ -92,7 +104,7 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  DeepmediKit: c4c2ac6e49ed2305780f4b5a0dc3f27af8391247
+  DeepmediKit: c763b7bf5bc099eb98e767e53147c971e0bb7e68
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 97ac7af399057e99182ee8edfa8249e3226a4065
   GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8
@@ -109,6 +121,8 @@ SPEC CHECKSUMS:
   RxCocoa: 2d33c1e1e5d66492052ad46b11024ae287572880
   RxRelay: 335c78b926a2aea8d863a6d25f1ed3b5ad8e8705
   RxSwift: 4e28be97cbcfeee614af26d83415febbf2bf6f45
+  TensorFlowLiteC: eac6d689a8d391d1b202dc59e3d9165ba64aaf73
+  TensorFlowLiteSwift: 723fe42222815e72490c79feeff05305530de393
   Then: 844265ae87834bbe1147d91d5d41a404da2ec27d
 
 PODFILE CHECKSUM: b4486b01c7da3b7f3b278050c58431048d403a0f

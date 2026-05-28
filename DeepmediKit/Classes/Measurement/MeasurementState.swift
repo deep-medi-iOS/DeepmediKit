@@ -33,6 +33,7 @@ internal final class MeasurementState {
     let rgbFilePath = PublishSubject<URL>()
     let accFilePath = PublishSubject<URL>()
     let gyroFilePath = PublishSubject<URL>()
+    let binFilePath = PublishSubject<URL>()
 
     // MARK: Finger output stream
     let outputFingerStatus = PublishSubject<FingerStatus>()
@@ -51,6 +52,7 @@ internal final class MeasurementState {
     let sigG = PublishSubject<[Float]>()
     let sigB = PublishSubject<[Float]>()
     let measurementCount = PublishSubject<Int>()
+    let coreMetrics = PublishRelay<PhysMorphNetResult>()
     let headAnglesRelay = BehaviorRelay<FaceKit.HeaderAngles?>(
         value: FaceKit.HeaderAngles(pitch: 0.0, yaw: 0.0, roll: 0.0)
     )

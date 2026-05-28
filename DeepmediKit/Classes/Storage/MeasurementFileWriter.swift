@@ -94,6 +94,36 @@ internal final class MeasurementFileWriter {
         self.transrateDataToByteArr(dataURL, dataSet: dataSet, bytesArr: bytesArr)
         return dataURL
     }
+
+    func makeFaceBin(
+        frames bytesArr: [[UInt8]],
+        timestampsUS: [UInt64]
+    ) -> URL? {
+        guard !bytesArr.isEmpty,
+              bytesArr.count == timestampsUS.count,
+              bytesArr.allSatisfy({ $0.count == 36 * 36 * 3 }) else {
+            return nil
+        }
+
+        let docuURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let fileURL = docuURL.appendingPathComponent("face.bin")
+
+        var frames = [SampleBufferConverter.FaceBinFrame]()
+        frames.reserveCapacity(bytesArr.count)
+        for i in 0..<bytesArr.count {
+            frames.append(
+                .init(rgb36x36: bytesArr[i], timestampUS: timestampsUS[i])
+            )
+        }
+
+        do {
+            try SampleBufferConverter.writeFaceBin(frames, to: fileURL)
+            return fileURL
+        } catch {
+            assertionFailure("face.bin 저장 실패: \(error)")
+            return nil
+        }
+    }
     
     private func transrateDataToByteArr(
         _ fileURL: URL,

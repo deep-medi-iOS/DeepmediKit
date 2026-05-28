@@ -27,7 +27,8 @@ extension FaceKit {
         
         let ts = (Date().timeIntervalSince1970 * 1000000).rounded()
         if isTimerRunning {
-            guard ts > 100 else { return }
+            guard ts > 100,
+            measurementDataCount > sigR.count else { return }
             let dataSet:(Double, Float, Float, Float) = (ts, r, g, b)
             timeStamp.append(ts)
             sigR.append(r)
@@ -42,28 +43,24 @@ extension FaceKit {
                 lightingChangeDetector.reset()
                 cropFaceRect = nil
             }
-//            if result.changed {
-//                measurementState.lightingChange.onNext(
-//                    .init(
-//                        changed: result.changed,
-//                        rawDerivative: result.rawDerivative,
-//                        smoothedDerivative: result.smoothedDerivative,
-//                        brightness: result.brightness
-//                    )
-//                )
-//            }
         } else if !isTimerRunning {
             tempG.append(g)
         }
     }
-    //byteArray로 수집 -> 260415 수정중
+    //byteArray로 수집
     internal func collectionByteData(
-        sampleBuffer: CMSampleBuffer
+        sampleBuffer: CMSampleBuffer,
+        timestampUS: UInt64? = nil
     ) {
-        guard let byteData = SampleBufferConverter.dataSampleBuffer36x36(sampleBuffer) else {
+        guard let frameData = SampleBufferConverter.faceBinFrame36x36(
+            sampleBuffer,
+            timestampUS: timestampUS
+        ) else {
             return print("objc chest casting error")
         }
-        bytesArray.append(Array(byteData))
+        frames.append(frameData)
+        bytesArray.append(frameData.rgb36x36)
+        frameTimestampUS.append(frameData.timestampUS)
     }
     //이미지 밝기 정보
     internal func extractYUVFromDetectFace(

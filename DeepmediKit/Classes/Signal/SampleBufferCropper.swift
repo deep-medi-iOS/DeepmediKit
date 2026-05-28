@@ -99,4 +99,102 @@ final class SampleBufferCropper {
         //    CMSampleBuffer는 이미 독립적으로 retain되어 있음
         return resultBuffer
     }
+    
+    func sampleFace(
+        _ sampleBuffer: CMSampleBuffer,
+        with rect: CGRect
+    ) -> CMSampleBuffer? {
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+
+        CVPixelBufferLockBaseAddress(imageBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(imageBuffer, .readOnly) }
+
+        let bytesPerRow    = CVPixelBufferGetBytesPerRow(imageBuffer)
+        let width          = CVPixelBufferGetWidth(imageBuffer)
+        let height         = CVPixelBufferGetHeight(imageBuffer)
+        let bytesPerPixel  = bytesPerRow / width
+        guard let baseAddress = CVPixelBufferGetBaseAddress(imageBuffer) else { return nil }
+        let baseAddressStart = baseAddress.assumingMemoryBound(to: UInt8.self)
+
+        let insetRatio: CGFloat = 0.25
+        let insetX = rect.width * insetRatio
+        let insetY = rect.height * insetRatio
+        let reducedRect = rect.insetBy(dx: insetX, dy: insetY)
+
+        let boundedRect = reducedRect.intersection(
+            CGRect(x: 0, y: 0, width: width, height: height)
+        )
+        guard boundedRect.width >= 2, boundedRect.height >= 2 else { return nil }
+
+        var cropX = Int(boundedRect.origin.x.rounded(.down))
+        var cropY = Int(boundedRect.origin.y.rounded(.down))
+        var cropWidth = Int(boundedRect.width.rounded(.down))
+        var cropHeight = Int(boundedRect.height.rounded(.down))
+
+        if cropX % 2 != 0 { cropX += 1 }
+        if cropY % 2 != 0 { cropY += 1 }
+        if cropWidth % 2 != 0 { cropWidth -= 1 }
+        if cropHeight % 2 != 0 { cropHeight -= 1 }
+        guard cropWidth > 0, cropHeight > 0 else { return nil }
+
+        let cropStartOffset = cropY * bytesPerRow + cropX * bytesPerPixel
+
+        let pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer)
+        let options: [CFString: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ]
+
+        var pixelBuffer: CVPixelBuffer?
+        let error = CVPixelBufferCreateWithBytes(
+            kCFAllocatorDefault,
+            cropWidth,
+            cropHeight,
+            pixelFormat,
+            &baseAddressStart[cropStartOffset],
+            bytesPerRow,
+            nil,
+            nil,
+            options as CFDictionary,
+            &pixelBuffer
+        )
+
+        guard error == kCVReturnSuccess, let pixelBuffer else {
+            print("CVPixelBufferCreateWithBytes error \(error)")
+            return nil
+        }
+
+        var sampleTime = CMSampleTimingInfo(
+            duration: CMSampleBufferGetDuration(sampleBuffer),
+            presentationTimeStamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer),
+            decodeTimeStamp: CMSampleBufferGetDecodeTimeStamp(sampleBuffer)
+        )
+
+        var videoInfo: CMVideoFormatDescription?
+        guard CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: pixelBuffer,
+            formatDescriptionOut: &videoInfo
+        ) == kCVReturnSuccess, let videoInfo else {
+            print("CMVideoFormatDescriptionCreateForImageBuffer error")
+            return nil
+        }
+
+        var resultBuffer: CMSampleBuffer?
+        guard CMSampleBufferCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: pixelBuffer,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: videoInfo,
+            sampleTiming: &sampleTime,
+            sampleBufferOut: &resultBuffer
+        ) == kCVReturnSuccess else {
+            print("CMSampleBufferCreateForImageBuffer error")
+            return nil
+        }
+
+        return resultBuffer
+    }
 }

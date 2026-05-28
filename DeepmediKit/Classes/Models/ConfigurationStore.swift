@@ -14,16 +14,17 @@ class ConfigurationStore {
     
     var measurePart: CameraDeviceController.Part = .face
     
-    var measurementDataCount: Int {
+    var measurementFaceDataCount: Int {
         didSet {
-            if self.measurePart == .face {
-                if self.measurementDataCount < 450 {
-                    self.measurementDataCount = 450
-                }
-            } else {
-                if self.measurementDataCount < 900 {
-                    self.measurementDataCount = 900
-                }
+            if self.measurementFaceDataCount < 450 {
+                self.measurementFaceDataCount = 450
+            }
+        }
+    }
+    var measurementFingerDataCount: Int {
+        didSet {
+            if self.measurementFingerDataCount < 900 {
+                self.measurementFingerDataCount = 900
             }
         }
     }
@@ -55,7 +56,8 @@ class ConfigurationStore {
         self.useFaceRecognitionArea = true
         self.willCheckRealFace = true
         
-        self.measurementDataCount = measurePart == .face ? 450 : 900
+        self.measurementFaceDataCount = 450
+        self.measurementFingerDataCount = 900
         self.prepareTime = 1
 
         self.limitTapTime = 3

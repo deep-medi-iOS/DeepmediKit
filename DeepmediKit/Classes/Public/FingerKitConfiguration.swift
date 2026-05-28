@@ -13,7 +13,7 @@ public class FingerKitConfiguration: NSObject {
     public func setMeasurementDataCount(
         _ count: Int?
     ) {
-        self.model.measurementDataCount = count ?? 900
+        self.model.measurementFingerDataCount = count ?? 900
     }
 
     public func setLimitTapTime(

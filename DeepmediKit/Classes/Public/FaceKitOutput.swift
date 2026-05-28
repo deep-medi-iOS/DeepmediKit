@@ -10,9 +10,44 @@ import RxSwift
 import RxCocoa
 
 public extension FaceKit {
+//    func exportFaceBin() -> URL? {
+//        measurementFileWriter.makeFaceBin(
+//            frames: bytesArray,
+//            timestampsUS: frameTimestampUS
+//        )
+//    }
+//
+//    func exportFaceBinAndAnalyze() -> (fileURL: URL, metrics: PhysMorphNetResult)? {
+//        guard let fileURL = exportFaceBin(),
+//              let metrics = runCoreFromFaceBin(fileURL) else {
+//            return nil
+//        }
+//        publishCoreMetrics(metrics)
+//        return (fileURL, metrics)
+//    }
+//
+//    func analyzeFaceBin(
+//        at fileURL: URL
+//    ) -> PhysMorphNetResult? {
+//        let metrics = runCoreFromFaceBin(fileURL)
+//        if let metrics {
+//            publishCoreMetrics(metrics)
+//        }
+//        return metrics
+//    }
+    
+    func makeTimestamp() -> [Double] {
+        let count: Int = 1500,
+            start: Double = 0,
+            end: Double = 15_000_000
+        return (0..<count).map { index in
+            start + Double(index) * (end - start) / Double(count - 1)
+        }
+    }
+
     // 세션 시작관련 정보
     func startSession() {
-        measurementDataCount = model.measurementDataCount
+        measurementDataCount = model.measurementFaceDataCount
         preparingSec    = model.prepareTime
         isTimerRunning  = false
         dispatchTimer?.cancel()
@@ -58,13 +93,11 @@ public extension FaceKit {
         initRGBData()
         timerReset()
         antiSpoofingValidator.initialize()
-        if model.measurePart == .face {
-            cameraSessionManager.setUpCaptureDevice(.autoExpose)
-        }
         
         DispatchQueue.global(qos: .background).async { [weak self] in
             guard let self = self else { return }
             if self.model.measurePart == .face {
+                self.cameraSessionManager.setUpCaptureDevice(.autoExpose)
                 self.cameraSessionManager.useSession().stopRunning()
             }
         }
@@ -245,6 +278,42 @@ public extension FaceKit {
                         )
             }
             isSuccess(output)
+        })
+        .disposed(by: bag)
+    }
+
+    func coreMetrics(
+        _ result: @escaping (PhysMorphNet) -> ()
+    ) {
+        let coreMetrics = measurementState.coreMetrics
+        let filePath = measurementState.binFilePath
+        let ts = makeTimestamp()
+        Observable.combineLatest(
+            coreMetrics,
+            filePath,
+        )
+        .asDriver(
+            onErrorJustReturn: (
+                .init(
+                    sdnn: 0.0,
+                    rmssd: 0.0,
+                    hr: 0.0,
+                    quality: 0.0,
+                    rrList: [],
+                    ppg: []
+                ),
+                URL(fileURLWithPath: "")
+            )
+        )
+        .drive(
+            onNext: { physMorphNet in
+                result(
+                    PhysMorphNet.init(
+                        metrics: physMorphNet.0,
+                        ts: ts,
+                        binPath: physMorphNet.1
+                    )
+                )
         })
         .disposed(by: bag)
     }

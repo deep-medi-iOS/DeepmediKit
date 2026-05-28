@@ -58,6 +58,7 @@ class FaceViewController: UIViewController {
         completionMethod()
         
         guard let faceMeasureKit else { return }
+        print("FaceKit TFLite ready: \(faceMeasureKit.tfliteReady), message: \(faceMeasureKit.tfliteInitMessage)")
         camera.initalized(
             part: .face,
             delegate: faceMeasureKit,
@@ -139,41 +140,25 @@ class FaceViewController: UIViewController {
                 self.tempView.backgroundColor = .red
             }
         }
-        
-        faceMeasureKit?.finishedMeasurement(for: .all) { [weak self] result in
+
+        faceMeasureKit?.coreMetrics { [weak self] physMorphNet  in
             guard let self else { return }
-            if case let .filePath(result, path) = result {
-                if result {
-                    print("file path: \(path)")
-                } else {
-                    print("result is failed")
+            let header = DeepmediHeaderProvider()
+            Task {
+                do {
+                    let headers = try await header.getHeader(
+                        uri   : "uri",
+                        apiKey: "apikey"
+                    )
+                } catch let error {
+                    print("header error: \(error.localizedDescription)")
                 }
-            } else if case let .rawData(result, dataSet) = result {
-                if result {
-                    let ts = dataSet.ts,
-                        sigR = dataSet.sigR,
-                        sigB = dataSet.sigG,
-                        sigG = dataSet.sigB
-                    
-                    if ts.count > 0
-                        && sigR.count > 0
-                        && sigG.count > 0
-                        && sigB.count > 0 {
-                        print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
-                    } else {
-                        print("data error")
-                    }
-                }
-            } else if case let .all(result, path, dataSet) = result {
-                let ts = dataSet.ts
-                let sigR = dataSet.sigR
-                let sigG = dataSet.sigG
-                let sigB = dataSet.sigB
-                
-                print("data set: \((ts.count, sigR.count, sigB.count, sigG.count))")
-            } else {
-                print("finish error")
             }
+            guard let url = physMorphNet.binPath, physMorphNet.metrics.ppg.count != 0 else { return }
+            
+            print("[++\(#fileID):\(#line)]- rr list: ", physMorphNet.metrics.rrList)
+            print("[++\(#fileID):\(#line)]- ppg: ", physMorphNet.metrics.ppg.count)
+            print("[++\(#fileID):\(#line)]- ts: ", physMorphNet.ts.count)
             self.faceMeasureKit?.releaseSession()
             self.faceMeasureKit = nil
         }

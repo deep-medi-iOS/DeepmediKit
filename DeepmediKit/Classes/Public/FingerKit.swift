@@ -338,7 +338,7 @@ open class FingerKit: NSObject {
             return
         }
         measurementState.measurementCount.onNext(sigR.count)
-        if totalData.count >= model.measurementDataCount {
+        if totalData.count >= model.measurementFingerDataCount {
             completeMeasurement()
         }
     }

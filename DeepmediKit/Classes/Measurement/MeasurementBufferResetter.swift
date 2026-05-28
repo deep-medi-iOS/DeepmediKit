@@ -17,6 +17,8 @@ extension FaceKit {
         tempG.removeAll()
         totalData.removeAll()
         bytesArray.removeAll()
+        frameTimestampUS.removeAll()
+        frames.removeAll()
         
         frameDataArr.removeAll()
         
