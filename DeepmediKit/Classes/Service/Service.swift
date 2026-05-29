@@ -34,14 +34,14 @@ extension DeepmediServiceError: LocalizedError {
 }
 
 public struct EstimateStressFromRr: Codable {
-    public let physicalStressCalib: Double
+    public let physicalStress: Double
 
-    public init(physicalStressCalib: Double) {
-        self.physicalStressCalib = physicalStressCalib
+    public init(physicalStress: Double) {
+        self.physicalStress = physicalStress
     }
 
     private enum CodingKeys: String, CodingKey {
-        case physicalStressCalib = "physicalStress_calib"
+        case physicalStress = "physicalStress_calib"
     }
 }
 
@@ -61,16 +61,8 @@ public struct EstimateSingleBpVital: Codable {
 public struct BPFeatureExtraction: Codable {
     public let ft: [Double]
 
-    public var features: [Double] {
-        ft
-    }
-
     public init(ft: [Double]) {
         self.ft = ft
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case ft
     }
 }
 

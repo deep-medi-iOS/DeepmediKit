@@ -170,7 +170,7 @@ class FaceViewController: UIViewController {
                     gender: userGender,
                     k: 1
                 )
-            let physicalStress = stress.physicalStressCalib
+            let physicalStress = stress.physicalStress
 
             let targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
                 .getBPFeatureExtraction(
