@@ -25,7 +25,7 @@ class FaceViewController: UIViewController {
     
     var faceMeasureKit: FaceKit? = FaceKit()
     let faceMeasureKitModel = FaceKitConfiguration()
-
+    
     let preview = CameraPreviewView()
     let previousButton = UIButton().then { b in
         b.setTitle("Previous", for: .normal)
@@ -143,24 +143,65 @@ class FaceViewController: UIViewController {
 
         faceMeasureKit?.coreMetrics { [weak self] physMorphNet  in
             guard let self else { return }
-            let header = DeepmediHeaderProvider()
-            Task {
-                do {
-                    let headers = try await header.getHeader(
-                        uri   : "uri",
-                        apiKey: "apikey"
-                    )
-                } catch let error {
-                    print("header error: \(error.localizedDescription)")
-                }
+            guard physMorphNet.binPath != nil, physMorphNet.metrics.ppg.count != 0 else {
+                return
             }
-            guard let url = physMorphNet.binPath, physMorphNet.metrics.ppg.count != 0 else { return }
-            
-            print("[++\(#fileID):\(#line)]- rr list: ", physMorphNet.metrics.rrList)
-            print("[++\(#fileID):\(#line)]- ppg: ", physMorphNet.metrics.ppg.count)
-            print("[++\(#fileID):\(#line)]- ts: ", physMorphNet.ts.count)
+            Task { [weak self] in
+                await self?.requestVitalEstimates(from: physMorphNet)
+            }
             self.faceMeasureKit?.releaseSession()
             self.faceMeasureKit = nil
+        }
+    }
+
+    private func requestVitalEstimates(from output: FaceKit.PhysMorphNet) async {
+        let apiKey = "apikey"
+        let userAge = 30
+        let userGender: GenderType = .male
+        let cuffSys = 120
+        let cuffDia = 75
+        var calibrationBPFeatures: [Double] = []
+
+        do {
+            let stress = try await EstimateStressFromRrProvider(apiKey: apiKey)
+                .getEstimateStressFromRr(
+                    rrList: output.metrics.rrList,
+                    age: userAge,
+                    gender: userGender,
+                    k: 1
+                )
+            let physicalStress = stress.physicalStressCalib
+
+            let targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
+                .getBPFeatureExtraction(
+                    ppg: output.metrics.ppg,
+                    ts: output.ts
+                )
+                .ft
+
+            let calibFeatures: [Double]
+            if calibrationBPFeatures.isEmpty {
+                calibrationBPFeatures = targetFeatures
+                calibFeatures = targetFeatures
+            } else {
+                calibFeatures = calibrationBPFeatures
+            }
+
+            let bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
+                .getEstimateSingleBpVital(
+                    cuffSys: cuffSys,
+                    cuffDia: cuffDia,
+                    calibFt: calibFeatures,
+                    targetFt: targetFeatures
+                )
+            print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
+            print("[++\(#fileID):\(#line)]- hr: ", output.metrics.hr)//심박
+            print("[++\(#fileID):\(#line)]- sdnn: ", output.metrics.sdnn)//스트레스
+            print("[++\(#fileID):\(#line)]- rmssd: ", output.metrics.rmssd)//스트레스 회복력
+            print("[++\(#fileID):\(#line)]- psi: ", physicalStress)//피로도
+            
+        } catch let error {
+            print("vital api error: \(error.localizedDescription)")
         }
     }
 
