@@ -16,6 +16,7 @@ public final class TFLiteModelRunner {
     }
 
     private let interpreter: Interpreter
+    private let invokeQueue = DispatchQueue(label: "com.deepmedi.DeepmediKit.TFLiteModelRunner.invoke")
 
     public init(
         modelName: String = "model_core",
@@ -42,37 +43,96 @@ public final class TFLiteModelRunner {
     }
 
     public func run(inputData: Data, inputIndex: Int = 0, outputIndex: Int = 0) throws -> Data {
-        let expectedBytes = try inputTensorByteCount(at: inputIndex)
-        guard inputData.count == expectedBytes else {
-            throw NSError(
-                domain: "TFLiteModelRunner",
-                code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "Input byte count mismatch. expected=\(expectedBytes), got=\(inputData.count)"]
-            )
-        }
+        return try invokeQueue.sync {
+            let expectedBytes = try inputTensorByteCount(at: inputIndex)
+            guard inputData.count == expectedBytes else {
+                throw Self.error(
+                    code: -2,
+                    message: "Input byte count mismatch. expected=\(expectedBytes), got=\(inputData.count)"
+                )
+            }
 
-        try interpreter.copy(inputData, toInputAt: inputIndex)
-        try interpreter.invoke()
-        return try interpreter.output(at: outputIndex).data
+            try interpreter.copy(inputData, toInputAt: inputIndex)
+            try interpreter.invoke()
+            return try interpreter.output(at: outputIndex).data
+        }
     }
 
     public func runCore(frames: Data, timestamps: Data) throws -> CoreOutput {
-        let runner = try interpreter.signatureRunner(with: "serving_default")
-        try runner.resizeInput(named: "frames", toShape: [1, 451, 36, 36, 3])
-        try runner.resizeInput(named: "timestamps", toShape: [1, 451])
-        try runner.invoke(with: [
-            "frames": frames,
-            "timestamps": timestamps
-        ])
+        return try invokeQueue.sync {
+            let runner = try interpreter.signatureRunner(with: "serving_default")
+            let framesShape = [1, 451, 36, 36, 3]
+            let timestampsShape = [1, 451]
 
-        let ppg100Data = try runner.output(named: "ppg_100").data
-        let peakLogitsData = try runner.output(named: "peak_logits").data
-        let ppg30Data = try runner.output(named: "ppg_30").data
+            try runner.resizeInput(named: "frames", toShape: Tensor.Shape(framesShape))
+            try runner.resizeInput(named: "timestamps", toShape: Tensor.Shape(timestampsShape))
+            try runner.allocateTensors()
 
-        return .init(
-            ppg100: Self.floatArray(from: ppg100Data),
-            peakLogits: Self.floatArray(from: peakLogitsData),
-            ppg30: Self.floatArray(from: ppg30Data)
+            try Self.validateInput(
+                runner,
+                name: "frames",
+                data: frames,
+                expectedShape: framesShape,
+                expectedType: .uInt8
+            )
+            try Self.validateInput(
+                runner,
+                name: "timestamps",
+                data: timestamps,
+                expectedShape: timestampsShape,
+                expectedType: .float32
+            )
+
+            try runner.invoke(with: [
+                "frames": frames,
+                "timestamps": timestamps
+            ])
+
+            let ppg100Data = try runner.output(named: "ppg_100").data
+            let peakLogitsData = try runner.output(named: "peak_logits").data
+            let ppg30Data = try runner.output(named: "ppg_30").data
+
+            return .init(
+                ppg100: Self.floatArray(from: ppg100Data),
+                peakLogits: Self.floatArray(from: peakLogitsData),
+                ppg30: Self.floatArray(from: ppg30Data)
+            )
+        }
+    }
+
+    private static func validateInput(
+        _ runner: SignatureRunner,
+        name: String,
+        data: Data,
+        expectedShape: [Int],
+        expectedType: Tensor.DataType
+    ) throws {
+        let tensor = try runner.input(named: name)
+        guard tensor.shape.dimensions == expectedShape else {
+            throw error(
+                code: -3,
+                message: "\(name) shape mismatch. expected=\(expectedShape), got=\(tensor.shape.dimensions)"
+            )
+        }
+        guard tensor.dataType == expectedType else {
+            throw error(
+                code: -4,
+                message: "\(name) type mismatch. expected=\(expectedType), got=\(tensor.dataType)"
+            )
+        }
+        guard data.count == tensor.data.count else {
+            throw error(
+                code: -5,
+                message: "\(name) byte count mismatch. expected=\(tensor.data.count), got=\(data.count)"
+            )
+        }
+    }
+
+    private static func error(code: Int, message: String) -> NSError {
+        return NSError(
+            domain: "TFLiteModelRunner",
+            code: code,
+            userInfo: [NSLocalizedDescriptionKey: message]
         )
     }
 

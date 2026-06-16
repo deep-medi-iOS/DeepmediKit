@@ -317,25 +317,19 @@ public class FaceKit: NSObject {
                         frames: bytesArray,
                         timestampsUS: frameTimestampUS
                     ) {
-                        measurementComplete.onNext(true)
                         guard let coreResult = self.runCoreFromFaceBin(faceBin) else {
-                            print("[++\(#fileID):\(#line)]- face bin error ")
+                            self.finishMeasurementAfterCoreFailure(
+                                message: "face.bin core inference failed"
+                            )
                             return
                         }
+                        measurementComplete.onNext(true)
                         self.publishCoreMetrics(coreResult, faceBin)
                     } else {
-                        measurementComplete.onNext(false)
-                        self.publishCoreMetrics(
-                            .init(
-                                sdnn: 0.0,
-                                rmssd: 0.0,
-                                hr: 0.0,
-                                quality: 0.0,
-                                rrList: [],
-                                ppg: []
-                            ),
-                        URL(fileURLWithPath: "")
+                        self.finishMeasurementAfterCoreFailure(
+                            message: "face.bin creation failed"
                         )
+                        return
                     }
                     self.dispatchTimer?.cancel()
                     self.isTimerRunning = false
@@ -345,6 +339,22 @@ public class FaceKit: NSObject {
             }
         )
         dispatchTimer?.resume()
+    }
+
+    private func finishMeasurementAfterCoreFailure(
+        message: String
+    ) {
+        print("[++\(#fileID):\(#line)]- measurement failed: \(message)")
+        measurementState.measurementComplete.onNext(false)
+        dispatchTimer?.cancel()
+        isTimerRunning = false
+        lastValue = nil
+        preparingSec = model.prepareTime
+        antiSpoofingValidator.initialize()
+        measurementState.measurementCount.onNext(0)
+        cameraSessionManager.setUpCaptureDevice(.autoExpose)
+        emitMeasurementState(stop: true, checkRealFace: false, requiredStableFrames: 1)
+        initRGBData()
     }
 
     private func runCoreFromFrames(
