@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import MLKitFaceDetection
 
 // MARK: RGB / ByteArray / YUA -> Ymean / Capture Image
@@ -50,11 +51,13 @@ extension FaceKit {
     //byteArray로 수집
     internal func collectionByteData(
         sampleBuffer: CMSampleBuffer,
-        timestampUS: UInt64? = nil
+        timestampUS: UInt64? = nil,
+        orientation: UIImage.Orientation? = nil
     ) {
         guard let frameData = SampleBufferConverter.faceBinFrame36x36(
             sampleBuffer,
-            timestampUS: timestampUS
+            timestampUS: timestampUS,
+            orientation: orientation
         ) else {
             return print("objc chest casting error")
         }

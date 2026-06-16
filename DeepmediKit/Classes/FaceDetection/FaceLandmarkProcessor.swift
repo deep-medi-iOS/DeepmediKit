@@ -165,7 +165,8 @@ extension FaceKit {
                 if isTimerRunning {
                     collectionByteData(
                         sampleBuffer: faceCropBuffer,
-                        timestampUS: SampleBufferConverter.sampleBufferTimestampUS(frame)
+                        timestampUS: SampleBufferConverter.sampleBufferTimestampUS(frame),
+                        orientation: imageOrientationMapper.image(fromDevicePosition: .front)
                     )
                 }
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)

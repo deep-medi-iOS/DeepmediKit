@@ -324,16 +324,6 @@ public class FaceKit: NSObject {
                         }
                         self.publishCoreMetrics(coreResult, faceBin)
                     } else {
-                        self.measurementState.coreMetrics.accept(
-                            PhysMorphNetResult.init(
-                                sdnn: 0.0,
-                                rmssd: 0.0,
-                                hr: 0.0,
-                                quality: 0.0,
-                                rrList: [],
-                                ppg: []
-                            )
-                        )
                         measurementComplete.onNext(false)
                         self.publishCoreMetrics(
                             .init(

@@ -81,12 +81,18 @@ final class SampleBufferConverter {
     
     /// 36x36 RGB frame bytes for face.bin
     /// Returns: 36*36*3 = 3888 bytes (RGB interleaved)
-    static func dataSampleBuffer36x36(_ sampleBuffer: CMSampleBuffer) -> [UInt8]? {
+    static func dataSampleBuffer36x36(
+        _ sampleBuffer: CMSampleBuffer,
+        orientation: UIImage.Orientation? = nil
+    ) -> [UInt8]? {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return nil
         }
 
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        if let orientation = orientation {
+            ciImage = ciImage.oriented(forExifOrientation: exifOrientation(for: orientation))
+        }
         let extent = ciImage.extent.integral
         guard extent.width > 0, extent.height > 0 else { return nil }
 
@@ -126,9 +132,13 @@ final class SampleBufferConverter {
     /// Extract one face.bin frame payload from sampleBuffer.
     static func faceBinFrame36x36(
         _ sampleBuffer: CMSampleBuffer,
-        timestampUS: UInt64? = nil
+        timestampUS: UInt64? = nil,
+        orientation: UIImage.Orientation? = nil
     ) -> FaceBinFrame? {
-        guard let rgb = dataSampleBuffer36x36(sampleBuffer) else {
+        guard let rgb = dataSampleBuffer36x36(
+            sampleBuffer,
+            orientation: orientation
+        ) else {
             return nil
         }
         let tsUS = timestampUS ?? sampleBufferTimestampUS(sampleBuffer)
@@ -174,6 +184,29 @@ final class SampleBufferConverter {
         var be = value.bigEndian
         withUnsafeBytes(of: &be) { raw in
             data.append(contentsOf: raw)
+        }
+    }
+
+    private static func exifOrientation(for orientation: UIImage.Orientation) -> Int32 {
+        switch orientation {
+            case .up:
+                return 1
+            case .upMirrored:
+                return 2
+            case .down:
+                return 3
+            case .downMirrored:
+                return 4
+            case .leftMirrored:
+                return 5
+            case .right:
+                return 6
+            case .rightMirrored:
+                return 7
+            case .left:
+                return 8
+            @unknown default:
+                return 1
         }
     }
 
