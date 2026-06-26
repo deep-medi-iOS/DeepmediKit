@@ -8,9 +8,38 @@
 import Foundation
 import RxSwift
 
-class MeasurementModel {
+///hr(심박수), mentalStress(정신적스트레스), physicalStress(육제척스트레스),
+///afDetect(불규칙심박): 0 = 규칙적임, 1 = 불규칙적임, sys(수축기), dia(이완기)
+public struct HealthEstimate {
+    public let hr: Int,
+               mentalStress: Float,
+               physicalStress: Float,
+               afDetect: Int,
+               sys: Int, dia: Int
+}
+
+public class MeasurementModel {
     public enum status {
         case flip, back, noTap, tap
+    }
+    
+    public enum HealthCareInfo {
+        
+        public enum genderType: Int {
+            case MALE = 0, FEMALE = 1
+        }
+        
+        public enum exerciseType: Int {
+            case OFTEN = 0, SOMETIMES = 1
+        }
+        
+        public enum smokeType: Int {
+            case NONE = 0, PAST = 1, NOW = 2
+        }
+        
+        public enum diabetesType: Int {
+            case NONE = 0, EXISTENCE = 1
+        }
     }
     
     //input
@@ -37,6 +66,7 @@ class MeasurementModel {
     let resultHeatlInfo = PublishSubject<[String: Any]>()
     let resultCardioRisk = PublishSubject<[String: Any]>()
     let healthCareInfoResult = PublishSubject<[String: Any]>()
+    let healthCareInfo = PublishSubject<HealthEstimate>()
     let faceMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     let chestMeasurementComplete = BehaviorSubject(value: (false, URL(string: "")))
     

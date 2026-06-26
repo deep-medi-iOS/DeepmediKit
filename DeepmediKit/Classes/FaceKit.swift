@@ -15,25 +15,6 @@ import CoreMotion
 import Then
 
 public class FaceKit: NSObject {
-    public enum HealthCareInfo {
-        
-        public enum genderType: Int {
-            case MALE = 0, FEMALE = 1
-        }
-        
-        public enum exerciseType: Int {
-            case OFTEN = 0, SOMETIMES = 1
-        }
-        
-        public enum smokeType: Int {
-            case NONE = 0, PAST = 1, NOW = 2
-        }
-        
-        public enum diabetesType: Int {
-            case NONE = 0, EXISTENCE = 1
-        }
-    }
-    
     private let bag = DisposeBag()
     
     private let makeDocument = Document(),
@@ -112,14 +93,14 @@ public class FaceKit: NSObject {
     public func resultHealthInfo(
         secretKey: String,
         apiKey: String,
-        genderType: HealthCareInfo.genderType,
+        genderType: MeasurementModel.HealthCareInfo.genderType,
         age: Int,
         height: Int? = 0,
         weight: Int? = 0,
         belly: Int? = nil,
-        exerciseType: HealthCareInfo.exerciseType? = nil,
-        smokeType: HealthCareInfo.smokeType? = nil,
-        diabetesType: HealthCareInfo.diabetesType? = nil,
+        exerciseType: MeasurementModel.HealthCareInfo.exerciseType? = nil,
+        smokeType: MeasurementModel.HealthCareInfo.smokeType? = nil,
+        diabetesType: MeasurementModel.HealthCareInfo.diabetesType? = nil,
         _ healthInfo: @escaping(([String: Any]) -> ())
     ) {
         
@@ -250,7 +231,7 @@ public class FaceKit: NSObject {
                     measurementComplete.onNext((result: true, url: rgbPath))
                     
                     self.service.facePPG(
-                        secretKey: self.model.secretKey,
+//                        secretKey: self.model.secretKey,
                         apiKey: self.model.apiKey,
                         rgbPath: rgbPath,
                         age: self.model.age,
@@ -267,7 +248,7 @@ public class FaceKit: NSObject {
                                let diabetes = self.model.diabetes {
                                 
                                 self.service.cardiacRisk(
-                                    secretKey: self.model.secretKey,
+//                                    secretKey: self.model.secretKey,
                                     apiKey: self.model.apiKey,
                                     gender: self.model.gender,
                                     age: self.model.age,

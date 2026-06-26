@@ -121,6 +121,14 @@ class FingerViewController: UIViewController {
                 print("error")
             }
         }
+        
+        fingerMeasureKit.resultHealthInfo(
+            apiKey: "apikey",
+            genderType: .FEMALE,
+            age: 20
+        ) { healthEstimate in
+            print("health:", healthEstimate)
+        }
     }
     
     func setupUI() {

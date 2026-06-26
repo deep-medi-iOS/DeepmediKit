@@ -26,6 +26,9 @@ open class FingerKit: NSObject {
     
     private let model = Model.shared
     private let dataModel = DataModel.shared
+    private let service = Service.manager
+    private let recordModel = RecordModel.shared
+    
     private let measurementModel = MeasurementModel()
     
     private let device = UIDevice.current
@@ -89,6 +92,33 @@ open class FingerKit: NSObject {
                           result.3)
             })
             .disposed(by: bag)
+    }
+    
+    public func resultHealthInfo(
+        apiKey: String,
+        genderType: MeasurementModel.HealthCareInfo.genderType,
+        age: Int,
+        height: Int? = 0,
+        weight: Int? = 0,
+        _ healthEstimate: @escaping((HealthEstimate) -> ())
+    ) {
+        let healthCareInfo = measurementModel.healthCareInfo
+        healthCareInfo
+            .asDriver(
+                onErrorJustReturn: .init(
+                    hr: 0,
+                    mentalStress: 0,
+                    physicalStress: 0,
+                    afDetect: 10,
+                    sys: 0,
+                    dia: 0
+                )
+            )
+            .drive(onNext: { healthInfo in
+                healthEstimate(healthInfo)
+            })
+            .disposed(by: bag)
+            
     }
     
     public func stopMeasurement(
@@ -335,7 +365,7 @@ open class FingerKit: NSObject {
                 self.notiGenerator.notificationOccurred(.success)
                 
                 self.document.makeDocument(data: .rgb)
-
+                
                 if self.model.breathMeasurement {
                     self.document.makeDocument(data: .acc)
                     self.document.makeDocument(data: .gyro)
@@ -343,10 +373,12 @@ open class FingerKit: NSObject {
                     if let rgbPath  = self.dataModel.rgbDataPath,
                        let accPath  = self.dataModel.accDataPath,
                        let gyroPath = self.dataModel.gyroDataPath {
+                        
                         completion.onNext((success: true,
                                            rgbURL:  rgbPath,
                                            accURL:  accPath,
                                            gyroURL: gyroPath))
+                        estimateHealthInfo(rgbPath: rgbPath)
                     } else {
                         completion.onNext((success: false,
                                            rgbURL:  URL(string: "there is no rgb path"),
@@ -361,6 +393,7 @@ open class FingerKit: NSObject {
                                            rgbURL:  rgbPath,
                                            accURL:  URL(string: "there is no acc path"),
                                            gyroURL: URL(string: "there is no gyro path")))
+                        estimateHealthInfo(rgbPath: rgbPath)
                     } else {
                         completion.onNext((success: false,
                                            rgbURL:  URL(string: "there is no rgb path"),
@@ -369,6 +402,45 @@ open class FingerKit: NSObject {
                     }
                 }
                 self.stopSession()
+            }
+        }
+    }
+    
+    func estimateHealthInfo(
+        rgbPath: URL
+    ) {
+        let healthCareInfo = self.measurementModel.healthCareInfo
+        self.service.facePPG(
+            apiKey: self.model.apiKey,
+            rgbPath: rgbPath,
+            age: self.model.age,
+            gender: self.model.gender,
+            weight: self.model.weight,
+            height: self.model.height
+        ) { healthInfoErr in
+            if let err = healthInfoErr {
+                healthCareInfo.onNext(
+                    .init(
+                        hr: 0,
+                        mentalStress: 0,
+                        physicalStress: 0,
+                        afDetect: 10,
+                        sys: 0,
+                        dia: 0
+                    )
+                )
+                
+            } else {
+                healthCareInfo.onNext(
+                    .init(
+                        hr: self.recordModel.hr,
+                        mentalStress: self.recordModel.mentalStress,
+                        physicalStress: self.recordModel.physicalStress,
+                        afDetect: self.recordModel.af,
+                        sys: self.recordModel.sys,
+                        dia: self.recordModel.dia
+                    )
+                )
             }
         }
     }

@@ -18,7 +18,7 @@ class Service {
     private let recordModel = RecordModel.shared
     
     func facePPG(
-        secretKey: String,
+//        secretKey: String,
         apiKey: String,
         rgbPath: URL,
         age: Int,
@@ -104,7 +104,7 @@ class Service {
     }
     
     func cardiacRisk(
-        secretKey: String,
+//        secretKey: String,
         apiKey: String,
         gender: Int,
         age: Int,
