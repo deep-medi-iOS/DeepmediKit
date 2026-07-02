@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		407190233F0F99E4C432F555 /* Pods_DeepmediKit_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 062654FE99E0CC8684D55D0B /* Pods_DeepmediKit_Tests.framework */; };
+		185D2EB91FBE3545EAC679D2 /* Pods_DeepmediKit_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D622774C014702681B396D93 /* Pods_DeepmediKit_Tests.framework */; };
 		5C77C30E2A404C0A00AF4D0D /* FaceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */; };
 		5C77C3102A404C1100AF4D0D /* FingerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C77C30F2A404C1100AF4D0D /* FingerViewController.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
@@ -16,7 +16,7 @@
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
-		E1FE1FE9620FE2097646F648 /* Pods_DeepmediKit_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2188ADEAD17AD4A8D38E212 /* Pods_DeepmediKit_Example.framework */; };
+		9EAA543D732E206FA6B69DFC /* Pods_DeepmediKit_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 679EB55128718ED6C53817B1 /* Pods_DeepmediKit_Example.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,10 +30,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		062654FE99E0CC8684D55D0B /* Pods_DeepmediKit_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		17E42D1B4F832B4525B21667 /* Pods-DeepmediKit_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.release.xcconfig"; sourceTree = "<group>"; };
-		2159529101E0DFFFA751BCF5 /* Pods-DeepmediKit_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.release.xcconfig"; sourceTree = "<group>"; };
+		29066069E4BFCB76962B0F3F /* Pods-DeepmediKit_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.debug.xcconfig"; sourceTree = "<group>"; };
 		2A1A6163EA28494021E07A0C /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
+		305011945790518D8BC69938 /* Pods-DeepmediKit_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.debug.xcconfig"; sourceTree = "<group>"; };
 		531183F51119575460A2D797 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		5C77C30D2A404C0A00AF4D0D /* FaceViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceViewController.swift; sourceTree = "<group>"; };
 		5C77C30F2A404C1100AF4D0D /* FingerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FingerViewController.swift; sourceTree = "<group>"; };
@@ -47,10 +46,11 @@
 		607FACE51AFB9204008FA782 /* DeepmediKit_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepmediKit_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
-		62DC774EB8C9B6D54AA49903 /* Pods-DeepmediKit_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.debug.xcconfig"; sourceTree = "<group>"; };
+		61FBE89573F9BEC2328A8FEB /* Pods-DeepmediKit_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.release.xcconfig"; sourceTree = "<group>"; };
+		679EB55128718ED6C53817B1 /* Pods_DeepmediKit_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		828C571B37433E53070C251B /* DeepmediKit.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = DeepmediKit.podspec; path = ../DeepmediKit.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		C2188ADEAD17AD4A8D38E212 /* Pods_DeepmediKit_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		EB4F142401B047111E9DC4DE /* Pods-DeepmediKit_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Tests.debug.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Tests/Pods-DeepmediKit_Tests.debug.xcconfig"; sourceTree = "<group>"; };
+		D45575B1446B5C613DD32771 /* Pods-DeepmediKit_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DeepmediKit_Example.release.xcconfig"; path = "Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example.release.xcconfig"; sourceTree = "<group>"; };
+		D622774C014702681B396D93 /* Pods_DeepmediKit_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_DeepmediKit_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,7 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1FE1FE9620FE2097646F648 /* Pods_DeepmediKit_Example.framework in Frameworks */,
+				9EAA543D732E206FA6B69DFC /* Pods_DeepmediKit_Example.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,18 +66,18 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				407190233F0F99E4C432F555 /* Pods_DeepmediKit_Tests.framework in Frameworks */,
+				185D2EB91FBE3545EAC679D2 /* Pods_DeepmediKit_Tests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		3A70275E4DCCE0034907CB48 /* Frameworks */ = {
+		08BECE1538AB9B7546E24B86 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				C2188ADEAD17AD4A8D38E212 /* Pods_DeepmediKit_Example.framework */,
-				062654FE99E0CC8684D55D0B /* Pods_DeepmediKit_Tests.framework */,
+				679EB55128718ED6C53817B1 /* Pods_DeepmediKit_Example.framework */,
+				D622774C014702681B396D93 /* Pods_DeepmediKit_Tests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -90,7 +90,7 @@
 				607FACE81AFB9204008FA782 /* Tests */,
 				607FACD11AFB9204008FA782 /* Products */,
 				A885C943FA9742E8E1679C65 /* Pods */,
-				3A70275E4DCCE0034907CB48 /* Frameworks */,
+				08BECE1538AB9B7546E24B86 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -157,10 +157,10 @@
 		A885C943FA9742E8E1679C65 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				62DC774EB8C9B6D54AA49903 /* Pods-DeepmediKit_Example.debug.xcconfig */,
-				17E42D1B4F832B4525B21667 /* Pods-DeepmediKit_Example.release.xcconfig */,
-				EB4F142401B047111E9DC4DE /* Pods-DeepmediKit_Tests.debug.xcconfig */,
-				2159529101E0DFFFA751BCF5 /* Pods-DeepmediKit_Tests.release.xcconfig */,
+				29066069E4BFCB76962B0F3F /* Pods-DeepmediKit_Example.debug.xcconfig */,
+				D45575B1446B5C613DD32771 /* Pods-DeepmediKit_Example.release.xcconfig */,
+				305011945790518D8BC69938 /* Pods-DeepmediKit_Tests.debug.xcconfig */,
+				61FBE89573F9BEC2328A8FEB /* Pods-DeepmediKit_Tests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -172,12 +172,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACEF1AFB9204008FA782 /* Build configuration list for PBXNativeTarget "DeepmediKit_Example" */;
 			buildPhases = (
-				B7A0232BE669FE8D3D196ADC /* [CP] Check Pods Manifest.lock */,
+				B0FF6190F68CD76063640A09 /* [CP] Check Pods Manifest.lock */,
 				607FACCC1AFB9204008FA782 /* Sources */,
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
-				88989586C0C5EE3DD96E3A94 /* [CP] Embed Pods Frameworks */,
-				C6C68C18610FC16672344B57 /* [CP] Copy Pods Resources */,
+				3BA7D3D70FB97CD5FA70F383 /* [CP] Embed Pods Frameworks */,
+				867B52E6B371701A375FDF2D /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -192,7 +192,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACF21AFB9204008FA782 /* Build configuration list for PBXNativeTarget "DeepmediKit_Tests" */;
 			buildPhases = (
-				1DD108F099DCBE84B6AC6A6A /* [CP] Check Pods Manifest.lock */,
+				73C9A03A4F570EAA74B347BA /* [CP] Check Pods Manifest.lock */,
 				607FACE11AFB9204008FA782 /* Sources */,
 				607FACE21AFB9204008FA782 /* Frameworks */,
 				607FACE31AFB9204008FA782 /* Resources */,
@@ -272,29 +272,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		1DD108F099DCBE84B6AC6A6A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-DeepmediKit_Tests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		88989586C0C5EE3DD96E3A94 /* [CP] Embed Pods Frameworks */ = {
+		3BA7D3D70FB97CD5FA70F383 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -330,7 +308,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B7A0232BE669FE8D3D196ADC /* [CP] Check Pods Manifest.lock */ = {
+		73C9A03A4F570EAA74B347BA /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -345,14 +323,14 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-DeepmediKit_Example-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-DeepmediKit_Tests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C6C68C18610FC16672344B57 /* [CP] Copy Pods Resources */ = {
+		867B52E6B371701A375FDF2D /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -374,6 +352,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-DeepmediKit_Example/Pods-DeepmediKit_Example-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		B0FF6190F68CD76063640A09 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-DeepmediKit_Example-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -529,7 +529,7 @@
 		};
 		607FACF01AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 62DC774EB8C9B6D54AA49903 /* Pods-DeepmediKit_Example.debug.xcconfig */;
+			baseConfigurationReference = 29066069E4BFCB76962B0F3F /* Pods-DeepmediKit_Example.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -550,7 +550,7 @@
 		};
 		607FACF11AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 17E42D1B4F832B4525B21667 /* Pods-DeepmediKit_Example.release.xcconfig */;
+			baseConfigurationReference = D45575B1446B5C613DD32771 /* Pods-DeepmediKit_Example.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -571,7 +571,7 @@
 		};
 		607FACF31AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB4F142401B047111E9DC4DE /* Pods-DeepmediKit_Tests.debug.xcconfig */;
+			baseConfigurationReference = 305011945790518D8BC69938 /* Pods-DeepmediKit_Tests.debug.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = ALL2F32G29;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -595,7 +595,7 @@
 		};
 		607FACF41AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 2159529101E0DFFFA751BCF5 /* Pods-DeepmediKit_Tests.release.xcconfig */;
+			baseConfigurationReference = 61FBE89573F9BEC2328A8FEB /* Pods-DeepmediKit_Tests.release.xcconfig */;
 			buildSettings = {
 				DEVELOPMENT_TEAM = ALL2F32G29;
 				FRAMEWORK_SEARCH_PATHS = (

@@ -104,6 +104,20 @@ public class FaceKit: NSObject {
         let awbState: String
         let afState: String
     }
+
+    internal struct VideoFrameStats {
+        var delivered = 0
+        var dropped = 0
+        var frameWasLate = 0
+        var outOfBuffers = 0
+        var discontinuity = 0
+        var unknown = 0
+
+        var dropRate: Double {
+            let total = delivered + dropped
+            return total > 0 ? Double(dropped) / Double(total) : 0
+        }
+    }
     
     enum MeasurementErr: Error {
         case message(String)
@@ -118,6 +132,9 @@ public class FaceKit: NSObject {
     internal let model       = ConfigurationStore.shared,
                  cameraSessionManager = CameraSessionManager.shared
     internal var tfliteRunner: TFLiteModelRunner?
+    internal let videoFrameStatsLock = NSLock()
+    internal var videoFrameStats = VideoFrameStats()
+    internal var isCollectingVideoFrameStats = false
     
     internal var lastFrame: CMSampleBuffer?,
                  gCIContext: CIContext?,
@@ -208,6 +225,68 @@ public class FaceKit: NSObject {
         }
     }
 
+    internal func beginVideoFrameStats() {
+        videoFrameStatsLock.lock()
+        videoFrameStats = VideoFrameStats()
+        isCollectingVideoFrameStats = true
+        videoFrameStatsLock.unlock()
+    }
+
+    internal func recordDeliveredVideoFrame() {
+        videoFrameStatsLock.lock()
+        defer { videoFrameStatsLock.unlock() }
+
+        guard isCollectingVideoFrameStats else { return }
+        videoFrameStats.delivered += 1
+    }
+
+    internal func recordDroppedVideoFrame(reason: CFTypeRef?) {
+        videoFrameStatsLock.lock()
+        defer { videoFrameStatsLock.unlock() }
+
+        guard isCollectingVideoFrameStats else { return }
+        videoFrameStats.dropped += 1
+
+        guard let reason else {
+            videoFrameStats.unknown += 1
+            return
+        }
+
+        if CFEqual(reason, kCMSampleBufferDroppedFrameReason_FrameWasLate) {
+            videoFrameStats.frameWasLate += 1
+        } else if CFEqual(reason, kCMSampleBufferDroppedFrameReason_OutOfBuffers) {
+            videoFrameStats.outOfBuffers += 1
+        } else if CFEqual(reason, kCMSampleBufferDroppedFrameReason_Discontinuity) {
+            videoFrameStats.discontinuity += 1
+        } else {
+            videoFrameStats.unknown += 1
+        }
+    }
+
+    @discardableResult
+    internal func finishVideoFrameStats(context: String) -> VideoFrameStats? {
+        videoFrameStatsLock.lock()
+        guard isCollectingVideoFrameStats else {
+            videoFrameStatsLock.unlock()
+            return nil
+        }
+        isCollectingVideoFrameStats = false
+        let stats = videoFrameStats
+        videoFrameStatsLock.unlock()
+
+        print(
+            "[VideoFrameStats][\(context)] " +
+            "delivered=\(stats.delivered), " +
+            "dropped=\(stats.dropped), " +
+            "dropRate=\(String(format: "%.2f", stats.dropRate * 100))%, " +
+            "late=\(stats.frameWasLate), " +
+            "outOfBuffers=\(stats.outOfBuffers), " +
+            "discontinuity=\(stats.discontinuity), " +
+            "unknown=\(stats.unknown)"
+        )
+        return stats
+    }
+
     private func initializeTFLiteModel() {
         do {
             let runner = try TFLiteModelRunner(modelName: "model_core", threadCount: 2)
@@ -294,6 +373,7 @@ public class FaceKit: NSObject {
             measurementCount         = measurementState.measurementCount
 
         initRGBData()
+        beginVideoFrameStats()
         preparingSec = model.prepareTime
         
         dispatchTimer = DispatchSource.makeTimerSource()
@@ -308,11 +388,13 @@ public class FaceKit: NSObject {
                     self?.lastValue = nil
                     self?.isTimerRunning = false
                     self?.dispatchTimer?.cancel()
+                    self?.finishVideoFrameStats(context: "cancelled")
                     return
                 }
                 self.isTimerRunning = true
                 measurementCount.onNext(sigR.count)
                 if self.sigR.count == measurementDataCount {
+                    self.finishVideoFrameStats(context: "collection completed")
                     if let faceBin = self.measurementFileWriter.makeFaceBin(
                         frames: bytesArray,
                         timestampsUS: frameTimestampUS
@@ -345,6 +427,7 @@ public class FaceKit: NSObject {
         message: String
     ) {
         print("[++\(#fileID):\(#line)]- measurement failed: \(message)")
+        finishVideoFrameStats(context: "core failure")
         measurementState.measurementComplete.onNext(false)
         dispatchTimer?.cancel()
         isTimerRunning = false

@@ -27,6 +27,7 @@ extension FaceKit {
     }
     
     internal func timerReset() {
+        finishVideoFrameStats(context: "timer reset")
         isTimerRunning = false
         dispatchTimer?.cancel()
         measurementTimer.invalidate()

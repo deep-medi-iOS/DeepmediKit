@@ -19,6 +19,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        recordDeliveredVideoFrame()
+
         guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             print("cvimg ref")
             return
@@ -48,6 +50,19 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             cvimgRef,
             CVPixelBufferLockFlags(rawValue: 0)
         )
+    }
+
+    public func captureOutput(
+        _ output: AVCaptureOutput,
+        didDrop sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        let reason = CMGetAttachment(
+            sampleBuffer,
+            key: kCMSampleBufferAttachmentKey_DroppedFrameReason,
+            attachmentModeOut: nil
+        )
+        recordDroppedVideoFrame(reason: reason)
     }
     
     // 얼굴인식 구역내 얼굴인식

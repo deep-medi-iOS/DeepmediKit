@@ -91,7 +91,7 @@ class CameraSessionManager: NSObject {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             
             // 해상도 조건
-            guard dims.width <= 2000, dims.height <= 1100 else { continue }
+            guard dims.width <= 700, dims.height <= 700 else { continue }
             
             // fps 지원 여부
             let supportsFPS = format.videoSupportedFrameRateRanges.contains { range in
