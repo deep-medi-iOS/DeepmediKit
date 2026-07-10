@@ -143,7 +143,7 @@ class FaceViewController: UIViewController {
 
         faceMeasureKit?.coreMetrics { [weak self] physMorphNet  in
             guard let self else { return }
-            print("[++\(#fileID):\(#line)]- physMorphNet: ", physMorphNet)
+//            print("[++\(#fileID):\(#line)]- physMorphNet: ", physMorphNet)
             guard physMorphNet.binPath != nil, physMorphNet.metrics.ppg.count != 0 else {
                 return
             }
@@ -163,6 +163,7 @@ class FaceViewController: UIViewController {
         let cuffDia = 75
         var calibrationBPFeatures: [Double] = []
 
+        let physicalStress: Double
         do {
             let stress = try await EstimateStressFromRrProvider(apiKey: apiKey)
                 .getEstimateStressFromRr(
@@ -171,38 +172,85 @@ class FaceViewController: UIViewController {
                     gender: userGender,
                     k: 1
                 )
-            let physicalStress = stress.physicalStress
+            physicalStress = stress.physicalStress
+        } catch let error {
+            print("estimate stress from rr api error: \(error.localizedDescription)")
+            uploadFailureDiagnostic(
+                failedApi: .estimateStressFromRR,
+                error: error,
+                output: output
+            )
+            return
+        }
 
-            let targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
+        let targetFeatures: [Double]
+        do {
+            targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
                 .getBPFeatureExtraction(
                     ppg: output.metrics.ppg,
                     ts: output.ts
                 )
                 .ft
+        } catch let error {
+            uploadFailureDiagnostic(
+                failedApi: .extractBPFeatureTarget,
+                error: error,
+                output: output
+            )
+            print("extract bp feature target api error: \(error.localizedDescription)")
+            return
+        }
 
-            let calibFeatures: [Double]
-            if calibrationBPFeatures.isEmpty {
-                calibrationBPFeatures = targetFeatures
-                calibFeatures = targetFeatures
-            } else {
-                calibFeatures = calibrationBPFeatures
-            }
+        let calibFeatures: [Double]
+        if calibrationBPFeatures.isEmpty {
+            calibrationBPFeatures = targetFeatures
+            calibFeatures = targetFeatures
+        } else {
+            calibFeatures = calibrationBPFeatures
+        }
 
-            let bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
+        let bp: EstimateSingleBpVital
+        do {
+            bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
                 .getEstimateSingleBpVital(
                     cuffSys: cuffSys,
                     cuffDia: cuffDia,
                     calibFt: calibFeatures,
                     targetFt: targetFeatures
                 )
-            print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
-            print("[++\(#fileID):\(#line)]- hr: ", output.metrics.hr)//심박
-            print("[++\(#fileID):\(#line)]- sdnn: ", output.metrics.sdnn)//스트레스
-            print("[++\(#fileID):\(#line)]- rmssd: ", output.metrics.rmssd)//스트레스 회복력
-            print("[++\(#fileID):\(#line)]- psi: ", physicalStress)//피로도
-            
         } catch let error {
-            print("vital api error: \(error.localizedDescription)")
+            uploadFailureDiagnostic(
+                failedApi: .estimateSingleBPVital,
+                error: error,
+                output: output
+            )
+            print("estimate single bp vital api error: \(error.localizedDescription)")
+            return
+        }
+
+        print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
+        print("[++\(#fileID):\(#line)]- hr: ", output.metrics.hr)//심박
+        print("[++\(#fileID):\(#line)]- sdnn: ", output.metrics.sdnn)//스트레스
+        print("[++\(#fileID):\(#line)]- rmssd: ", output.metrics.rmssd)//스트레스 회복력
+        print("[++\(#fileID):\(#line)]- psi: ", physicalStress)//피로도
+    }
+
+    private func uploadFailureDiagnostic(
+        failedApi: FailureDiagnosticFailedAPI,
+        error: Error,
+        output: FaceKit.PhysMorphNet
+    ) {
+        let debugInfo = FailureDiagnosticDebugInfo(
+            failedApi: failedApi,
+            error: error
+        )
+
+        if let binPath = output.binPath {
+            FailureDiagnosticNCPUploader()
+                .uploadBestEffort(
+                    faceBinURL: binPath,
+                    debugInfo: debugInfo
+                )
         }
     }
 

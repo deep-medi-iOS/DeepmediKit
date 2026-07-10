@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import UIKit
 
 public enum GenderType: Int, Codable {
     case male = 0
@@ -30,6 +31,600 @@ extension DeepmediServiceError: LocalizedError {
         case .apiResult(let result, let message):
             return "api result error: \(result), message: \(message)"
         }
+    }
+}
+
+public enum FailureDiagnosticFailedAPI: String, CaseIterable {
+    case extractBPFeatureCalibration = "extract-bp-ft(calib)"
+    case extractBPFeatureTarget = "extract-bp-ft(target)"
+    case estimateStressFromRR = "estimate-stress-from-rr"
+    case estimateSingleBPVital = "estimate-single-bp-vital"
+}
+
+public struct FailureDiagnosticDebugInfo {
+    public let failedApi: String
+    public let exceptionType: String
+    public let httpCode: Int?
+    public let apiResult: Int?
+    public let message: String
+    public let device: String
+    public let osApiLevel: String
+    public let occurredAt: String
+    public let errorBody: String
+
+    public init(
+        failedApi: FailureDiagnosticFailedAPI,
+        exceptionType: String,
+        httpCode: Int?,
+        apiResult: Int?,
+        message: String,
+        device: String = FailureDiagnosticDebugInfo.currentDeviceModel(),
+        osApiLevel: String = UIDevice.current.systemVersion,
+        occurredAt: Date = Date(),
+        errorBody: String?
+    ) {
+        self.init(
+            failedApi: failedApi.rawValue,
+            exceptionType: exceptionType,
+            httpCode: httpCode,
+            apiResult: apiResult,
+            message: message,
+            device: device,
+            osApiLevel: osApiLevel,
+            occurredAt: occurredAt,
+            errorBody: errorBody
+        )
+    }
+
+    public init(
+        failedApi: String,
+        exceptionType: String,
+        httpCode: Int?,
+        apiResult: Int?,
+        message: String,
+        device: String = FailureDiagnosticDebugInfo.currentDeviceModel(),
+        osApiLevel: String = UIDevice.current.systemVersion,
+        occurredAt: Date = Date(),
+        errorBody: String?
+    ) {
+        self.failedApi = failedApi
+        self.exceptionType = exceptionType
+        self.httpCode = httpCode
+        self.apiResult = apiResult
+        self.message = message
+        self.device = device
+        self.osApiLevel = osApiLevel
+        self.occurredAt = Self.timestampString(from: occurredAt)
+        self.errorBody = Self.normalizedErrorBody(errorBody)
+    }
+
+    public init(
+        failedApi: FailureDiagnosticFailedAPI,
+        error: Error,
+        occurredAt: Date = Date(),
+        errorBody: String? = nil
+    ) {
+        self.init(
+            failedApi: failedApi.rawValue,
+            error: error,
+            occurredAt: occurredAt,
+            errorBody: errorBody
+        )
+    }
+
+    public init(
+        failedApi: String,
+        error: Error,
+        occurredAt: Date = Date(),
+        errorBody: String? = nil
+    ) {
+        let fields = Self.failureFields(from: error, errorBodyOverride: errorBody)
+        self.init(
+            failedApi: failedApi,
+            exceptionType: fields.exceptionType,
+            httpCode: fields.httpCode,
+            apiResult: fields.apiResult,
+            message: fields.message,
+            occurredAt: occurredAt,
+            errorBody: fields.errorBody
+        )
+    }
+
+    public static func timestampString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        return formatter.string(from: date)
+    }
+
+    public static func currentDeviceModel() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+
+        let identifier = withUnsafePointer(to: &systemInfo.machine) { pointer in
+            pointer.withMemoryRebound(to: CChar.self, capacity: 1) {
+                String(validatingUTF8: $0)
+            }
+        } ?? UIDevice.current.model
+
+        return "\(UIDevice.current.model) (\(identifier))"
+    }
+
+    private static func failureFields(
+        from error: Error,
+        errorBodyOverride: String?
+    ) -> FailureDiagnosticErrorFields {
+        if let serviceError = error as? DeepmediServiceError {
+            switch serviceError {
+            case .invalidURL:
+                return FailureDiagnosticErrorFields(
+                    exceptionType: "InvalidURL",
+                    httpCode: nil,
+                    apiResult: nil,
+                    message: serviceError.localizedDescription,
+                    errorBody: normalizedErrorBody(errorBodyOverride)
+                )
+
+            case .invalidResponse:
+                return FailureDiagnosticErrorFields(
+                    exceptionType: "InvalidResponse",
+                    httpCode: nil,
+                    apiResult: nil,
+                    message: serviceError.localizedDescription,
+                    errorBody: normalizedErrorBody(errorBodyOverride)
+                )
+
+            case .statusCode(let code, let body):
+                return FailureDiagnosticErrorFields(
+                    exceptionType: "HTTPStatusCodeError",
+                    httpCode: code,
+                    apiResult: nil,
+                    message: serviceError.localizedDescription,
+                    errorBody: normalizedErrorBody(errorBodyOverride ?? body)
+                )
+
+            case .apiResult(let result, let message):
+                return FailureDiagnosticErrorFields(
+                    exceptionType: "APIResultError",
+                    httpCode: nil,
+                    apiResult: result,
+                    message: message,
+                    errorBody: normalizedErrorBody(errorBodyOverride)
+                )
+            }
+        }
+
+        if let urlError = error as? URLError {
+            return FailureDiagnosticErrorFields(
+                exceptionType: "URLError",
+                httpCode: nil,
+                apiResult: nil,
+                message: urlError.localizedDescription,
+                errorBody: normalizedErrorBody(errorBodyOverride)
+            )
+        }
+
+        return FailureDiagnosticErrorFields(
+            exceptionType: String(describing: type(of: error)),
+            httpCode: nil,
+            apiResult: nil,
+            message: error.localizedDescription,
+            errorBody: normalizedErrorBody(errorBodyOverride)
+        )
+    }
+
+    private static func normalizedErrorBody(_ body: String?) -> String {
+        guard let body,
+              !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "(none)"
+        }
+        return body
+    }
+}
+
+public struct FailureDiagnosticFileSet {
+    public let bucketName: String
+    public let subject: String
+    public let timestamp: String
+    public let binFileName: String
+    public let debugFileName: String
+    public let binURL: URL
+    public let debugTextURL: URL
+    public let binContentType: String
+    public let debugTextContentType: String
+}
+
+public final class FailureDiagnosticDebugFileWriter {
+    public static let bucketName = "doosan-error-report"
+    public static let platformFolder = "ios"
+    public static let binContentType = "application/octet-stream"
+    public static let debugTextContentType = "text/plain"
+
+    private let fileManager: FileManager
+
+    public init(fileManager: FileManager = .default) {
+        self.fileManager = fileManager
+    }
+
+    public func makeSubject(timestamp: String) -> String {
+        "\(Self.platformFolder)/api-fail/\(timestamp)"
+    }
+
+    public func makeBinFileName(timestamp: String) -> String {
+        "\(timestamp).bin"
+    }
+
+    public func makeDebugFileName(timestamp: String) -> String {
+        "\(timestamp)_debug.txt"
+    }
+
+    public func makeDebugText(from info: FailureDiagnosticDebugInfo) -> String {
+        [
+            "failedApi=\(oneLine(info.failedApi))",
+            "exceptionType=\(oneLine(info.exceptionType))",
+            "httpCode=\(nullable(info.httpCode))",
+            "apiResult=\(nullable(info.apiResult))",
+            "message=\(oneLine(info.message))",
+            "device=\(oneLine(info.device))",
+            "osApiLevel=\(oneLine(info.osApiLevel))",
+            "occurredAt=\(oneLine(info.occurredAt))",
+            "--- errorBody (server raw response) ---",
+            info.errorBody
+        ].joined(separator: "\n")
+    }
+
+    @discardableResult
+    public func writeDebugText(
+        _ info: FailureDiagnosticDebugInfo,
+        baseDirectory: URL? = nil
+    ) throws -> URL {
+        let directory = try makeLocalDirectory(
+            timestamp: info.occurredAt,
+            baseDirectory: baseDirectory
+        )
+        let fileURL = directory.appendingPathComponent(
+            makeDebugFileName(timestamp: info.occurredAt)
+        )
+        try makeDebugText(from: info).write(
+            to: fileURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        return fileURL
+    }
+
+    public func makeDiagnosticFileSet(
+        faceBinURL: URL,
+        debugInfo: FailureDiagnosticDebugInfo,
+        baseDirectory: URL? = nil
+    ) throws -> FailureDiagnosticFileSet {
+        let timestamp = debugInfo.occurredAt
+        let directory = try makeLocalDirectory(
+            timestamp: timestamp,
+            baseDirectory: baseDirectory
+        )
+
+        let binFileName = makeBinFileName(timestamp: timestamp)
+        let debugFileName = makeDebugFileName(timestamp: timestamp)
+        let localBinURL = directory.appendingPathComponent(binFileName)
+        let debugTextURL = directory.appendingPathComponent(debugFileName)
+
+        if fileManager.fileExists(atPath: localBinURL.path) {
+            try fileManager.removeItem(at: localBinURL)
+        }
+        try fileManager.copyItem(at: faceBinURL, to: localBinURL)
+
+        try makeDebugText(from: debugInfo).write(
+            to: debugTextURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        return FailureDiagnosticFileSet(
+            bucketName: Self.bucketName,
+            subject: makeSubject(timestamp: timestamp),
+            timestamp: timestamp,
+            binFileName: binFileName,
+            debugFileName: debugFileName,
+            binURL: localBinURL,
+            debugTextURL: debugTextURL,
+            binContentType: Self.binContentType,
+            debugTextContentType: Self.debugTextContentType
+        )
+    }
+
+    public func removeTemporaryFiles(_ fileSet: FailureDiagnosticFileSet) {
+        try? fileManager.removeItem(at: fileSet.binURL)
+        try? fileManager.removeItem(at: fileSet.debugTextURL)
+
+        let parentDirectory = fileSet.debugTextURL.deletingLastPathComponent()
+        let remainingFiles = (try? fileManager.contentsOfDirectory(
+            at: parentDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+
+        if remainingFiles.isEmpty {
+            try? fileManager.removeItem(at: parentDirectory)
+        }
+    }
+
+    private func makeLocalDirectory(
+        timestamp: String,
+        baseDirectory: URL?
+    ) throws -> URL {
+        let directory = (baseDirectory ?? defaultBaseDirectory())
+            .appendingPathComponent(timestamp, isDirectory: true)
+        try fileManager.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        return directory
+    }
+
+    private func defaultBaseDirectory() -> URL {
+        if let cachesDirectory = fileManager.urls(
+            for: .cachesDirectory,
+            in: .userDomainMask
+        ).first {
+            return cachesDirectory.appendingPathComponent(
+                "DeepmediFailureDiagnostics",
+                isDirectory: true
+            )
+        }
+
+        return URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(
+                "DeepmediFailureDiagnostics",
+                isDirectory: true
+            )
+    }
+
+    private func nullable(_ value: Int?) -> String {
+        value.map(String.init) ?? "null"
+    }
+
+    private func oneLine(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\r\n", with: "\\n")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\n")
+    }
+}
+
+public enum FailureDiagnosticUploadError: Error {
+    case invalidResponse
+    case missingPresignedURL
+    case presignedURLRequestFailed(statusCode: Int, body: String)
+    case fileUploadFailed(statusCode: Int, body: String)
+}
+
+extension FailureDiagnosticUploadError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "Invalid upload response"
+        case .missingPresignedURL:
+            return "Presigned URL is missing"
+        case .presignedURLRequestFailed(let statusCode, let body):
+            return "presigned URL request failed: \(statusCode), body: \(body)"
+        case .fileUploadFailed(let statusCode, let body):
+            return "failure diagnostic file upload failed: \(statusCode), body: \(body)"
+        }
+    }
+}
+
+public final class FailureDiagnosticNCPUploader {
+    private let fileWriter: FailureDiagnosticDebugFileWriter
+    private let session: URLSession
+    private let presignedURLString: String
+    private let maxRetryCount: Int
+    private let retryDelayNanoseconds: UInt64
+
+    public init(
+        fileWriter: FailureDiagnosticDebugFileWriter = FailureDiagnosticDebugFileWriter(),
+        session: URLSession = .shared,
+        presignedURLString: String = "https://bg2rz9whff.apigw.ntruss.com/biosignal/v1/presigned-url",
+        maxRetryCount: Int = 3,
+        retryDelaySeconds: Double = 1.5
+    ) {
+        self.fileWriter = fileWriter
+        self.session = session
+        self.presignedURLString = presignedURLString
+        self.maxRetryCount = max(1, maxRetryCount)
+        self.retryDelayNanoseconds = UInt64(max(0, retryDelaySeconds) * 1_000_000_000)
+    }
+
+    public func uploadBestEffort(
+        faceBinURL: URL,
+        debugInfo: FailureDiagnosticDebugInfo,
+        baseDirectory: URL? = nil
+    ) {
+        Task {
+            do {
+                try await upload(
+                    faceBinURL: faceBinURL,
+                    debugInfo: debugInfo,
+                    presignedRequestHeaders: [
+                        "x-ncp-apigw-api-key": "Y7fOpqGzPGUBCDYdAJDLaK29jwiN5d5YplsOGddD"
+                    ],
+                    baseDirectory: baseDirectory
+                )
+            } catch {
+                print("[FailureDiagnosticNCPUploader] upload failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    public func upload(
+        faceBinURL: URL,
+        debugInfo: FailureDiagnosticDebugInfo,
+        presignedRequestHeaders: [String: String] = [:],
+        baseDirectory: URL? = nil
+    ) async throws {
+        let fileSet = try fileWriter.makeDiagnosticFileSet(
+            faceBinURL: faceBinURL,
+            debugInfo: debugInfo,
+            baseDirectory: baseDirectory
+        )
+        defer {
+            fileWriter.removeTemporaryFiles(fileSet)
+        }
+
+        try await uploadWithRetry(
+            fileURL: fileSet.binURL,
+            fileName: fileSet.binFileName,
+            contentType: fileSet.binContentType,
+            bucketName: fileSet.bucketName,
+            subject: fileSet.subject,
+            presignedRequestHeaders: presignedRequestHeaders
+        )
+
+        try await uploadWithRetry(
+            fileURL: fileSet.debugTextURL,
+            fileName: fileSet.debugFileName,
+            contentType: fileSet.debugTextContentType,
+            bucketName: fileSet.bucketName,
+            subject: fileSet.subject,
+            presignedRequestHeaders: presignedRequestHeaders
+        )
+    }
+
+    private func uploadWithRetry(
+        fileURL: URL,
+        fileName: String,
+        contentType: String,
+        bucketName: String,
+        subject: String,
+        presignedRequestHeaders: [String: String]
+    ) async throws {
+        var latestError: Error?
+
+        for attempt in 1...maxRetryCount {
+            do {
+                let presignedURL = try await requestPresignedURL(
+                    bucketName: bucketName,
+                    subject: subject,
+                    fileName: fileName,
+                    headers: presignedRequestHeaders
+                )
+                try await uploadFile(
+                    fileURL: fileURL,
+                    presignedURL: presignedURL,
+                    contentType: contentType
+                )
+                return
+            } catch {
+                latestError = error
+                guard attempt < maxRetryCount else { break }
+                try await Task.sleep(nanoseconds: retryDelayNanoseconds)
+            }
+        }
+
+        if let latestError {
+            throw latestError
+        }
+    }
+
+    private func requestPresignedURL(
+        bucketName: String,
+        subject: String,
+        fileName: String,
+        headers: [String: String]
+    ) async throws -> URL {
+        guard let url = URL(string: presignedURLString) else {
+            throw DeepmediServiceError.invalidURL(presignedURLString)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        headers.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+
+        request.httpBody = try JSONEncoder().encode(
+            FailureDiagnosticPresignedURLRequest(
+                bucketName: bucketName,
+                subject: subject,
+                file: fileName
+            )
+        )
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw FailureDiagnosticUploadError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw FailureDiagnosticUploadError.presignedURLRequestFailed(
+                statusCode: httpResponse.statusCode,
+                body: String(data: data, encoding: .utf8) ?? ""
+            )
+        }
+
+        let decoded = try JSONDecoder().decode(
+            FailureDiagnosticPresignedURLResponse.self,
+            from: data
+        )
+
+        guard let presignedURL = URL(string: decoded.presignedURL) else {
+            throw FailureDiagnosticUploadError.missingPresignedURL
+        }
+
+        return presignedURL
+    }
+
+    private func uploadFile(
+        fileURL: URL,
+        presignedURL: URL,
+        contentType: String
+    ) async throws {
+        var request = URLRequest(url: presignedURL)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+
+        let data = try Data(contentsOf: fileURL)
+        let (responseData, response) = try await session.upload(for: request, from: data)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw FailureDiagnosticUploadError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw FailureDiagnosticUploadError.fileUploadFailed(
+                statusCode: httpResponse.statusCode,
+                body: String(data: responseData, encoding: .utf8) ?? ""
+            )
+        }
+    }
+}
+
+private struct FailureDiagnosticErrorFields {
+    let exceptionType: String
+    let httpCode: Int?
+    let apiResult: Int?
+    let message: String
+    let errorBody: String
+}
+
+private struct FailureDiagnosticPresignedURLRequest: Encodable {
+    let bucketName: String
+    let subject: String
+    let file: String
+
+    private enum CodingKeys: String, CodingKey {
+        case bucketName = "bucket_name"
+        case subject
+        case file
+    }
+}
+
+private struct FailureDiagnosticPresignedURLResponse: Decodable {
+    let objectKey: String?
+    let presignedURL: String
+
+    private enum CodingKeys: String, CodingKey {
+        case objectKey = "object_key"
+        case presignedURL = "presigned_url"
     }
 }
 
@@ -290,7 +885,13 @@ private struct DeepmediAPIStatus: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.result = try container.decodeIfPresent(Int.self, forKey: .result)
+        if let intResult = try? container.decodeIfPresent(Int.self, forKey: .result) {
+            self.result = intResult
+        } else if let stringResult = try? container.decodeIfPresent(String.self, forKey: .result) {
+            self.result = Int(stringResult)
+        } else {
+            self.result = nil
+        }
 
         if let text = try? container.decodeIfPresent(String.self, forKey: .message) {
             self.messageText = text
