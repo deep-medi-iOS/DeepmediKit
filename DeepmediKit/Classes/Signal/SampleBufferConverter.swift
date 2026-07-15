@@ -15,7 +15,7 @@ final class SampleBufferConverter {
 
     struct FaceBinFrame {
         let rgb36x36: [UInt8]   // 36 * 36 * 3 (RGB)
-        let timestampUS: UInt64 // capture timestamp in microseconds
+        let timestampUS: UInt64 // measurement elapsed timestamp in microseconds
     }
     
     /// Front camera: BGRA -> UIImage + 90° clockwise + mirrored
@@ -85,6 +85,14 @@ final class SampleBufferConverter {
         _ sampleBuffer: CMSampleBuffer,
         orientation: UIImage.Orientation? = nil
     ) -> [UInt8]? {
+        let exifOrientationValue = orientation.map { Int(Self.exifOrientation(for: $0)) } ?? 1
+        if let data = OpenCVWrapper.rgb36x36Data(
+            from: sampleBuffer,
+            exifOrientation: exifOrientationValue
+        ) {
+            return [UInt8](data as Data)
+        }
+
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return nil
         }

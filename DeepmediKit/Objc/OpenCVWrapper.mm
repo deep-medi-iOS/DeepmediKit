@@ -6,29 +6,111 @@
 //
 
 #import <opencv2/opencv.hpp>
-#import <opencv2/videoio/cap_ios.h>
-#import <opencv2/imgcodecs/ios.h>
 #import "OpenCVWrapper.h"
-
-#import <AVKit/AVKit.h>
-#import <AVFoundation/AVFoundation.h>
-
-@interface OpenCVWrapper()
-
-@property (nonatomic) cv::Mat YY;
-@property (nonatomic) cv::Mat Xmtx;
-@property (nonatomic) cv::Mat Ymtx;
-@property (nonatomic) cv::Mat Acoeff;
-@property (nonatomic) cv::Mat Bcoeff;
-@property (nonatomic) cv::Mat buff;
-
-@end
-
 
 @implementation OpenCVWrapper
 
 + (NSString *)openCVVersionString {
 return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
+}
+
++ (cv::Mat)applyExifOrientation:(const cv::Mat&)src exifOrientation:(NSInteger)exifOrientation {
+    cv::Mat dst;
+
+    switch (exifOrientation) {
+        case 1:
+            dst = src.clone();
+            break;
+        case 2:
+            cv::flip(src, dst, 1);
+            break;
+        case 3:
+            cv::rotate(src, dst, cv::ROTATE_180);
+            break;
+        case 4:
+            cv::flip(src, dst, 0);
+            break;
+        case 5:
+            cv::transpose(src, dst);
+            break;
+        case 6:
+            cv::rotate(src, dst, cv::ROTATE_90_CLOCKWISE);
+            break;
+        case 7: {
+            cv::Mat transposed;
+            cv::transpose(src, transposed);
+            cv::flip(transposed, dst, -1);
+            break;
+        }
+        case 8:
+            cv::rotate(src, dst, cv::ROTATE_90_COUNTERCLOCKWISE);
+            break;
+        default:
+            dst = src.clone();
+            break;
+    }
+
+    return dst;
+}
+
++ (NSData *_Nullable)rgb36x36DataFromSampleBuffer:(CMSampleBufferRef)sampleBuffer
+                                  exifOrientation:(NSInteger)exifOrientation {
+    if (!sampleBuffer) {
+        return nil;
+    }
+
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    if (!imageBuffer) {
+        return nil;
+    }
+
+    CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+    NSData *result = nil;
+
+    const int width = (int)CVPixelBufferGetWidth(imageBuffer);
+    const int height = (int)CVPixelBufferGetHeight(imageBuffer);
+    const size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+    if (!baseAddress || width <= 0 || height <= 0) {
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        return nil;
+    }
+
+    const OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
+    cv::Mat rgb;
+
+    if (pixelFormat == kCVPixelFormatType_32BGRA) {
+        cv::Mat bgra(height, width, CV_8UC4, baseAddress, bytesPerRow);
+        cv::cvtColor(bgra, rgb, cv::COLOR_BGRA2RGB);
+    } else if (pixelFormat == kCVPixelFormatType_32RGBA) {
+        cv::Mat rgba(height, width, CV_8UC4, baseAddress, bytesPerRow);
+        cv::cvtColor(rgba, rgb, cv::COLOR_RGBA2RGB);
+    } else {
+        NSLog(@"[OpenCVWrapper] Unsupported pixel format for face bin resize: %u", pixelFormat);
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        return nil;
+    }
+
+    cv::Mat oriented = [OpenCVWrapper applyExifOrientation:rgb exifOrientation:exifOrientation];
+    if (oriented.empty()) {
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        return nil;
+    }
+
+    cv::Mat resized;
+    cv::resize(oriented, resized, cv::Size(36, 36), 0, 0, cv::INTER_AREA);
+    if (resized.empty()) {
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        return nil;
+    }
+
+    if (!resized.isContinuous()) {
+        resized = resized.clone();
+    }
+
+    result = [NSData dataWithBytes:resized.data length:(36 * 36 * 3)];
+    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+    return result;
 }
 
 + (NSArray *)preccessbuffer:(CMSampleBufferRef)sampleBuffer device: (NSString *)device {
@@ -67,10 +149,6 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     b = mRGB.val[2];
     
     CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-    
-    //  printf("r/255 %f / g/255 %f \n", (r / 255), (g / 255));
-    //  printf("r %f / r/255 %f / g %f / g/255 %f /  b %f \n", r, (r / 255), g, (g / 255), b);
-//      printf("-> canny %f / r/255 %f / g/255 %f /  b/255 %f \n",(canny), (r / 255), (g / 255), (b / 255));
     
     BOOL result;
     if ([device containsString:@"Pad"]){
@@ -114,161 +192,5 @@ return [NSString stringWithFormat:@"OpenCV Version %s",  CV_VERSION];
     
     return Return;
 }
-
-//+ (NSArray *)detectFaceSampleBuffer:(CMSampleBufferRef)sampleBuffer {
-//  
-//  CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-//  CVPixelBufferLockBaseAddress(imageBuffer, 0);
-//  
-//  void* bufferAddress;
-//  size_t width;
-//  size_t height;
-//  size_t bytesPerRow;
-//  
-//  bufferAddress = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-//  width = CVPixelBufferGetWidthOfPlane(imageBuffer, 0);
-//  height = CVPixelBufferGetHeightOfPlane(imageBuffer, 0);
-//  bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
-//  unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-//  
-////  mBGR = cv::Mat((int)height, (int)width, CV_8UC3, bufferAddress, 0);
-////  cv::cvtColor(mBGR, mBGR, cv::COLOR_BGR2RGB);
-////  cv::Scalar bgr = cv::mean(mBGR);
-//  
-////  float r = bgr.val[2],
-////        g = bgr.val[1],
-////        b = bgr.val[0];
-//  
-//  cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, CVPixelBufferGetBytesPerRow(imageBuffer));
-//  cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
-//  cv::Scalar mRGB = cv::mean(imgMat);
-//  cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//
-//  float r = mRGB.val[0],
-//        g = mRGB.val[1],
-//        b = mRGB.val[2];
-//
-//  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-//  
-//  NSMutableArray *rgb = [[NSMutableArray alloc] init];
-//  
-//  [rgb insertObject:[NSNumber numberWithFloat:r] atIndex:0];
-//  [rgb insertObject:[NSNumber numberWithFloat:g] atIndex:1];
-//  [rgb insertObject:[NSNumber numberWithFloat:b] atIndex:2];
-//  
-//  imgMat.release();
-//  
-//  return rgb;
-//}
-//
-//+ (unsigned char *)detectChestSampleBuffer:(CMSampleBufferRef)sampleBuffer {
-//  
-//  CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-//  CVPixelBufferLockBaseAddress(imageBuffer, 0);
-//  
-//  void* bufferAddress;
-//  size_t width;
-//  size_t height;
-//  size_t bytesPerRow;
-//  
-//  bufferAddress = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-//  width = CVPixelBufferGetWidth(imageBuffer);
-//  height = CVPixelBufferGetHeight(imageBuffer);
-//  bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-//  unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-//  
-//  cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
-//  cv::resize(imgMat, imgMat, cv::Size(32, 32));
-//  cv::cvtColor(imgMat, imgMat, cv::COLOR_RGBA2GRAY); // BGRA2GRAY -> RGBA2GRAY 차이가 큼
-//  cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//
-//  unsigned long size = height * width;
-//  
-//  uint8_t *buf = new uint8_t[size];
-//
-//  memcpy(buf, imgMat.data, size);
-//  
-//  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-//    
-//  imgMat.release();
-//  
-//  return buf;
-//}
-
-//+ (UIImage * _Nullable)convertingBuffer:(CMSampleBufferRef)sampleBuffer {
-//    if (!sampleBuffer) return nil;
-//    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-//    
-//    if (!imageBuffer) return nil;
-//    CVPixelBufferLockBaseAddress(imageBuffer, 0);
-//    
-////    size_t width = CVPixelBufferGetWidth(imageBuffer);
-////    size_t height = CVPixelBufferGetHeight(imageBuffer);
-////    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-////    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-////    
-////    cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
-//    
-////    cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
-////    cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//    
-//    int width  = (int)CVPixelBufferGetWidth(imageBuffer);
-//    int height = (int)CVPixelBufferGetHeight(imageBuffer);
-//    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-//    
-//    cv::Mat imgMat;
-//    OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
-//    if (pixelFormat == kCVPixelFormatType_32BGRA) {
-//        imgMat = cv::Mat(height, width, CV_8UC4, pixel, CVPixelBufferGetBytesPerRow(imageBuffer));
-//        cv::cvtColor(imgMat, imgMat, cv::COLOR_BGRA2RGB);
-//        cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//    } else {
-//        NSLog(@"[OpenCVWrapper] Unsupported pixel format: %u", pixelFormat);
-//    }
-//
-//    UIImage* outcome = MatToUIImage(imgMat);
-//    
-//    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-//    
-//    return outcome;
-//}
-
-//+ (UIImage * _Nullable)convertingBufferToImage:(CMSampleBufferRef)sampleBuffer {
-//    
-//    if (!sampleBuffer) return nil;
-//    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-//    
-//    if (!imageBuffer) return nil;
-//    CVPixelBufferLockBaseAddress(imageBuffer, 0);
-//    
-////    size_t width = CVPixelBufferGetWidth(imageBuffer);
-////    size_t height = CVPixelBufferGetHeight(imageBuffer);
-////    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-////    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-////    
-////    cv::Mat imgMat = cv::Mat((int)height, (int)width, CV_8UC4, pixel, bytesPerRow);
-////    cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
-////    cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//    
-//    int width  = (int)CVPixelBufferGetWidth(imageBuffer);
-//    int height = (int)CVPixelBufferGetHeight(imageBuffer);
-//    unsigned char *pixel = (unsigned char *)CVPixelBufferGetBaseAddress(imageBuffer);
-//    
-//    cv::Mat imgMat;
-//    OSType pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer);
-//    if (pixelFormat == kCVPixelFormatType_32BGRA) {
-//        imgMat = cv::Mat(height, width, CV_8UC4, pixel, CVPixelBufferGetBytesPerRow(imageBuffer));
-//        cv::cvtColor(imgMat, imgMat, cv::COLOR_BGRA2RGB);
-//        cv::rotate(imgMat, imgMat, cv::ROTATE_90_CLOCKWISE);
-//    } else {
-//        NSLog(@"[OpenCVWrapper] Unsupported pixel format: %u", pixelFormat);
-//    }
-//
-//    UIImage* outcome = MatToUIImage(imgMat);
-//    
-//    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-//    
-//    return outcome;
-//}
 
 @end

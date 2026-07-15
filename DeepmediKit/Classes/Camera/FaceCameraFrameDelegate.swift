@@ -246,12 +246,11 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
                         checkRealFace: false,
                         requiredStableFrames: 1
                     )
-                self.cropFaceRect = CGRect(
-                    x: face.frame.origin.x,
-                    y: face.frame.origin.y,
-                    width: face.frame.width,
-                    height: face.frame.height
-                ).integral // 얼굴인식 위치 계산
+                self.cropFaceRect = self.ultraTightFaceCropRect(
+                    from: face.frame,
+                    imageWidth: imageWidth,
+                    imageHeight: imageHeight
+                ) // 얼굴인식 위치 계산
                 
                 
                 let isStablePosition: Bool
@@ -305,6 +304,27 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             && bottomDiff < threshold
             && leftDiff < threshold
             && rightDiff < threshold
+    }
+
+    private func ultraTightFaceCropRect(
+        from faceFrame: CGRect,
+        imageWidth: CGFloat,
+        imageHeight: CGFloat
+    ) -> CGRect {
+        let targetWidthRatio: CGFloat = 124.0 / 216.0
+        let targetHeightRatio: CGFloat = 162.0 / 216.0
+        let insetXRatio = (1.0 - targetWidthRatio) / 2.0
+        let insetYRatio = (1.0 - targetHeightRatio) / 2.0
+
+        let standardizedFaceFrame = faceFrame.standardized
+        let tightRect = standardizedFaceFrame.insetBy(
+            dx: standardizedFaceFrame.width * insetXRatio,
+            dy: standardizedFaceFrame.height * insetYRatio
+        )
+
+        return tightRect
+            .intersection(CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
+            .integral
     }
     
     //얼굴인식구역 설정 -> 얼굴 보다 큰 바깥구역(외부구역) 하나와 얼굴보다 작은 안쪽구역(내부구역) 하나 설정

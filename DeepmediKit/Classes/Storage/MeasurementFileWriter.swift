@@ -134,7 +134,7 @@ internal final class MeasurementFileWriter {
         let width = 36
         let height = 36
         let channels = 3
-        let frameCount = 450
+        let frameCount = dataSet.count
         let frameByteLength = width * height * channels // 36 * 36 * 3 = 3888
         
         // 1) 데이터 정합성 체크

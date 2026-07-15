@@ -32,7 +32,7 @@ public class FaceKitConfiguration: NSObject {
     public func setMeasurementDataCount(
         _ count: Int?
     ) {
-        self.model.measurementFaceDataCount = count ?? 450
+        self.model.measurementFaceDataCount = count ?? 451
     }
     
     public func setPrepareTime(

@@ -144,7 +144,7 @@ public class FaceKit: NSObject {
 // MARK: Property 
     internal var preparingSec = Int(), // 얼굴을 인식하고 준비하는 시간
                  prepareTimer = Timer(),
-                 measurementDataCount: Int = 450, //총 측정개수
+                 measurementDataCount: Int = 451, //총 측정개수
                  measurementTimer = Timer(),
                  motionManager = CMMotionManager()
     
@@ -182,6 +182,8 @@ public class FaceKit: NSObject {
     
     internal var bytesArray: [[UInt8]] = []
     internal var frameTimestampUS: [UInt64] = []
+    internal var measurementFrameBaseTimestampUS: UInt64?
+    internal var lastMeasurementFrameTimestampUS: UInt64?
     internal var frames = [SampleBufferConverter.FaceBinFrame]()
     internal var frameDataArr: [FrameData] = []
     
@@ -289,16 +291,17 @@ public class FaceKit: NSObject {
 
     private func initializeTFLiteModel() {
         do {
-            let runner = try TFLiteModelRunner(modelName: "model_core", threadCount: 2)
+            print("[++\(#fileID):\(#line)]- TFLite model: \(DeepmediKitModelCore.logDescription)")
+            let runner = try TFLiteModelRunner(threadCount: 2)
             let inputBytes = try runner.inputTensorByteCount()
             tfliteRunner = runner
             tfliteReady = true
-            tfliteInitMessage = "loaded model_core.tflite (inputBytes=\(inputBytes))"
+            tfliteInitMessage = "loaded version=\(DeepmediKitModelCore.version), inputBytes=\(inputBytes)"
             print("[++\(#fileID):\(#line)]- TFLite init success: \(tfliteInitMessage)")
         } catch {
             tfliteRunner = nil
             tfliteReady = false
-            tfliteInitMessage = "failed to load model_core.tflite: \(error.localizedDescription)"
+            tfliteInitMessage = "failed to load \(DeepmediKitModelCore.fileName) (version=\(DeepmediKitModelCore.version)): \(error.localizedDescription)"
             print("[++\(#fileID):\(#line)]- TFLite init failed: \(tfliteInitMessage)")
         }
     }
@@ -395,9 +398,14 @@ public class FaceKit: NSObject {
                 measurementCount.onNext(sigR.count)
                 if self.sigR.count == measurementDataCount {
                     self.finishVideoFrameStats(context: "collection completed")
+                    let faceFrameCount = min(
+                        self.bytesArray.count,
+                        self.frameTimestampUS.count,
+                        self.measurementDataCount
+                    )
                     if let faceBin = self.measurementFileWriter.makeFaceBin(
-                        frames: bytesArray,
-                        timestampsUS: frameTimestampUS
+                        frames: Array(self.bytesArray.prefix(faceFrameCount)),
+                        timestampsUS: Array(self.frameTimestampUS.prefix(faceFrameCount))
                     ) {
                         guard let coreResult = self.runCoreFromFaceBin(faceBin) else {
                             self.finishMeasurementAfterCoreFailure(
@@ -445,7 +453,8 @@ public class FaceKit: NSObject {
     ) -> PhysMorphNetResult? {
         do {
             if tfliteRunner == nil {
-                tfliteRunner = try TFLiteModelRunner(modelName: "model_core", threadCount: 2)
+                print("[++\(#fileID):\(#line)]- TFLite model: \(DeepmediKitModelCore.logDescription)")
+                tfliteRunner = try TFLiteModelRunner(threadCount: 2)
             }
             guard let runner = tfliteRunner else {
                 print("[++\(#fileID):\(#line)]- TFLite runner is nil")

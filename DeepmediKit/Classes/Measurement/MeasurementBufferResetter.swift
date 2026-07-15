@@ -18,6 +18,8 @@ extension FaceKit {
         totalData.removeAll()
         bytesArray.removeAll()
         frameTimestampUS.removeAll()
+        measurementFrameBaseTimestampUS = nil
+        lastMeasurementFrameTimestampUS = nil
         frames.removeAll()
         
         frameDataArr.removeAll()

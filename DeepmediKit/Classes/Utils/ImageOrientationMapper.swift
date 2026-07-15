@@ -57,6 +57,39 @@ final class ImageOrientationMapper {
                 fatalError()
         }
     }
+
+    // face.bin 저장용 방향.
+    // MLKit 검출용 orientation과 분리해서, front camera 저장 프레임은 정방향으로 고정한다.
+    func faceBinImage(
+        fromDevicePosition devicePosition: AVCaptureDevice.Position = .back
+    ) -> UIImage.Orientation {
+        if devicePosition == .front {
+            return .leftMirrored
+        }
+
+        var deviceOrientation = UIDevice.current.orientation
+        if deviceOrientation == .faceDown
+            || deviceOrientation == .faceUp
+            || deviceOrientation == .unknown {
+            deviceOrientation = currentUI()
+        }
+
+        switch deviceOrientation {
+            case .portrait:
+                return .right
+            case .landscapeLeft:
+                return .up
+            case .portraitUpsideDown:
+                return .left
+            case .landscapeRight:
+                return .down
+            case .faceDown, .faceUp, .unknown:
+                return .up
+            @unknown default:
+                fatalError()
+        }
+    }
+
     //화면 좌우 반전 설정
     private func currentUI() -> UIDeviceOrientation {
         let deviceOrientation = { () -> UIDeviceOrientation in
@@ -104,4 +137,3 @@ final class ImageOrientationMapper {
         return deviceOrientation()
     }
 }
-

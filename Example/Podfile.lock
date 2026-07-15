@@ -1,5 +1,5 @@
 PODS:
-  - DeepmediKit (3.2.0):
+  - DeepmediKit (3.5.0):
     - GoogleMLKit/FaceDetection (= 8.0.0)
     - OpenCV (= 4.3.0)
     - RxCocoa (= 6.8.0)
@@ -99,7 +99,7 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  DeepmediKit: cb7751b66b93055e5dbf3033ae29ef515fc1143e
+  DeepmediKit: 514dc1ee2501748e8df1987273436f3d9cdcc016
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleMLKit: ddd51d7dff36ff28defa69afedd9cdce684fd857
   GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8

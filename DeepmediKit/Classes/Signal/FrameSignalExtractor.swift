@@ -54,9 +54,14 @@ extension FaceKit {
         timestampUS: UInt64? = nil,
         orientation: UIImage.Orientation? = nil
     ) {
+        guard frameTimestampUS.count < measurementDataCount else { return }
+
+        let rawTimestampUS = timestampUS ?? SampleBufferConverter.sampleBufferTimestampUS(sampleBuffer)
+        let measurementTimestampUS = normalizedMeasurementFrameTimestampUS(rawTimestampUS)
+
         guard let frameData = SampleBufferConverter.faceBinFrame36x36(
             sampleBuffer,
-            timestampUS: timestampUS,
+            timestampUS: measurementTimestampUS,
             orientation: orientation
         ) else {
             return print("objc chest casting error")
@@ -64,6 +69,29 @@ extension FaceKit {
         frames.append(frameData)
         bytesArray.append(frameData.rgb36x36)
         frameTimestampUS.append(frameData.timestampUS)
+    }
+
+    private func normalizedMeasurementFrameTimestampUS(
+        _ rawTimestampUS: UInt64
+    ) -> UInt64 {
+        let nominalFrameIntervalUS: UInt64 = 33_333
+
+        if measurementFrameBaseTimestampUS == nil {
+            measurementFrameBaseTimestampUS = rawTimestampUS
+        }
+
+        let baseTimestampUS = measurementFrameBaseTimestampUS ?? rawTimestampUS
+        var measurementTimestampUS = rawTimestampUS >= baseTimestampUS
+            ? rawTimestampUS - baseTimestampUS
+            : UInt64(frameTimestampUS.count) * nominalFrameIntervalUS
+
+        if let lastTimestampUS = lastMeasurementFrameTimestampUS,
+           measurementTimestampUS <= lastTimestampUS {
+            measurementTimestampUS = lastTimestampUS + nominalFrameIntervalUS
+        }
+
+        lastMeasurementFrameTimestampUS = measurementTimestampUS
+        return measurementTimestampUS
     }
     //이미지 밝기 정보
     internal func extractYUVFromDetectFace(

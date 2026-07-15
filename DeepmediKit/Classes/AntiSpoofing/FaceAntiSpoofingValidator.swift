@@ -35,14 +35,14 @@ final class FaceAntiSpoofingValidator: NSObject {
         let checkLeft  = leftEyeOpen < 0.3
         let checkRight = rightEyeOpen < 0.3
         
-        if checkRightArr.count <= 450 {
+        if checkRightArr.count <= 451 {
             checkRightArr.append(checkRight)
         } else {
             checkRightArr.removeFirst()
             checkRightArr.append(checkRight)
         }
         
-        if checkLeftArr.count <= 450 {
+        if checkLeftArr.count <= 451 {
             checkLeftArr.append(checkLeft)
         } else {
             checkLeftArr.removeFirst()

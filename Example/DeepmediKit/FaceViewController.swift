@@ -65,7 +65,7 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementDataCount(450)
+        faceMeasureKitModel.setMeasurementDataCount(451)
         faceMeasureKitModel.setPrepareTime(0)
         faceMeasureKitModel.willUseFaceRecognitionArea(true)
         faceMeasureKitModel.willCheckRealFace(false)
@@ -143,7 +143,7 @@ class FaceViewController: UIViewController {
 
         faceMeasureKit?.coreMetrics { [weak self] physMorphNet  in
             guard let self else { return }
-//            print("[++\(#fileID):\(#line)]- physMorphNet: ", physMorphNet)
+            print("[++\(#fileID):\(#line)]- physMorphNet: ", physMorphNet.metrics.rrList)
             guard physMorphNet.binPath != nil, physMorphNet.metrics.ppg.count != 0 else {
                 return
             }

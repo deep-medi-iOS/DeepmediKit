@@ -59,8 +59,7 @@ extension FaceKit {
                 isRightEyeReal = true
             }
             
-            guard let faceCropBuffer = sampleBufferCropper.sample(frame, with: rect),
-                  let faceDetailCropBuffer = sampleBufferCropper.sampleFace(frame, with: rect) else {
+            guard let faceCropBuffer = sampleBufferCropper.sample(frame, with: rect) else {
                 print("[++\(#fileID):\(#line)]- crop face error")
                 return
             }
@@ -74,7 +73,6 @@ extension FaceKit {
                 rightEyeBrowPoints: rightEyeBrowTopContour.points + rightEyeBrowBottomContour.points,
                 lipsPoints: upperLipContour.points + lowerLipContour.points,
                 cropImage: SampleBufferConverter.convertingBufferFront(faceCropBuffer),
-                detailCropBuffer: faceDetailCropBuffer,
                 imageWidth: imageWidth,
                 imageHeight: imageHeight
             )
@@ -88,7 +86,6 @@ extension FaceKit {
                 rightEyeBrowPoints: [VisionPoint],
                 lipsPoints: [VisionPoint],
                 cropImage: UIImage?,
-                detailCropBuffer: CMSampleBuffer,
                 imageWidth: CGFloat,
                 imageHeight: CGFloat
             ) {
@@ -166,7 +163,7 @@ extension FaceKit {
                     collectionByteData(
                         sampleBuffer: faceCropBuffer,
                         timestampUS: SampleBufferConverter.sampleBufferTimestampUS(frame),
-                        orientation: imageOrientationMapper.image(fromDevicePosition: .front)
+                        orientation: imageOrientationMapper.faceBinImage(fromDevicePosition: .front)
                     )
                 }
                 extractRGBFromDetectFace(sampleBuffer: sampleBuffer)

@@ -19,7 +19,7 @@ public final class TFLiteModelRunner {
     private let invokeQueue = DispatchQueue(label: "com.deepmedi.DeepmediKit.TFLiteModelRunner.invoke")
 
     public init(
-        modelName: String = "model_core",
+        modelName: String = DeepmediKitModelCore.modelName,
         threadCount: Int = 2
     ) throws {
         guard let modelPath = Self.resolveModelPath(modelName: modelName) else {
@@ -390,7 +390,7 @@ internal final class FaceCoreMetricsCalculator {
         let mean = ppg.reduce(0, +) / Double(ppg.count)
         let variance = ppg.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(ppg.count)
         let std = sqrt(variance) + 1e-8
-        let ppgHat = ppg.map { ($0 - mean) / std }
+        let ppgHat = ppg.map { -(($0 - mean) / std) }
         let peakProb = peakLogits.map { 1.0 / (1.0 + exp(-Double($0))) }
         return (ppgHat, peakProb)
     }
@@ -432,7 +432,7 @@ internal final class FaceCoreMetricsCalculator {
             var bestIndex = p
             var bestValue = ppgHat[p]
             if lo <= hi {
-                for idx in lo...hi where ppgHat[idx] < bestValue {
+                for idx in lo...hi where ppgHat[idx] > bestValue {
                     bestValue = ppgHat[idx]
                     bestIndex = idx
                 }

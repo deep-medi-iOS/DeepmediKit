@@ -16,8 +16,8 @@ class ConfigurationStore {
     
     var measurementFaceDataCount: Int {
         didSet {
-            if self.measurementFaceDataCount < 450 {
-                self.measurementFaceDataCount = 450
+            if self.measurementFaceDataCount < 451 {
+                self.measurementFaceDataCount = 451
             }
         }
     }
@@ -56,7 +56,7 @@ class ConfigurationStore {
         self.useFaceRecognitionArea = true
         self.willCheckRealFace = true
         
-        self.measurementFaceDataCount = 450
+        self.measurementFaceDataCount = 451
         self.measurementFingerDataCount = 900
         self.prepareTime = 1
 
