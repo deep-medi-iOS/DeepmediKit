@@ -8,7 +8,7 @@
 import Foundation
 
 public enum DeepmediKitModelCore {
-    public static let version = "v62"
+    public static let version = "v62b"
     public static let baseName = "model_core"
     public static let fileExtension = "tflite"
     public static let modelName = "\(baseName)_\(version)"

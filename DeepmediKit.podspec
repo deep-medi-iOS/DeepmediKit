@@ -6,12 +6,12 @@
 # To learn more about a Podspec see https://guides.cocoapods.org/syntax/podspec.html
 #
 
-model_core_version = 'v62'
+model_core_version = 'v62b'
 model_core_file_name = "model_core_#{model_core_version}.tflite"
 
 Pod::Spec.new do |s|
   s.name             = 'DeepmediKit'
-  s.version          = '3.5.0'
+  s.version          = '3.5.1'
   s.summary          = 'Framework for measurement finger Tap or face'
 
 # This description is used to generate tags and improve search results.
