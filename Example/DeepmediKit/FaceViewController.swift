@@ -157,8 +157,7 @@ class FaceViewController: UIViewController {
     }
 
     private func requestVitalEstimates(from output: FaceKit.PhysMorphNet) async {
-        let apiKey = "g5ZLhCh8soMPllMHzm4rc0WlZoppiLxmyj6LXOpL"
-//        let apiKey = "apikey"
+        let apiKey = "apikey"
         let userAge = 30
         let userGender: GenderType = .male
         let cuffSys = 120
@@ -203,33 +202,63 @@ class FaceViewController: UIViewController {
             print("extract bp feature target api error: \(error.localizedDescription)")
             return
         }
+        
+        //        let calibPPG: [Double]
+        //        let targetPPG = output.metrics.ppg
+        //        if calibrationPPG.isEmpty {
+        //            calibrationPPG = targetPPG
+        //            calibPPG       = targetPPG
+        //        } else {
+        //            calibPPG = calibrationPPG
+        //        }
+        //
+        //        let bp: EstimateFromRawPPGPredictBpVital
+        //        do {
+        //            print("[++\(#fileID):\(#line)]- cal ppg: ", calibPPG.count)
+        //            print("[++\(#fileID):\(#line)]- target ppg: ", targetPPG.count)
+        //            bp = try await EstimateFromRawPPGPredict(apiKey: apiKey)
+        //                .getEstimateFromRawPPGPredict(
+        //                    calSys: cuffSys,
+        //                    calDia: cuffDia,
+        //                    calPpg: calibPPG,
+        //                    targetPpg: targetPPG
+        //                )
+        //        } catch let error {
+        //            uploadFailureDiagnostic(
+        //                failedApi: .estimateFromRawPPGPredict,
+        //                error: error,
+        //                output: output
+        //            )
+        //            print("extract bp feature target api error: \(error.localizedDescription)")
+        //            return
+        //        }
 
-        let calibFeatures: [Double]
-        if calibrationBPFeatures.isEmpty {
-            calibrationBPFeatures = targetFeatures
-            calibFeatures = targetFeatures
-        } else {
-            calibFeatures = calibrationBPFeatures
-        }
-
-        let bp: EstimateSingleBpVital
-        do {
-            bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
-                .getEstimateSingleBpVital(
-                    cuffSys: cuffSys,
-                    cuffDia: cuffDia,
-                    calibFt: calibFeatures,
-                    targetFt: targetFeatures
-                )
-        } catch let error {
-            uploadFailureDiagnostic(
-                failedApi: .estimateSingleBPVital,
-                error: error,
-                output: output
-            )
-            print("estimate single bp vital api error: \(error.localizedDescription)")
-            return
-        }
+//        let calibFeatures: [Double]
+//        if calibrationBPFeatures.isEmpty {
+//            calibrationBPFeatures = targetFeatures
+//            calibFeatures = targetFeatures
+//        } else {
+//            calibFeatures = calibrationBPFeatures
+//        }
+//
+//        let bp: EstimateSingleBpVital
+//        do {
+//            bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
+//                .getEstimateSingleBpVital(
+//                    cuffSys: cuffSys,
+//                    cuffDia: cuffDia,
+//                    calibFt: calibFeatures,
+//                    targetFt: targetFeatures
+//                )
+//        } catch let error {
+//            uploadFailureDiagnostic(
+//                failedApi: .estimateSingleBPVital,
+//                error: error,
+//                output: output
+//            )
+//            print("estimate single bp vital api error: \(error.localizedDescription)")
+//            return
+//        }
 
         print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
         print("[++\(#fileID):\(#line)]- hr: ", output.metrics.hr)//심박
