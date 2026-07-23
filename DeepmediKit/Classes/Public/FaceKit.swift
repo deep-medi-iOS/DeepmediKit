@@ -420,6 +420,7 @@ public class FaceKit: NSObject {
         emitMeasurementState(stop: false, checkRealFace: true, requiredStableFrames: 1)
         
         let measurementComplete      = measurementState.measurementComplete,
+            rgbFilePath              = measurementState.rgbFilePath,
             measurementCount         = measurementState.measurementCount
 
         initRGBData()
@@ -450,19 +451,24 @@ public class FaceKit: NSObject {
                         self.frameTimestampUS.count,
                         self.measurementDataCount
                     )
+                    
                     if let faceBin = self.measurementFileWriter.makeFaceBin(
                         frames: Array(self.bytesArray.prefix(faceFrameCount)),
                         timestampsUS: Array(self.frameTimestampUS.prefix(faceFrameCount))
-                    ) {
+                       ) {
                         guard let coreResult = self.runCoreFromFaceBin(faceBin) else {
                             self.finishMeasurementAfterCoreFailure(
                                 message: "face.bin core inference failed"
                             )
+                            print("[++\(#fileID):\(#line)]- guard ")
                             return
                         }
                         measurementComplete.onNext(true)
+                        rgbFilePath.onNext(URL(fileURLWithPath: ""))
                         self.publishCoreMetrics(coreResult, faceBin)
                     } else {
+                        measurementComplete.onNext(false)
+                        rgbFilePath.onNext(URL(fileURLWithPath: ""))
                         self.finishMeasurementAfterCoreFailure(
                             message: "face.bin creation failed"
                         )
