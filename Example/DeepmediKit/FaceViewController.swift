@@ -65,10 +65,11 @@ class FaceViewController: UIViewController {
             session: session,
             captureDevice: captureDevice
         )
-        faceMeasureKitModel.setMeasurementDataCount(451)
-        faceMeasureKitModel.setPrepareTime(0)
-        faceMeasureKitModel.willUseFaceRecognitionArea(true)
-        faceMeasureKitModel.willCheckRealFace(false)
+        faceMeasureKitModel.setMeasurementDataCount(451)//측정개수
+        faceMeasureKitModel.setPrepareTime(0)//측정 전 준비시간
+        faceMeasureKitModel.willUseFaceRecognitionArea(true)//얼굴인식구역 사용
+        faceMeasureKitModel.willUseSubFaceRecognitionArea(true)//내부 얼굴인식구역 사용
+        faceMeasureKitModel.willCheckRealFace(false)//실제얼굴인지 확인
         faceMeasureKitModel.setFaceAngle(5)//얼굴 움직임 제한 각도
         faceMeasureKitModel.setStatbleRatio(0.05)//얼굴위치 제한 비율
         faceMeasureKitModel.setStableFrameCount(3)//안정상태 프레임수 조절
@@ -156,12 +157,14 @@ class FaceViewController: UIViewController {
     }
 
     private func requestVitalEstimates(from output: FaceKit.PhysMorphNet) async {
-        let apiKey = "apikey"
+        let apiKey = "g5ZLhCh8soMPllMHzm4rc0WlZoppiLxmyj6LXOpL"
+//        let apiKey = "apikey"
         let userAge = 30
         let userGender: GenderType = .male
         let cuffSys = 120
         let cuffDia = 75
         var calibrationBPFeatures: [Double] = []
+        var calibrationPPG: [Double] = []
 
         let physicalStress: Double
         do {
@@ -288,8 +291,6 @@ class FaceViewController: UIViewController {
             faceRecognitionAreaView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: (width / 390) * 230),
             faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: (height / 844) * 320),
-//            faceRecognitionAreaView.widthAnchor.constraint(equalToConstant: width * 0.7),
-//            faceRecognitionAreaView.heightAnchor.constraint(equalToConstant: width * 0.7),
         ])
         faceRecognitionAreaView.layer.borderColor = UIColor.blue.cgColor
         faceRecognitionAreaView.layer.borderWidth = 2
@@ -302,23 +303,29 @@ class FaceViewController: UIViewController {
         ])
         
         NSLayoutConstraint.activate([
-            countLabel.bottomAnchor.constraint(equalTo: previousButton.topAnchor, constant: -20),
+            countLabel.topAnchor.constraint(equalTo: isoLabel.bottomAnchor, constant: -10),
             countLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             countLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
             countLabel.heightAnchor.constraint(equalToConstant: 50)
         ])
 
-        NSLayoutConstraint.activate([
-            previousButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            previousButton.bottomAnchor.constraint(equalTo: self.view.bottomAnchor, constant: -80),
-            previousButton.widthAnchor.constraint(equalToConstant: width * 0.3),
-            previousButton.heightAnchor.constraint(equalToConstant: width * 0.3)
-        ])
+        NSLayoutConstraint.activate(
+            [
+                previousButton.trailingAnchor.constraint(
+                    equalTo: self.view.trailingAnchor
+                ),
+                previousButton.topAnchor.constraint(
+                    equalTo: self.isoLabel.centerYAnchor
+                ),
+                previousButton.widthAnchor.constraint(equalToConstant: width * 0.25),
+                previousButton.heightAnchor.constraint(equalToConstant: width * 0.25)
+            ]
+        )
         
         tempView.frame = CGRect(x: 0, y: 100, width: 100, height: 100)
         tempView.layer.cornerRadius = 50
         
-        previousButton.layer.cornerRadius = (width * 0.3) / 2
+        previousButton.layer.cornerRadius = (width * 0.25) / 2
         previousButton.addTarget(
             self,
             action: #selector(prev),

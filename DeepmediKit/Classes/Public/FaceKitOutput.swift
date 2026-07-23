@@ -56,36 +56,28 @@ public extension FaceKit {
         //센서 사용
         startAccelerometer()
         startGryoscope()
-        
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self, let previewLayer = self.model.previewLayer else {
-                print("previewLayer is nil")
-                return
-            }
-            self.previewLayer = previewLayer
-            self.willCheckRealFace = self.model.willCheckRealFace
-            self.stableRatio       = self.model.stableRatio
-            self.faceAngle         = self.model.faceAngle
-            self.baselineAngle     = self.model.baselineAngle
-            if self.model.useFaceRecognitionArea,
-               let faceRecognitionAreaView = self.model.faceRecognitionAreaView {
-                self.useFaceRecognitionArea = self.model.useFaceRecognitionArea
-                self.faceRecognitionAreaView = faceRecognitionAreaView
-//                DispatchQueue.main.async {
-//                    self.faceRecognitionAreaView.addSubview(self.cropView)
-//                    self.faceRecognitionAreaView.addSubview(self.landMarkView)
-//                    self.faceRecognitionAreaView.addSubview(self.recogView)
-//                    self.faceRecognitionAreaView.addSubview(self.faceDetecView)
-//                    self.faceRecognitionAreaView.addSubview(self.smallView)
-//                }
-            }
-            self.cameraSessionManager.useSession().startRunning()
+
+        let configureAndStart = { [weak self] in
+            guard let self else { return }
+            self.refreshFaceDetectionConfiguration()
+            self.cameraSessionManager.startRunning()
+        }
+        if Thread.isMainThread {
+            configureAndStart()
+        } else {
+            DispatchQueue.main.async(execute: configureAndStart)
         }
     }
     //세션 멈춤관련 정보
     func stopSession() {
         lastFrame = nil
         cropFaceRect = nil
+        previousFaceFrame = nil
+        previousHeadAngle = nil
+        baselineHeadAngle = nil
+        positionStableCount = 0
+        angleStableCount = 0
+        consecutiveInvalidFaceFrames = 0
         
         isLeftEyeReal = false
         isRightEyeReal = false
@@ -93,13 +85,14 @@ public extension FaceKit {
         initRGBData()
         timerReset()
         antiSpoofingValidator.initialize()
+        emitMeasurementState(
+            stop: true,
+            checkRealFace: false,
+            requiredStableFrames: 1
+        )
         
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self = self else { return }
-            if self.model.measurePart == .face {
-                self.cameraSessionManager.setUpCaptureDevice(.autoExpose)
-                self.cameraSessionManager.useSession().stopRunning()
-            }
+        if model.measurePart == .face {
+            cameraSessionManager.stopRunning()
         }
     }
     

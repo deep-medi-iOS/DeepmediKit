@@ -39,6 +39,7 @@ public enum FailureDiagnosticFailedAPI: String, CaseIterable {
     case extractBPFeatureTarget = "extract-bp-ft(target)"
     case estimateStressFromRR = "estimate-stress-from-rr"
     case estimateSingleBPVital = "estimate-single-bp-vital"
+    case estimateFromRawPPGPredict = "estimate-from-raw-ppg-predit"
 }
 
 public struct FailureDiagnosticDebugInfo {
@@ -653,6 +654,31 @@ public struct EstimateSingleBpVital: Codable {
     }
 }
 
+public struct EstimateFromRawPPGPredictBpVital: Codable {
+    public let calDbp: Double
+    public let calSbp: Double
+    public let deltaDbp: Double
+    public let deltaSbp: Double
+    public let estimatedDbp: Double
+    public let estimatedSbp: Double
+
+    public init(
+        calDbp: Double,
+        calSbp: Double,
+        deltaDbp: Double,
+        deltaSbp: Double,
+        estimatedDbp: Double,
+        estimatedSbp: Double,
+    ) {
+        self.calDbp = calDbp
+        self.calSbp = calSbp
+        self.deltaDbp = deltaDbp
+        self.deltaSbp = deltaSbp
+        self.estimatedDbp = estimatedDbp
+        self.estimatedSbp = estimatedSbp
+    }
+}
+
 public struct BPFeatureExtraction: Codable {
     public let ft: [Double]
 
@@ -713,6 +739,33 @@ public final class EstimateSingleBpVitalProvider {
     }
 }
 
+public final class EstimateFromRawPPGPredict {
+    private let network: DeepmediAPIClient
+
+    public init(apiKey: String) {
+        self.network = DeepmediAPIClient(apiKey: apiKey)
+    }
+
+    public func getEstimateFromRawPPGPredict(
+        calSys: Int,
+        calDia: Int,
+        calPPG: [Double],
+        targetPPG: [Double]
+    ) async throws -> EstimateFromRawPPGPredictBpVital {
+        let request = EstimateFromRawPPGPredictRequest(
+            cal_sbp: calSys,
+            cal_dbp: calDia,
+            cal_ppg: calPPG,
+            target_ppg: targetPPG,
+            sampling_rate: 100
+        )
+        return try await network.post(
+            urlString: "https://api.deep-medi.com/bp_estimate_from_raw_ppg/predict",
+            body: request
+        )
+    }
+}
+
 public final class BPFeatureExtractionProvider {
     private let network: DeepmediAPIClient
 
@@ -756,6 +809,14 @@ private struct EstimateSingleBpVitalRequest: Encodable {
     let cuff_dia: Int
     let calib_ft: [Double]
     let target_ft: [Double]
+}
+
+private struct EstimateFromRawPPGPredictRequest: Encodable {
+    let cal_sbp: Int
+    let cal_dbp: Int
+    let cal_ppg: [Double]
+    let target_ppg: [Double]
+    let sampling_rate: Int
 }
 
 private struct BPFeatureExtractionRequest: Encodable {

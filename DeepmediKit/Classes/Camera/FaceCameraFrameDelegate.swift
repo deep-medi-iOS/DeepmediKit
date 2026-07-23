@@ -25,14 +25,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             print("cvimg ref")
             return
         }
-        
-        CVPixelBufferLockBaseAddress(
-            cvimgRef,
-            CVPixelBufferLockFlags(rawValue: 0)
-        )
-       
-        self.lastFrame = sampleBuffer
-    
+
         let orientation = imageOrientationMapper.image(fromDevicePosition: .front)
         let visionImage = VisionImage(buffer: sampleBuffer)
         visionImage.orientation = orientation
@@ -42,14 +35,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         
         detectFacesOnDevice(
             in: visionImage,
+            sampleBuffer: sampleBuffer,
             imageWidth: imageWidth,
             imageHeight: imageHeight
         ) // 얼굴인식을 위한 함수
-        
-        CVPixelBufferUnlockBaseAddress(
-            cvimgRef,
-            CVPixelBufferLockFlags(rawValue: 0)
-        )
     }
 
     public func captureOutput(
@@ -68,152 +57,199 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     // 얼굴인식 구역내 얼굴인식
     private func detectFacesOnDevice(
         in image: VisionImage,
+        sampleBuffer: CMSampleBuffer,
         imageWidth: CGFloat,
         imageHeight: CGFloat
     ) {
-        
-        var faces: [Face]
-        
-        let options = FaceDetectorOptions()
-        options.landmarkMode = .none
-        options.contourMode = .all
-        options.classificationMode = .all
-        options.performanceMode = .fast
-        
-        let faceDetector = FaceDetector.faceDetector(options: options)
-        
+        let faces: [Face]
         do {
-            faces = try faceDetector.results(in: image)
+            faces = try configuredFaceDetector().results(in: image)
         } catch let error {
             print("Failed to detect faces with error: \(error.localizedDescription).")
             return
         }
-        
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self else { return }
-            self.updatePreviewOverlayViewWithLastFrame()
-            
-            if !faces.isEmpty {
-                for face in faces {
-                    guard face.contours.count != 0 else {
-//                        print("[++\(#fileID):\(#line)]- face have not contours")
-                        return
-                    }
-                    if let currentPreviewLayer = self.model.previewLayer {
-                        self.previewLayer = currentPreviewLayer
-                    }
-                    let previewBounds = self.model.previewLayerBounds == .zero
-                    ? UIScreen.main.bounds
-                    : self.model.previewLayerBounds
-                    let x = face.frame.origin.x,
-                        y = face.frame.origin.y,
-                        w = face.frame.size.width,
-                        h = face.frame.size.height
-                    let normalizedRect = CGRect(x: x / imageWidth,
-                                                y: y / imageHeight,
-                                                width: w / imageWidth,
-                                                height: h / imageHeight)
-                    
-                    let standardizedRect = self.previewLayer.layerRectConverted(
-                        fromMetadataOutputRect: normalizedRect
-                    ).standardized,
-                        recognitionStandardizedRect = CGRect(
-                            x: standardizedRect.origin.x + previewBounds.origin.x,
-                            y: standardizedRect.origin.y + previewBounds.origin.y,
-                            width: standardizedRect.width,
-                            height: standardizedRect.height
-                        )
-                    
-                    self.recognitionArea(
-                        face: face,
-                        imageWidth: imageWidth,
-                        imageHeight: imageHeight,
-                        recognitionStandardizedRect: recognitionStandardizedRect,
-                        faceRecognitionAreaView: faceRecognitionAreaView
-                    )
-                }
-            } else {
-                print("On-Device face detector returned no results.")
-                self.lastFrame = nil
-                self.cropFaceRect = nil
-                
-                self.initRGBData()
-                self.timerReset()
-                self.antiSpoofingValidator.initialize()
-                self.emitMeasurementState(stop: true, checkRealFace: false)
+
+        // contour는 가장 두드러진 얼굴에만 제공된다. 여러 얼굴의 상태가 한 측정에
+        // 섞이지 않도록 contour가 있는 가장 큰 얼굴 하나만 사용한다.
+        let primaryFace = faces
+            .filter { !$0.contours.isEmpty }
+            .max { lhs, rhs in
+                lhs.frame.width * lhs.frame.height < rhs.frame.width * rhs.frame.height
             }
+
+        performOnMain { [weak self] in
+            guard let self else { return }
+            self.refreshFaceDetectionConfiguration()
+
+            guard let face = primaryFace else {
+                self.registerInvalidFaceFrame()
+                return
+            }
+            self.lastFrame = sampleBuffer
+
+            let previewBounds = self.model.previewLayerBounds == .zero
+            ? self.previewLayer.bounds
+            : self.model.previewLayerBounds
+            let frame = face.frame
+            let normalizedRect = CGRect(
+                x: frame.origin.x / imageWidth,
+                y: frame.origin.y / imageHeight,
+                width: frame.width / imageWidth,
+                height: frame.height / imageHeight
+            )
+            let standardizedRect = self.previewLayer.layerRectConverted(
+                fromMetadataOutputRect: normalizedRect
+            ).standardized
+            let recognitionStandardizedRect = CGRect(
+                x: standardizedRect.origin.x + previewBounds.origin.x,
+                y: standardizedRect.origin.y + previewBounds.origin.y,
+                width: standardizedRect.width,
+                height: standardizedRect.height
+            )
+
+            let didProcessFace = self.recognitionArea(
+                face: face,
+                imageWidth: imageWidth,
+                imageHeight: imageHeight,
+                recognitionStandardizedRect: recognitionStandardizedRect,
+                faceRecognitionAreaView: self.faceRecognitionAreaView
+            )
+            if didProcessFace {
+                self.updatePreviewOverlayViewWithLastFrame()
+            }
+        }
+    }
+
+    private func configuredFaceDetector() -> FaceDetector {
+        let shouldUseClassification = model.willCheckRealFace
+        if let faceDetector,
+           faceDetectorUsesClassification == shouldUseClassification {
+            return faceDetector
+        }
+
+        let options = FaceDetectorOptions()
+        options.landmarkMode = .none
+        options.contourMode = .all
+        options.classificationMode = shouldUseClassification ? .all : .none
+        options.performanceMode = .fast
+
+        let detector = FaceDetector.faceDetector(options: options)
+        faceDetector = detector
+        faceDetectorUsesClassification = shouldUseClassification
+        return detector
+    }
+
+    private func performOnMain(_ block: () -> Void) {
+        if Thread.isMainThread {
+            block()
+        } else {
+            DispatchQueue.main.sync(execute: block)
+        }
+    }
+
+    private func handleUndetectedFace() {
+        lastFrame = nil
+        cropFaceRect = nil
+        isLeftEyeReal = false
+        isRightEyeReal = false
+        previousFaceFrame = nil
+        previousHeadAngle = nil
+        baselineHeadAngle = nil
+        positionStableCount = 0
+        angleStableCount = 0
+        preparingSec = model.prepareTime
+
+        initRGBData()
+        timerReset()
+        antiSpoofingValidator.initialize()
+        // registerInvalidFaceFrame()에서 연속된 잘못된 프레임을 이미 확인했다.
+        // 여기서 다시 stop 상태 안정화 프레임을 기다리면 이 함수가 한 번만
+        // 호출되는 구조상 pending 상태에 머물러 stopMeasurement(true)가
+        // 전달되지 않는다. 이탈이 확정된 시점에는 즉시 stop을 발행한다.
+        emitMeasurementState(
+            stop: true,
+            checkRealFace: false,
+            requiredStableFrames: 1
+        )
+    }
+
+    private func registerInvalidFaceFrame() {
+        // ML Kit이 한 프레임에서 contour를 놓치거나 경계가 순간 흔들리는 경우는
+        // 측정을 즉시 초기화하지 않고 한 프레임까지 허용한다.
+        let toleratedInvalidFrames = 1
+        guard consecutiveInvalidFaceFrames <= toleratedInvalidFrames else { return }
+
+        consecutiveInvalidFaceFrames += 1
+        if consecutiveInvalidFaceFrames > toleratedInvalidFrames {
+            handleUndetectedFace()
         }
     }
     
     // 측정 가능한 상태 확인 후 측정함수 실행
     private func updatePreviewOverlayViewWithLastFrame() {
-        DispatchQueue.main.sync { [weak self] in
-            guard let self, lastFrame != nil else {
-                print("sample buffer error")
-                return
-            }
-            guard let currentPose = measurementState.headAnglesRelay.value else {
-                print("[++\(#fileID):\(#line)]- currentPose is nil ")
-                return
-            }
-            let isWithinPose = isWithinPoseThreshold(
-                currentPose: currentPose
-            )
-            setBaselinePose(currentPose: currentPose)
-            // MARK: Metadata
-            if cropFaceRect != nil
-                && isLeftEyeReal
-                && isRightEyeReal
-                && isWithinPose
-                && isWithinBaselinePose(currentPose: currentPose) {
-                guard tempG.count >= 30 else { return }
-                emitMeasurementState(stop: false, checkRealFace: true)
-                tempG.removeAll()
-                isTimerRunning = true
-                prepareTimer = Timer.scheduledTimer(
-                    withTimeInterval: 1,
-                    repeats: true
-                ) {[weak self] prepareTimer in
-                    guard let self else { return }
-                    measurementState.secondRemaining.onNext(preparingSec)
-                    if preparingSec == 0 {
-                        prepareTimer.invalidate()
-                        baselineHeadAngle = nil
-                        previousFaceFrame = nil
-                        previousHeadAngle = nil
-                        screenCapture()
-                        cameraSessionManager.setUpCaptureDevice(.locked)
-                        saveMeasurementOutputs()
-                    }
-                    preparingSec = preparingSec == 0 ? 0 : preparingSec - 1
+        guard lastFrame != nil else {
+            print("sample buffer error")
+            return
+        }
+        guard let currentPose = measurementState.headAnglesRelay.value else {
+            print("[++\(#fileID):\(#line)]- currentPose is nil ")
+            return
+        }
+        let isWithinPose = isWithinPoseThreshold(
+            currentPose: currentPose
+        )
+        setBaselinePose(currentPose: currentPose)
+        // MARK: Metadata
+        if cropFaceRect != nil
+            && isLeftEyeReal
+            && isRightEyeReal
+            && isWithinPose
+            && isWithinBaselinePose(currentPose: currentPose) {
+            guard tempG.count >= 30 else { return }
+            emitMeasurementState(stop: false, checkRealFace: true)
+            tempG.removeAll()
+            isTimerRunning = true
+            prepareTimer = Timer.scheduledTimer(
+                withTimeInterval: 1,
+                repeats: true
+            ) {[weak self] prepareTimer in
+                guard let self else { return }
+                measurementState.secondRemaining.onNext(preparingSec)
+                if preparingSec == 0 {
+                    prepareTimer.invalidate()
+                    baselineHeadAngle = nil
+                    previousFaceFrame = nil
+                    previousHeadAngle = nil
+                    screenCapture()
+                    saveMeasurementOutputs()
                 }
+                preparingSec = preparingSec == 0 ? 0 : preparingSec - 1
+            }
+        } else {
+            if !isWithinPose {
+                emitMeasurementState(
+                    stop: true,
+                    checkRealFace: false,
+                    requiredStableFrames: 1
+                )
+                initRGBData()
+                isTimerRunning = false
+                dispatchTimer?.cancel()
+                measurementTimer.invalidate()
+                prepareTimer.invalidate()
+            } else if cropFaceRect == nil {
+                emitMeasurementState(stop: true, checkRealFace: false)
+                initRGBData()
+                isTimerRunning = false
+                dispatchTimer?.cancel()
+                measurementTimer.invalidate()
+                prepareTimer.invalidate()
             } else {
-                cameraSessionManager.setUpCaptureDevice(.autoExpose)
-                if !isWithinPose {
-                    emitMeasurementState(
-                        stop: true,
-                        checkRealFace: false,
-                        requiredStableFrames: 1
-                    )
-                    initRGBData()
-                    isTimerRunning = false
-                    dispatchTimer?.cancel()
-                    measurementTimer.invalidate()
-                    prepareTimer.invalidate()
-                } else if cropFaceRect == nil {
-                    emitMeasurementState(stop: true, checkRealFace: false)
-                    initRGBData()
-                    isTimerRunning = false
-                    dispatchTimer?.cancel()
-                    measurementTimer.invalidate()
-                    prepareTimer.invalidate()
-                } else {
-                    emitMeasurementState(
-                        stop: false,
-                        checkRealFace: false,
-                        requiredStableFrames: 1
-                    )
-                }
+                emitMeasurementState(
+                    stop: false,
+                    checkRealFace: false,
+                    requiredStableFrames: 1
+                )
             }
         }
     }
@@ -224,82 +260,72 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         imageHeight: CGFloat,
         recognitionStandardizedRect: CGRect, // 인식된 얼굴 frame
         faceRecognitionAreaView: UIView
-    ) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let recognitionArea = useFaceRecognitionArea
-            ? faceRecognitionAreaView.frame
-            : UIScreen.main.bounds
-            
-            let isMeasurableFacePosition = self.faceDetectAreaCondition(
-                faceFrame: recognitionStandardizedRect,
-                useFaceRecognitionArea: useFaceRecognitionArea,
-                recognitionArea: recognitionArea
-            )
-    
-            if isMeasurableFacePosition {
-                    let isWithinPose = self.measurementState.headAnglesRelay.value
-                        .map { self.isWithinPoseThreshold(currentPose: $0) }
-                        ?? false
-                    self.emitMeasurementState(
-                        stop: !isWithinPose,
-                        checkRealFace: false,
-                        requiredStableFrames: 1
-                    )
-                self.cropFaceRect = self.ultraTightFaceCropRect(
-                    from: face.frame,
-                    imageWidth: imageWidth,
-                    imageHeight: imageHeight
-                ) // 얼굴인식 위치 계산
-                
-                
-                let isStablePosition: Bool
-                if let previousFaceFrame = previousFaceFrame {
-                    isStablePosition = isStableFacePosition(
-                        previous: previousFaceFrame,
-                        current: recognitionStandardizedRect,
-                        imageWidth: face.frame.width,
-                        imageHeight: face.frame.height
-                    )
-                } else {
-                    isStablePosition = false
-                }
-                
-                positionStableCount = isStablePosition ? positionStableCount + 1 : 0
-                previousFaceFrame = recognitionStandardizedRect
-                self.processLandmarkCroppedFaceData(
-                    for: face,
-                    imageWidth: imageWidth,
-                    imageHeight: imageHeight
-                )
-            } else {
-                self.lastFrame = nil
-                self.cropFaceRect = nil
-                
-                self.preparingSec = self.model.prepareTime
-                
-                self.initRGBData()
-                self.timerReset()
-                self.antiSpoofingValidator.initialize()
-                self.emitMeasurementState(stop: true, checkRealFace: false)
-            }
+    ) -> Bool {
+        let previewBounds = model.previewLayerBounds == .zero
+        ? previewLayer.bounds
+        : model.previewLayerBounds
+        let recognitionArea = useFaceRecognitionArea
+        ? faceRecognitionAreaView.frame
+        : previewBounds
+
+        let isMeasurableFacePosition = faceDetectAreaCondition(
+            faceFrame: recognitionStandardizedRect,
+            useFaceRecognitionArea: useFaceRecognitionArea,
+            recognitionArea: recognitionArea
+        )
+
+        guard isMeasurableFacePosition else {
+            registerInvalidFaceFrame()
+            return false
         }
+        consecutiveInvalidFaceFrames = 0
+
+        let isWithinPose = measurementState.headAnglesRelay.value
+            .map { isWithinPoseThreshold(currentPose: $0) }
+            ?? false
+        emitMeasurementState(
+            stop: !isWithinPose,
+            checkRealFace: false,
+            requiredStableFrames: 1
+        )
+        cropFaceRect = ultraTightFaceCropRect(
+            from: face.frame,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        ) // 얼굴인식 위치 계산
+
+        let isStablePosition: Bool
+        if let previousFaceFrame {
+            isStablePosition = isStableFacePosition(
+                previous: previousFaceFrame,
+                current: recognitionStandardizedRect
+            )
+        } else {
+            isStablePosition = false
+        }
+
+        positionStableCount = isStablePosition ? positionStableCount + 1 : 0
+        previousFaceFrame = recognitionStandardizedRect
+        processLandmarkCroppedFaceData(
+            for: face,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        )
+        return true
     }
     
     private func isStableFacePosition(
         previous: CGRect,
-        current: CGRect,
-        imageWidth: CGFloat,
-        imageHeight: CGFloat
+        current: CGRect
     ) -> Bool {
-        guard imageWidth > 0, imageHeight > 0 else {
+        guard current.width > 0, current.height > 0 else {
             return false
         }
         let threshold = model.stableRatio
-        let topDiff    = Double(abs(previous.minY - current.minY) / imageHeight)
-        let bottomDiff = Double(abs(previous.maxY - current.maxY) / imageHeight)
-        let leftDiff   = Double(abs(previous.minX - current.minX) / imageWidth)
-        let rightDiff  = Double(abs(previous.maxX - current.maxX) / imageWidth)
+        let topDiff    = Double(abs(previous.minY - current.minY) / current.height)
+        let bottomDiff = Double(abs(previous.maxY - current.maxY) / current.height)
+        let leftDiff   = Double(abs(previous.minX - current.minX) / current.width)
+        let rightDiff  = Double(abs(previous.maxX - current.maxX) / current.width)
         return topDiff < threshold
             && bottomDiff < threshold
             && leftDiff < threshold
@@ -350,37 +376,46 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         let faceMaxY = faceFrame.maxY - faceFrame.height * 0.2
         
 //        Debug용 View 설정 - 측정구역(대, 소), 감지된 얼굴
-//        DispatchQueue.main.async {
+        DispatchQueue.main.async {
 //            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
 //            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
-//
-//            self.recogView.layer.borderColor = UIColor.red.cgColor
-//            self.recogView.layer.borderWidth = 1
-//
-//            self.faceDetecView.layer.borderColor = UIColor.blue.cgColor
-//            self.faceDetecView.layer.borderWidth = 1
-//
-//            self.smallView.layer.borderColor = UIColor.green.cgColor
-//            self.smallView.layer.borderWidth = 1
-//
-//            self.recogView.frame = recognitionArea
-//            self.faceDetecView.frame = CGRect(
-//                x: faceMinX,
-//                y: faceMinY,
-//                width: faceMaxX - faceMinX,
-//                height: faceMaxY - faceMinY
-//            )
-//            self.smallView.frame = CGRect(
-//                x: smallMinX,
-//                y: smallMinY,
-//                width: smallMaxX - smallMinX,
-//                height: smallMaxY - smallMinY
-//            )
-//        }
 
-        let useRecognitionArea = (minX <= faceMinX && faceMinX <= smallMinX)
-        && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
-        && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
+            self.recogView.layer.borderColor = UIColor.red.cgColor
+            self.recogView.layer.borderWidth = 1
+
+            self.faceDetecView.layer.borderColor = UIColor.blue.cgColor
+            self.faceDetecView.layer.borderWidth = 1
+
+            self.smallView.layer.borderColor = UIColor.green.cgColor
+            self.smallView.layer.borderWidth = 1
+
+            self.recogView.frame = recognitionArea
+            self.faceDetecView.frame = CGRect(
+                x: faceMinX,
+                y: faceMinY,
+                width: faceMaxX - faceMinX,
+                height: faceMaxY - faceMinY
+            )
+            self.smallView.frame = CGRect(
+                x: smallMinX,
+                y: smallMinY,
+                width: smallMaxX - smallMinX,
+                height: smallMaxY - smallMinY
+            )
+        }
+
+        let useRecognitionArea = useRecognitionArea(
+            useSmallViewArea: false,
+            minX: minX, maxX: maxX,
+            minY: minY, maxY: maxY,
+            faceMinX: faceMinX, faceMaxX: faceMaxX,
+            faceMinY: faceMinY, faceMaxY: faceMaxY,
+            smallMinX: smallMinX, smallMaxX: smallMaxX,
+            smallMinY: smallMinY, smallMaxY: smallMaxY
+        )
+//        (minX <= faceMinX && faceMinX <= smallMinX)
+//        && (smallMaxX <= faceMaxX && faceMaxX <= maxX)
+//        && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
         let unUseRecognitionArea = (minX <= faceMinX && faceMinX <= maxX)
         && (minY <= faceMinY && faceMinY <= maxY)
         let areaCondition = useFaceRecognitionArea
@@ -388,5 +423,22 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         : unUseRecognitionArea
         
         return areaCondition
+    }
+    
+    func useRecognitionArea(
+        useSmallViewArea: Bool,
+        minX: CGFloat, maxX: CGFloat,
+        minY: CGFloat, maxY: CGFloat,
+        faceMinX: CGFloat, faceMaxX: CGFloat,
+        faceMinY: CGFloat, faceMaxY: CGFloat,
+        smallMinX: CGFloat, smallMaxX: CGFloat,
+        smallMinY: CGFloat, smallMaxY: CGFloat
+    ) -> Bool {
+        switch useSmallViewArea {
+            case true:
+                return (minX <= faceMinX && faceMinX <= smallMinX) && (smallMaxX <= faceMaxX && faceMaxX <= maxX) && (faceMinY <= smallMaxY && smallMinY <= faceMaxY)
+            case false:
+                return (minX <= faceMinX && faceMaxX <= maxX) && (minY <= faceMinY && faceMaxY <= maxY)
+        }
     }
 }

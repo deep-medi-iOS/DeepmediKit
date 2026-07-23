@@ -37,6 +37,7 @@ class ConfigurationStore {
     
     var useFaceRecognitionArea: Bool
     var willCheckRealFace: Bool
+    var useSmallViewArea: Bool
     
     var faceRecognitionAreaView: UIView?
     var previewLayer: AVCaptureVideoPreviewLayer?
@@ -69,5 +70,6 @@ class ConfigurationStore {
         self.faceAngle = 5
         self.baselineAngle = 10
         self.stableFrameCount = 3
+        self.useSmallViewArea = true
     }
 }

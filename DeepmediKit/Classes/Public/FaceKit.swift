@@ -132,6 +132,8 @@ public class FaceKit: NSObject {
     internal let model       = ConfigurationStore.shared,
                  cameraSessionManager = CameraSessionManager.shared
     internal var tfliteRunner: TFLiteModelRunner?
+    internal var faceDetector: FaceDetector?
+    internal var faceDetectorUsesClassification = false
     internal let videoFrameStatsLock = NSLock()
     internal var videoFrameStats = VideoFrameStats()
     internal var isCollectingVideoFrameStats = false
@@ -169,6 +171,7 @@ public class FaceKit: NSObject {
     internal var dispatchTimer: DispatchSourceTimer?
     internal var isTimerRunning = false
     internal var useFaceRecognitionArea = false
+    internal var useSmallViewArea = true
     
     internal var timeStamp: [Double] = []
     internal var sigR: [Float] = []
@@ -199,12 +202,38 @@ public class FaceKit: NSObject {
     internal var baselineHeadAngle: HeaderAngles?
     internal var positionStableCount: Int = 0
     internal var angleStableCount: Int = 0
+    internal var consecutiveInvalidFaceFrames = 0
     
     public override init() {
         super.init()
         print("[++\(#fileID):\(#line)]- init ")
         setIdleTimerDisabled(true) //측정중 화면 자동잠금을 막기 위해 설정
         initializeTFLiteModel()
+    }
+
+    /// ConfigurationStore의 최신 UI/검출 설정을 FaceKit 인스턴스에 반영한다.
+    /// RN/Auto Layout 환경에서는 세션 시작 뒤에 preview와 인식 영역의 frame이
+    /// 확정될 수 있으므로, 시작 시점뿐 아니라 프레임 처리 시점에도 호출한다.
+    internal func refreshFaceDetectionConfiguration() {
+        if let previewLayer = model.previewLayer {
+            self.previewLayer = previewLayer
+        }
+        willCheckRealFace = model.willCheckRealFace
+        stableRatio = model.stableRatio
+        faceAngle = model.faceAngle
+        baselineAngle = model.baselineAngle
+        useFaceRecognitionArea = model.useFaceRecognitionArea
+        useSmallViewArea = model.useSmallViewArea
+        if let faceRecognitionAreaView = model.faceRecognitionAreaView {
+            self.faceRecognitionAreaView = faceRecognitionAreaView
+            DispatchQueue.main.async {
+//                self.faceRecognitionAreaView.addSubview(self.cropView)
+//                self.faceRecognitionAreaView.addSubview(self.landMarkView)
+                self.faceRecognitionAreaView.addSubview(self.recogView)
+                self.faceRecognitionAreaView.addSubview(self.faceDetecView)
+                self.faceRecognitionAreaView.addSubview(self.smallView)
+            }
+        }
     }
     
     deinit {
@@ -341,6 +370,7 @@ public class FaceKit: NSObject {
         let minimumFrames = max(1, requiredStableFrames ?? defaultFrames)
 
         if stop == currentMeasurementStopState {
+            applyExposurePolicy(forStopState: stop)
             pendingMeasurementStopState = nil
             pendingMeasurementStopFrameCount = 0
 
@@ -354,18 +384,35 @@ public class FaceKit: NSObject {
         if pendingMeasurementStopState != stop {
             pendingMeasurementStopState = stop
             pendingMeasurementStopFrameCount = 1
-            return
+        } else {
+            pendingMeasurementStopFrameCount += 1
         }
 
-        pendingMeasurementStopFrameCount += 1
         guard pendingMeasurementStopFrameCount >= minimumFrames else { return }
+        if !stop {
+            // 자동 노출에서 잠금으로 전환되는 동안 들어온 프레임의 ISO가
+            // stop=false 구간에 섞이지 않도록 적용 완료를 기다린다.
+            guard cameraSessionManager.prepareMeasurementExposureLock() else { return }
+        }
 
         pendingMeasurementStopState = nil
         pendingMeasurementStopFrameCount = 0
         currentMeasurementStopState = stop
         currentCheckRealFaceState = checkRealFace
+        // 콜백을 받는 시점에는 stop 상태에 맞는 노출 모드가 이미 적용돼 있어야 한다.
+        applyExposurePolicy(forStopState: stop)
         measurementState.measurementStop.onNext(stop)
         measurementState.checkRealFace.onNext(checkRealFace)
+    }
+
+    /// stop=false에서는 현재 ISO를 고정하고, stop=true에서만 자동 노출이
+    /// 새로운 ISO를 선택할 수 있도록 한다.
+    private func applyExposurePolicy(forStopState stop: Bool) {
+        if stop {
+            cameraSessionManager.resumeAutomaticExposure()
+        } else {
+            _ = cameraSessionManager.prepareMeasurementExposureLock()
+        }
     }
 
     // MARK: 측정완료
@@ -443,7 +490,6 @@ public class FaceKit: NSObject {
         preparingSec = model.prepareTime
         antiSpoofingValidator.initialize()
         measurementState.measurementCount.onNext(0)
-        cameraSessionManager.setUpCaptureDevice(.autoExpose)
         emitMeasurementState(stop: true, checkRealFace: false, requiredStableFrames: 1)
         initRGBData()
     }

@@ -183,10 +183,17 @@ extension FaceKit {
     }
     
     private func modeState(mode: Int) -> String {
-        return mode == 0
-        ? "LOCKED"
-        : mode == 1
-        ? "AUTO"
-        : "CONTINUOUS"
+        switch mode {
+        case 0, 3:
+            // AVCaptureDevice.ExposureMode.custom(3)도 ISO/노출 시간을
+            // 고정한 측정 상태이므로 SDK 출력에서는 LOCKED로 표현한다.
+            return "LOCKED"
+        case 1:
+            return "AUTO"
+        case 2:
+            return "CONTINUOUS"
+        default:
+            return "UNKNOWN"
+        }
     }
 }

@@ -23,6 +23,12 @@ public class FaceKitConfiguration: NSObject {
         self.model.useFaceRecognitionArea = use
     }
     
+    public func willUseSubFaceRecognitionArea(
+        _ use: Bool
+    ) {
+        self.model.useSmallViewArea = use
+    }
+    
     public func willCheckRealFace(
         _ check: Bool
     ) {

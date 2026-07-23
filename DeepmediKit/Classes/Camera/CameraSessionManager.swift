@@ -14,7 +14,10 @@ class CameraSessionManager: NSObject {
     private var session = AVCaptureSession()
     private var captureDevice: AVCaptureDevice?
     private let captureQueue = DispatchQueue(label: "captureQueue")
+    private let sessionQueue = DispatchQueue(label: "com.deepmedi.DeepmediKit.cameraSession")
     private var customISO: Float?
+    private var isExposureLockPending = false
+    private var exposureLockGeneration = 0
     private let device = UIDevice.current
     
     func initModel(
@@ -48,7 +51,12 @@ class CameraSessionManager: NSObject {
     func startDetection(
         _ part: CameraDeviceController.Part
     ) {
-        session.sessionPreset = .low
+        let preferredPreset: AVCaptureSession.Preset = part == .face
+        ? .vga640x480
+        : .low
+        if session.canSetSessionPreset(preferredPreset) {
+            session.sessionPreset = preferredPreset
+        }
         if part == .face {
             guard let captureDevice = AVCaptureDevice.default(
                 .builtInWideAngleCamera,
@@ -85,64 +93,199 @@ class CameraSessionManager: NSObject {
         
         var bestFormat: AVCaptureDevice.Format?
         var bestDims: CMVideoDimensions?
-        let fps = part == .face ? 30.0 : 60.0
+        let fps = framePerSec > 0
+        ? framePerSec
+        : (part == .face ? 30.0 : 60.0)
         
         for format in device.formats {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-            
-            // 해상도 조건
-            guard dims.width <= 700, dims.height <= 700 else { continue }
             
             // fps 지원 여부
             let supportsFPS = format.videoSupportedFrameRateRanges.contains { range in
                 range.minFrameRate <= fps && fps <= range.maxFrameRate
             }
             guard supportsFPS else { continue }
-            
-            // 예: 가장 큰 해상도 우선 선택
-            if bestFormat == nil || (dims.width * dims.height) > (bestDims!.width * bestDims!.height) {
-                bestFormat = format
-                bestDims = dims
+
+            switch part {
+            case .face:
+                // ML Kit contour 검출에 충분하면서 실시간 처리가 가능한 VGA에
+                // 가장 가까운 포맷을 선택한다. 480x360 미만은 얼굴 검출 정확도가
+                // 크게 떨어질 수 있으므로 후보에서 제외한다.
+                guard dims.width >= 480,
+                      dims.height >= 360,
+                      dims.width <= 1280,
+                      dims.height <= 720 else { continue }
+
+                let targetPixels: Int64 = 640 * 480
+                let pixels = Int64(dims.width) * Int64(dims.height)
+                let distance = abs(pixels - targetPixels)
+
+                if let currentDims = bestDims {
+                    let currentPixels = Int64(currentDims.width) * Int64(currentDims.height)
+                    let currentDistance = abs(currentPixels - targetPixels)
+                    if distance < currentDistance {
+                        bestFormat = format
+                        bestDims = dims
+                    }
+                } else {
+                    bestFormat = format
+                    bestDims = dims
+                }
+            case .finger:
+                guard dims.width <= 700, dims.height <= 700 else { continue }
+                if bestFormat == nil
+                    || (dims.width * dims.height) > (bestDims!.width * bestDims!.height) {
+                    bestFormat = format
+                    bestDims = dims
+                }
             }
         }
         
         guard let chosen = bestFormat else {
-            print("No matching format for fps:", 30)
+            print("No matching format for fps:", fps)
             return
+        }
+
+        // activeFormat을 직접 선택할 때 세션 프리셋이 포맷을 다시 덮어쓰지 않도록 한다.
+        if session.canSetSessionPreset(.inputPriority) {
+            session.sessionPreset = .inputPriority
         }
         
         do {
             try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
             device.activeFormat = chosen
-            device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
-            device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
-            device.unlockForConfiguration()
+            let frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps.rounded()))
+            device.activeVideoMinFrameDuration = frameDuration
+            device.activeVideoMaxFrameDuration = frameDuration
         } catch {
             print("lockForConfiguration failed:", error)
         }
         
-        print("Chosen format:", part, chosen)
+        if let bestDims {
+            print("Chosen format:", part, "\(bestDims.width)x\(bestDims.height) @ \(fps)fps")
+        }
         if part == .finger, device.hasTorch {
             correctColor()
+        }
+    }
+
+    func startRunning() {
+        let session = self.session
+        sessionQueue.async {
+            guard !session.isRunning else { return }
+            session.startRunning()
+        }
+    }
+
+    func stopRunning() {
+        let session = self.session
+        sessionQueue.async {
+            guard session.isRunning else { return }
+            session.stopRunning()
         }
     }
     
     func setUpCaptureDevice(
         _ mode: AVCaptureDevice.ExposureMode
     ) {
-        try! self.captureDevice?.lockForConfiguration()
-        captureDevice?.exposureMode = mode
-        captureDevice?.unlockForConfiguration()
+        guard captureDevice?.exposureMode != mode else { return }
+        configureCaptureDevice { device in
+            guard device.isExposureModeSupported(mode) else { return }
+            device.exposureMode = mode
+        }
+    }
+
+    /// 현재 자동 노출이 선택한 ISO와 노출 시간을 측정용 값으로 고정한다.
+    /// setExposureModeCustom의 적용 완료 전에는 false를 반환하므로 호출자는
+    /// stop=false 상태를 아직 외부에 발행하면 안 된다.
+    func prepareMeasurementExposureLock() -> Bool {
+        guard let device = captureDevice else { return false }
+
+        if let customISO {
+            let isLockedMode = device.exposureMode == .custom
+                || device.exposureMode == .locked
+            let tolerance = max(0.1, customISO * 0.001)
+            return !isExposureLockPending
+                && isLockedMode
+                && !device.isAdjustingExposure
+                && abs(device.iso - customISO) <= tolerance
+        }
+
+        guard !isExposureLockPending else { return false }
+
+        let targetISO = min(max(device.iso, device.activeFormat.minISO), device.activeFormat.maxISO)
+        let targetDuration = device.exposureDuration
+        exposureLockGeneration += 1
+        let generation = exposureLockGeneration
+        customISO = targetISO
+        isExposureLockPending = true
+
+        let didConfigure = configureCaptureDevice { [weak self] device in
+            guard let self else { return }
+
+            if device.isExposureModeSupported(.custom) {
+                device.setExposureModeCustom(
+                    duration: targetDuration,
+                    iso: targetISO
+                ) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        guard self.exposureLockGeneration == generation else { return }
+                        self.customISO = self.captureDevice?.iso ?? targetISO
+                        self.isExposureLockPending = false
+                    }
+                }
+            } else if device.isExposureModeSupported(.locked) {
+                device.exposureMode = .locked
+                customISO = device.iso
+                isExposureLockPending = false
+            } else {
+                customISO = nil
+                isExposureLockPending = false
+            }
+        }
+
+        if !didConfigure {
+            customISO = nil
+            isExposureLockPending = false
+        }
+        return false
+    }
+
+    /// 얼굴을 찾거나 측정 재시작을 기다리는 동안 조명 변화에 대응한다.
+    /// 연속 자동 노출을 지원하지 않는 기기에서는 1회 자동 노출로 폴백한다.
+    func resumeAutomaticExposure() {
+        guard let device = captureDevice else { return }
+
+        exposureLockGeneration += 1
+        customISO = nil
+        isExposureLockPending = false
+
+        let mode: AVCaptureDevice.ExposureMode
+        if device.isExposureModeSupported(.continuousAutoExposure) {
+            mode = .continuousAutoExposure
+        } else if device.isExposureModeSupported(.autoExpose) {
+            mode = .autoExpose
+        } else {
+            return
+        }
+
+        setUpCaptureDevice(mode)
     }
     
     func correctColor() {
-        try! self.captureDevice?.lockForConfiguration()
-        let gainset = AVCaptureDevice.WhiteBalanceGains(redGain: 1.6,
-                                                        greenGain: 1.0, // 3 -> 1 edit
-                                                        blueGain: 1.6)
-        self.captureDevice?.setWhiteBalanceModeLocked(with: gainset,
-                                                      completionHandler: nil)
-        self.captureDevice?.unlockForConfiguration()
+        configureCaptureDevice { device in
+            let gainset = AVCaptureDevice.WhiteBalanceGains(
+                redGain: 1.6,
+                greenGain: 1.0,
+                blueGain: 1.6
+            )
+            device.setWhiteBalanceModeLocked(
+                with: gainset,
+                completionHandler: nil
+            )
+        }
     }
     
     func setTorchMode(enabled: Bool) -> Bool {
