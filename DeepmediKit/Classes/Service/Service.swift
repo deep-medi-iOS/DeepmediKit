@@ -659,23 +659,32 @@ public struct EstimateFromRawPPGPredictBpVital: Codable {
     public let calSbp: Double
     public let deltaDbp: Double
     public let deltaSbp: Double
-    public let estimatedDbp: Double
-    public let estimatedSbp: Double
+    public let dia: Double
+    public let sys: Double
 
     public init(
         calDbp: Double,
         calSbp: Double,
         deltaDbp: Double,
         deltaSbp: Double,
-        estimatedDbp: Double,
-        estimatedSbp: Double,
+        dia: Double,
+        sys: Double,
     ) {
         self.calDbp = calDbp
         self.calSbp = calSbp
         self.deltaDbp = deltaDbp
         self.deltaSbp = deltaSbp
-        self.estimatedDbp = estimatedDbp
-        self.estimatedSbp = estimatedSbp
+        self.dia = dia
+        self.sys = sys
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case calDbp = "cal_dbp"
+        case calSbp = "cal_sbp"
+        case deltaDbp = "delta_dbp"
+        case deltaSbp = "delta_sbp"
+        case dia = "estimated_dbp"
+        case sys = "estimated_sbp"
     }
 }
 
@@ -739,32 +748,63 @@ public final class EstimateSingleBpVitalProvider {
     }
 }
 
-public final class EstimateFromRawPPGPredict {
-    private let network: DeepmediAPIClient
-
-    public init(apiKey: String) {
-        self.network = DeepmediAPIClient(apiKey: apiKey)
-    }
-
-    public func getEstimateFromRawPPGPredict(
-        calSys: Int,
-        calDia: Int,
-        calPPG: [Double],
-        targetPPG: [Double]
-    ) async throws -> EstimateFromRawPPGPredictBpVital {
-        let request = EstimateFromRawPPGPredictRequest(
-            cal_sbp: calSys,
-            cal_dbp: calDia,
-            cal_ppg: calPPG,
-            target_ppg: targetPPG,
-            sampling_rate: 100
-        )
-        return try await network.post(
-            urlString: "https://api.deep-medi.com/bp_estimate_from_raw_ppg/predict",
-            body: request
-        )
-    }
-}
+//적용전 260723
+//public final class EstimateFromRawPPGPredict {
+//    private let network: DeepmediAPIClient
+//
+//    public init(apiKey: String) {
+//        self.network = DeepmediAPIClient(apiKey: apiKey)
+//    }
+//
+//    public func getEstimateFromRawPPGPredict(
+//        calSys: Int,
+//        calDia: Int,
+//        calPPG: [Double],
+//        targetPPG: [Double]
+//    ) async throws -> EstimateFromRawPPGPredictBpVital {
+//        let request = EstimateFromRawPPGPredictRequest(
+//            cal_sbp: calSys,
+//            cal_dbp: calDia,
+//            cal_ppg: calPPG,
+//            target_ppg: targetPPG,
+//            sampling_rate: 100
+//        )
+//        return try await network.post(
+//            urlString: "https://api.deep-medi.com/bp_estimate_from_raw_ppg/predict",
+//            body: request
+//        )
+//    }
+//}
+//적용전
+//        let calibPPG: [Double]
+//        let targetPPG = output.metrics.ppg
+//        if calibrationPPG.isEmpty {
+//            calibrationPPG = targetPPG
+//            calibPPG       = targetPPG
+//        } else {
+//            calibPPG = calibrationPPG
+//        }
+//
+//        let bp: EstimateFromRawPPGPredictBpVital
+//        do {
+//            print("[++\(#fileID):\(#line)]- cal ppg: ", calibPPG.count)
+//            print("[++\(#fileID):\(#line)]- target ppg: ", targetPPG.count)
+//            bp = try await EstimateFromRawPPGPredict(apiKey: apiKey)
+//                .getEstimateFromRawPPGPredict(
+//                    calSys: cuffSys,
+//                    calDia: cuffDia,
+//                    calPPG: calibPPG,
+//                    targetPPG: targetPPG
+//                )
+//        } catch let error {
+//            uploadFailureDiagnostic(
+//                failedApi: .estimateFromRawPPGPredict,
+//                error: error,
+//                output: output
+//            )
+//            print("extract bp feature target api error: \(error.localizedDescription)")
+//            return
+//        }
 
 public final class BPFeatureExtractionProvider {
     private let network: DeepmediAPIClient

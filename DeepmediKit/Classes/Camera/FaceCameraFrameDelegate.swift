@@ -376,33 +376,33 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         let faceMaxY = faceFrame.maxY - faceFrame.height * 0.2
         
 //        Debug용 View 설정 - 측정구역(대, 소), 감지된 얼굴
-        DispatchQueue.main.async {
-//            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
-//            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
-
-            self.recogView.layer.borderColor = UIColor.red.cgColor
-            self.recogView.layer.borderWidth = 1
-
-            self.faceDetecView.layer.borderColor = UIColor.blue.cgColor
-            self.faceDetecView.layer.borderWidth = 1
-
-            self.smallView.layer.borderColor = UIColor.green.cgColor
-            self.smallView.layer.borderWidth = 1
-
-            self.recogView.frame = recognitionArea
-            self.faceDetecView.frame = CGRect(
-                x: faceMinX,
-                y: faceMinY,
-                width: faceMaxX - faceMinX,
-                height: faceMaxY - faceMinY
-            )
-            self.smallView.frame = CGRect(
-                x: smallMinX,
-                y: smallMinY,
-                width: smallMaxX - smallMinX,
-                height: smallMaxY - smallMinY
-            )
-        }
+//        DispatchQueue.main.async {
+////            self.cropView.frame = CGRect(x: 0, y: 0, width: 120, height: 120)
+////            self.landMarkView.frame = CGRect(x: 180, y: 0, width: 120, height: 120)
+//
+//            self.recogView.layer.borderColor = UIColor.red.cgColor
+//            self.recogView.layer.borderWidth = 1
+//
+//            self.faceDetecView.layer.borderColor = UIColor.blue.cgColor
+//            self.faceDetecView.layer.borderWidth = 1
+//
+//            self.smallView.layer.borderColor = UIColor.green.cgColor
+//            self.smallView.layer.borderWidth = 1
+//
+//            self.recogView.frame = recognitionArea
+//            self.faceDetecView.frame = CGRect(
+//                x: faceMinX,
+//                y: faceMinY,
+//                width: faceMaxX - faceMinX,
+//                height: faceMaxY - faceMinY
+//            )
+//            self.smallView.frame = CGRect(
+//                x: smallMinX,
+//                y: smallMinY,
+//                width: smallMaxX - smallMinX,
+//                height: smallMaxY - smallMinY
+//            )
+//        }
 
         let useRecognitionArea = useRecognitionArea(
             useSmallViewArea: false,
