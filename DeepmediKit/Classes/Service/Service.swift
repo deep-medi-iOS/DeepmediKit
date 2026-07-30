@@ -7,6 +7,52 @@
 import Foundation
 import UIKit
 
+/// 앱에서 실제 사용 중인 DeepmediKit SDK 버전을 제공한다.
+public enum DeepmediKitSDK {
+    // 번들 메타데이터를 읽을 수 없는 정적 링크 환경에서 사용할 버전이다.
+    private static let fallbackVersion = "3.6.3"
+
+    /// 리소스 번들과 프레임워크에서 현재 로드된 SDK 버전을 찾는다.
+    public static let version: String = {
+        var candidates = [Bundle]()
+
+        // CocoaPods가 생성한 DeepmediKit 리소스 번들을 우선 확인한다.
+        if let resourceBundleURL = Bundle.main.url(
+            forResource: "DeepmediKit",
+            withExtension: "bundle"
+        ),
+           let resourceBundle = Bundle(url: resourceBundleURL) {
+            candidates.append(resourceBundle)
+        }
+
+        candidates.append(Bundle(for: DeepmediKitSDKBundleToken.self))
+        candidates.append(contentsOf: Bundle.allFrameworks)
+
+        for bundle in candidates where isDeepmediKitBundle(bundle) {
+            if let version = bundle.object(
+                forInfoDictionaryKey: "CFBundleShortVersionString"
+            ) as? String,
+               !version.isEmpty {
+                return version
+            }
+        }
+
+        return fallbackVersion
+    }()
+
+    private static func isDeepmediKitBundle(_ bundle: Bundle) -> Bool {
+        if bundle.bundleIdentifier == "org.cocoapods.DeepmediKit" {
+            return true
+        }
+
+        return bundle.bundleURL
+            .deletingPathExtension()
+            .lastPathComponent == "DeepmediKit"
+    }
+}
+
+private final class DeepmediKitSDKBundleToken {}
+
 public enum GenderType: Int, Codable {
     case male = 0
     case female = 1
@@ -48,6 +94,8 @@ public struct FailureDiagnosticDebugInfo {
     public let httpCode: Int?
     public let apiResult: Int?
     public let message: String
+    /// 오류가 발생한 앱에서 사용 중이던 SDK 버전이다.
+    public let sdkVersion: String
     public let device: String
     public let osApiLevel: String
     public let occurredAt: String
@@ -59,6 +107,7 @@ public struct FailureDiagnosticDebugInfo {
         httpCode: Int?,
         apiResult: Int?,
         message: String,
+        sdkVersion: String = DeepmediKitSDK.version,
         device: String = FailureDiagnosticDebugInfo.currentDeviceModel(),
         osApiLevel: String = UIDevice.current.systemVersion,
         occurredAt: Date = Date(),
@@ -70,6 +119,7 @@ public struct FailureDiagnosticDebugInfo {
             httpCode: httpCode,
             apiResult: apiResult,
             message: message,
+            sdkVersion: sdkVersion,
             device: device,
             osApiLevel: osApiLevel,
             occurredAt: occurredAt,
@@ -83,6 +133,7 @@ public struct FailureDiagnosticDebugInfo {
         httpCode: Int?,
         apiResult: Int?,
         message: String,
+        sdkVersion: String = DeepmediKitSDK.version,
         device: String = FailureDiagnosticDebugInfo.currentDeviceModel(),
         osApiLevel: String = UIDevice.current.systemVersion,
         occurredAt: Date = Date(),
@@ -93,6 +144,7 @@ public struct FailureDiagnosticDebugInfo {
         self.httpCode = httpCode
         self.apiResult = apiResult
         self.message = message
+        self.sdkVersion = sdkVersion
         self.device = device
         self.osApiLevel = osApiLevel
         self.occurredAt = Self.timestampString(from: occurredAt)
@@ -260,12 +312,14 @@ public final class FailureDiagnosticDebugFileWriter {
     }
 
     public func makeDebugText(from info: FailureDiagnosticDebugInfo) -> String {
+        // 장애 파일만으로 실행 SDK 버전을 확인할 수 있도록 함께 기록한다.
         [
             "failedApi=\(oneLine(info.failedApi))",
             "exceptionType=\(oneLine(info.exceptionType))",
             "httpCode=\(nullable(info.httpCode))",
             "apiResult=\(nullable(info.apiResult))",
             "message=\(oneLine(info.message))",
+            "sdkVersion=\(oneLine(info.sdkVersion))",
             "device=\(oneLine(info.device))",
             "osApiLevel=\(oneLine(info.osApiLevel))",
             "occurredAt=\(oneLine(info.occurredAt))",

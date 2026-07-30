@@ -390,7 +390,8 @@ internal final class FaceCoreMetricsCalculator {
         let mean = ppg.reduce(0, +) / Double(ppg.count)
         let variance = ppg.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(ppg.count)
         let std = sqrt(variance) + 1e-8
-        let ppgHat = ppg.map { -(($0 - mean) / std) }
+        // 모델이 출력한 PPG 방향을 뒤집지 않고 z-score로 정규화한다.
+        let ppgHat = ppg.map { ($0 - mean) / std }
         let peakProb = peakLogits.map { 1.0 / (1.0 + exp(-Double($0))) }
         return (ppgHat, peakProb)
     }
@@ -432,7 +433,8 @@ internal final class FaceCoreMetricsCalculator {
             var bestIndex = p
             var bestValue = ppgHat[p]
             if lo <= hi {
-                for idx in lo...hi where ppgHat[idx] > bestValue {
+                // 원래 PPG 방향에 맞춰 후보 주변의 최솟값으로 위치를 보정한다.
+                for idx in lo...hi where ppgHat[idx] < bestValue {
                     bestValue = ppgHat[idx]
                     bestIndex = idx
                 }

@@ -15,6 +15,6 @@ public enum DeepmediKitModelCore {
     public static let fileName = "\(modelName).\(fileExtension)"
 
     public static var logDescription: String {
-        "\(fileName) version=\(version)"
+        "\(fileName) version = \(version)"
     }
 }

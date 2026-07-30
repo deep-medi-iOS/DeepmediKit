@@ -11,6 +11,14 @@ import MLKitFaceDetection
 
 // MARK: RGB / ByteArray / YUA -> Ymean / Capture Image
 extension FaceKit {
+    // 얼굴 각도는 크롭/랜드마크 처리 성공 여부와 무관하게 검출 즉시 전달한다.
+    // pitchYawRoll 구독자가 인식 영역 밖의 얼굴 움직임도 받을 수 있어야 한다.
+    internal func publishHeadAngles(from face: Face) {
+        measurementState.headAnglesRelay.accept(
+            extractHeadAngles(from: face)
+        )
+    }
+
     //크롭된 얼굴이미지에서 RGB 추출
     internal func extractRGBFromDetectFace(
         sampleBuffer: CMSampleBuffer
@@ -133,13 +141,6 @@ extension FaceKit {
             )
         )
         
-        measurementState.headAnglesRelay.accept(
-            HeaderAngles.init(
-                pitch: pitch,
-                yaw: yaw,
-                roll: roll
-            )
-        )
         measurementState.metaData.accept(
             .init(
                 iso: iso,

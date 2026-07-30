@@ -9,6 +9,17 @@
 
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
 
+## SDK version
+
+Update the SDK version and synchronize the Example CocoaPods metadata with one command:
+
+```sh
+make sdk-version VERSION=3.6.3
+```
+
+This updates `DeepmediKit.podspec`, the runtime fallback version, `Podfile.lock`,
+the Local Podspec, and the generated Pods project.
+
 ## Requirements
 
 ## Installation

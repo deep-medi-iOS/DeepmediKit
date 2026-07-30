@@ -53,6 +53,7 @@ internal final class MeasurementState {
     let sigB = PublishSubject<[Float]>()
     let measurementCount = PublishSubject<Int>()
     let coreMetrics = PublishRelay<PhysMorphNetResult>()
+    let coreInferenceRunning = BehaviorRelay<Bool>(value: false)
     let headAnglesRelay = BehaviorRelay<FaceKit.HeaderAngles?>(
         value: FaceKit.HeaderAngles(pitch: 0.0, yaw: 0.0, roll: 0.0)
     )

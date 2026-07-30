@@ -133,6 +133,7 @@ public class FaceKit: NSObject {
                  cameraSessionManager = CameraSessionManager.shared
     internal var tfliteRunner: TFLiteModelRunner?
     internal var faceDetector: FaceDetector?
+    internal var headPoseDetector: FaceDetector?
     internal var faceDetectorUsesClassification = false
     internal let videoFrameStatsLock = NSLock()
     internal var videoFrameStats = VideoFrameStats()
@@ -170,6 +171,9 @@ public class FaceKit: NSObject {
     internal var cropFaceImage: UIImage?
     internal var dispatchTimer: DispatchSourceTimer?
     internal var isTimerRunning = false
+    internal var isCoreInferenceRunning: Bool {
+        measurementState.coreInferenceRunning.value
+    }
     internal var useFaceRecognitionArea = false
     internal var useSmallViewArea = true
     
@@ -444,40 +448,54 @@ public class FaceKit: NSObject {
                 }
                 self.isTimerRunning = true
                 measurementCount.onNext(sigR.count)
-                if self.sigR.count == measurementDataCount {
+                if self.sigR.count >= measurementDataCount {
+                    guard !self.isCoreInferenceRunning else { return }
+                    self.setCoreInferenceRunning(true)
+                    defer {
+                        self.setCoreInferenceRunning(false)
+                    }
+
                     self.finishVideoFrameStats(context: "collection completed")
+                    self.dispatchTimer?.cancel()
+                    self.isTimerRunning = false
+                    self.motionManager.stopAccelerometerUpdates()
+                    self.motionManager.stopGyroUpdates()
+
                     let faceFrameCount = min(
                         self.bytesArray.count,
                         self.frameTimestampUS.count,
+                        self.frames.count,
                         self.measurementDataCount
                     )
-                    
-                    if let faceBin = self.measurementFileWriter.makeFaceBin(
+                    let collectedFrames = Array(
+                        self.frames.prefix(faceFrameCount)
+                    )
+
+                    guard let faceBin = self.measurementFileWriter.makeFaceBin(
                         frames: Array(self.bytesArray.prefix(faceFrameCount)),
                         timestampsUS: Array(self.frameTimestampUS.prefix(faceFrameCount))
-                       ) {
-                        guard let coreResult = self.runCoreFromFaceBin(faceBin) else {
-                            self.finishMeasurementAfterCoreFailure(
-                                message: "face.bin core inference failed"
-                            )
-                            print("[++\(#fileID):\(#line)]- guard ")
-                            return
-                        }
-                        measurementComplete.onNext(true)
-                        rgbFilePath.onNext(URL(fileURLWithPath: ""))
-                        self.publishCoreMetrics(coreResult, faceBin)
-                    } else {
-                        measurementComplete.onNext(false)
-                        rgbFilePath.onNext(URL(fileURLWithPath: ""))
+                    ) else {
+                        self.setCoreInferenceRunning(false)
                         self.finishMeasurementAfterCoreFailure(
                             message: "face.bin creation failed"
                         )
                         return
                     }
-                    self.dispatchTimer?.cancel()
-                    self.isTimerRunning = false
-                    self.motionManager.stopAccelerometerUpdates()
-                    self.motionManager.stopGyroUpdates()
+
+                    guard let coreResult = self.runCoreFromFrames(collectedFrames) else {
+                        self.setCoreInferenceRunning(false)
+                        self.finishMeasurementAfterCoreFailure(
+                            message: "collected frame core inference failed"
+                        )
+                        return
+                    }
+
+                    // 최종 결과 콜백에서 FaceKit을 해제하더라도 로딩 종료 이벤트가
+                    // 먼저 메인 큐에 전달되도록 결과 발행 전에 상태를 내린다.
+                    self.setCoreInferenceRunning(false)
+                    self.publishCoreMetrics(coreResult, faceBin)
+                    measurementComplete.onNext(true)
+                    rgbFilePath.onNext(URL(fileURLWithPath: ""))
                 }
             }
         )
@@ -490,6 +508,7 @@ public class FaceKit: NSObject {
         print("[++\(#fileID):\(#line)]- measurement failed: \(message)")
         finishVideoFrameStats(context: "core failure")
         measurementState.measurementComplete.onNext(false)
+        measurementState.rgbFilePath.onNext(URL(fileURLWithPath: ""))
         dispatchTimer?.cancel()
         isTimerRunning = false
         lastValue = nil
@@ -498,6 +517,13 @@ public class FaceKit: NSObject {
         measurementState.measurementCount.onNext(0)
         emitMeasurementState(stop: true, checkRealFace: false, requiredStableFrames: 1)
         initRGBData()
+    }
+
+    private func setCoreInferenceRunning(_ isRunning: Bool) {
+        guard measurementState.coreInferenceRunning.value != isRunning else {
+            return
+        }
+        measurementState.coreInferenceRunning.accept(isRunning)
     }
 
     private func runCoreFromFrames(

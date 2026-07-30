@@ -19,6 +19,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        // 코어 처리 중에는 프리뷰 세션을 유지하되 ML Kit/크롭 처리를 생략한다.
+        guard !isCoreInferenceRunning else { return }
+
         recordDeliveredVideoFrame()
 
         guard let cvimgRef: CVImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
@@ -69,6 +72,10 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             return
         }
 
+        let largestDetectedFace = faces.max { lhs, rhs in
+            lhs.frame.width * lhs.frame.height < rhs.frame.width * rhs.frame.height
+        }
+
         // contour는 가장 두드러진 얼굴에만 제공된다. 여러 얼굴의 상태가 한 측정에
         // 섞이지 않도록 contour가 있는 가장 큰 얼굴 하나만 사용한다.
         let primaryFace = faces
@@ -76,11 +83,18 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             .max { lhs, rhs in
                 lhs.frame.width * lhs.frame.height < rhs.frame.width * rhs.frame.height
             }
+        let headPoseFace = resolvedHeadPoseFace(
+            in: image,
+            preferredFace: primaryFace ?? largestDetectedFace
+        )
 
         performOnMain { [weak self] in
             guard let self else { return }
             self.refreshFaceDetectionConfiguration()
 
+            if let headPoseFace {
+                self.publishHeadAngles(from: headPoseFace)
+            }
             guard let face = primaryFace else {
                 self.registerInvalidFaceFrame()
                 return
@@ -121,6 +135,8 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 
     private func configuredFaceDetector() -> FaceDetector {
+        // 데이터 수집용 얼굴 frame/contour는 어제 사용한 detector 설정을 유지한다.
+        // 이 설정을 angle 출력 때문에 변경하면 crop 크기와 구도가 달라질 수 있다.
         let shouldUseClassification = model.willCheckRealFace
         if let faceDetector,
            faceDetectorUsesClassification == shouldUseClassification {
@@ -136,6 +152,62 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         let detector = FaceDetector.faceDetector(options: options)
         faceDetector = detector
         faceDetectorUsesClassification = shouldUseClassification
+        return detector
+    }
+
+    private func resolvedHeadPoseFace(
+        in image: VisionImage,
+        preferredFace: Face?
+    ) -> Face? {
+        if let preferredFace,
+           preferredFace.hasHeadEulerAngleX,
+           preferredFace.hasHeadEulerAngleY,
+           preferredFace.hasHeadEulerAngleZ {
+            return preferredFace
+        }
+
+        let faces: [Face]
+        do {
+            faces = try configuredHeadPoseDetector().results(in: image)
+        } catch {
+            print("Failed to detect head pose with error: \(error.localizedDescription).")
+            return nil
+        }
+
+        if let preferredFace {
+            let preferredCenter = CGPoint(
+                x: preferredFace.frame.midX,
+                y: preferredFace.frame.midY
+            )
+            return faces.min { lhs, rhs in
+                let lhsDistance = pow(lhs.frame.midX - preferredCenter.x, 2)
+                    + pow(lhs.frame.midY - preferredCenter.y, 2)
+                let rhsDistance = pow(rhs.frame.midX - preferredCenter.x, 2)
+                    + pow(rhs.frame.midY - preferredCenter.y, 2)
+                return lhsDistance < rhsDistance
+            }
+        }
+
+        return faces.max { lhs, rhs in
+            lhs.frame.width * lhs.frame.height < rhs.frame.width * rhs.frame.height
+        }
+    }
+
+    private func configuredHeadPoseDetector() -> FaceDetector {
+        if let headPoseDetector {
+            return headPoseDetector
+        }
+
+        // contour를 사용하지 않는 이 조합은 crop detector의 결과에 영향을 주지
+        // 않으면서 Euler X/Y/Z만 경량으로 계산한다.
+        let options = FaceDetectorOptions()
+        options.landmarkMode = .none
+        options.contourMode = .none
+        options.classificationMode = .none
+        options.performanceMode = .fast
+
+        let detector = FaceDetector.faceDetector(options: options)
+        headPoseDetector = detector
         return detector
     }
 
@@ -337,8 +409,9 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
         imageWidth: CGFloat,
         imageHeight: CGFloat
     ) -> CGRect {
-        let targetWidthRatio: CGFloat = 124.0 / 216.0
-        let targetHeightRatio: CGFloat = 162.0 / 216.0
+        // 216 기준 얼굴 검출 영역에서 어제 조정한 중앙 100×160 비율만 수집한다.
+        let targetWidthRatio: CGFloat = 100.0 / 216.0
+        let targetHeightRatio: CGFloat = 160.0 / 216.0
         let insetXRatio = (1.0 - targetWidthRatio) / 2.0
         let insetYRatio = (1.0 - targetHeightRatio) / 2.0
 

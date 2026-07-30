@@ -310,6 +310,19 @@ public extension FaceKit {
         })
         .disposed(by: bag)
     }
+
+    /// 측정 프레임 수집이 끝난 뒤 face.bin 생성부터 코어 결과 계산까지의 상태.
+    /// 콜백은 메인 스레드에서 전달된다.
+    func coreInferenceState(
+        _ handler: @escaping (Bool) -> Void
+    ) {
+        measurementState.coreInferenceRunning
+            .asDriver()
+            .distinctUntilChanged()
+            .drive(onNext: handler)
+            .disposed(by: bag)
+    }
+
     //준비시간 중 남은 시간
     func timesLeft(
         _ com: @escaping((Int) -> ())

@@ -44,6 +44,14 @@ class FaceViewController: UIViewController {
         l.backgroundColor = .black
         l.textColor = .white
     }
+
+    // Example 화면에서 현재 로드된 SDK 버전을 바로 확인한다.
+    let sdkVersionLabel = UILabel().then { l in
+        l.backgroundColor = .black
+        l.textColor = .white
+        l.font = .systemFont(ofSize: 12)
+        l.textAlignment = .center
+    }
     
     let captureImageView = UIImageView().then { v in
         v.contentMode = .scaleAspectFit
@@ -52,13 +60,29 @@ class FaceViewController: UIViewController {
         v.contentMode = .scaleAspectFit
     }
 
+    let loadingView = UIView().then { view in
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+        view.isHidden = true
+    }
+
+    let spinner = UIActivityIndicatorView(
+        activityIndicatorStyle: .large
+    ).then { spinner in
+        spinner.color = .white
+        spinner.hidesWhenStopped = true
+        spinner.accessibilityLabel = "측정 결과 분석 중"
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.backgroundColor = .white
+        sdkVersionLabel.text = "DeepmediKit SDK \(DeepmediKitSDK.version)"
         completionMethod()
         
         guard let faceMeasureKit else { return }
-        print("FaceKit TFLite ready: \(faceMeasureKit.tfliteReady), message: \(faceMeasureKit.tfliteInitMessage)")
+        print("[++\(#fileID):\(#line)]- FaceKit TFLite ready: \(faceMeasureKit.tfliteReady), message: \(faceMeasureKit.tfliteInitMessage)")
+        print("[++\(#fileID):\(#line)]- DeepmediKit SDK \(DeepmediKitSDK.version)")
+
         camera.initalized(
             part: .face,
             delegate: faceMeasureKit,
@@ -139,6 +163,16 @@ class FaceViewController: UIViewController {
                 self.tempView.backgroundColor = .green
             } else {
                 self.tempView.backgroundColor = .red
+            }
+        }
+
+        faceMeasureKit?.coreInferenceState { [weak self] isRunning in
+            guard let self else { return }
+            self.loadingView.isHidden = !isRunning
+            if isRunning {
+                self.spinner.startAnimating()
+            } else {
+                self.spinner.stopAnimating()
             }
         }
 
@@ -266,8 +300,11 @@ class FaceViewController: UIViewController {
         self.view.addSubview(tempView)
         self.view.addSubview(isoLabel)
         self.view.addSubview(countLabel)
+        self.view.addSubview(sdkVersionLabel)
         self.view.addSubview(captureImageView)
         self.view.addSubview(cropImageView)
+        self.view.addSubview(loadingView)
+        loadingView.addSubview(spinner)
         
         preview.translatesAutoresizingMaskIntoConstraints = false
         faceRecognitionAreaView.translatesAutoresizingMaskIntoConstraints = false
@@ -275,8 +312,11 @@ class FaceViewController: UIViewController {
         tempView.translatesAutoresizingMaskIntoConstraints = false
         isoLabel.translatesAutoresizingMaskIntoConstraints = false
         countLabel.translatesAutoresizingMaskIntoConstraints = false
+        sdkVersionLabel.translatesAutoresizingMaskIntoConstraints = false
         captureImageView.translatesAutoresizingMaskIntoConstraints = false
         cropImageView.translatesAutoresizingMaskIntoConstraints = false
+        loadingView.translatesAutoresizingMaskIntoConstraints = false
+        spinner.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             preview.topAnchor.constraint(equalTo: self.view.topAnchor),
@@ -306,6 +346,16 @@ class FaceViewController: UIViewController {
             countLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
             countLabel.widthAnchor.constraint(equalToConstant: width * 0.3),
             countLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
+
+        NSLayoutConstraint.activate([
+            sdkVersionLabel.topAnchor.constraint(
+                equalTo: countLabel.bottomAnchor,
+                constant: -10
+            ),
+            sdkVersionLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            sdkVersionLabel.widthAnchor.constraint(equalToConstant: width * 0.5),
+            sdkVersionLabel.heightAnchor.constraint(equalToConstant: 30)
         ])
 
         NSLayoutConstraint.activate(
@@ -342,6 +392,15 @@ class FaceViewController: UIViewController {
             cropImageView.topAnchor.constraint(equalTo: captureImageView.topAnchor),
             cropImageView.widthAnchor.constraint(equalToConstant: width * 0.3),
             cropImageView.heightAnchor.constraint(equalToConstant: width * 0.3)
+        ])
+
+        NSLayoutConstraint.activate([
+            loadingView.topAnchor.constraint(equalTo: self.view.topAnchor),
+            loadingView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            loadingView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
+            loadingView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+            spinner.centerXAnchor.constraint(equalTo: loadingView.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: loadingView.centerYAnchor)
         ])
     }
     
