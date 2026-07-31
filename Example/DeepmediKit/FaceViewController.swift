@@ -78,7 +78,7 @@ class FaceViewController: UIViewController {
         self.view.backgroundColor = .white
         sdkVersionLabel.text = "DeepmediKit SDK \(DeepmediKitSDK.version)"
         completionMethod()
-        
+
         guard let faceMeasureKit else { return }
         print("[++\(#fileID):\(#line)]- FaceKit TFLite ready: \(faceMeasureKit.tfliteReady), message: \(faceMeasureKit.tfliteInitMessage)")
         print("[++\(#fileID):\(#line)]- DeepmediKit SDK \(DeepmediKitSDK.version)")
@@ -196,7 +196,6 @@ class FaceViewController: UIViewController {
         let userGender: GenderType = .male
         let cuffSys = 120
         let cuffDia = 75
-        var calibrationBPFeatures: [Double] = []
         var calibrationPPG: [Double] = []
 
         let physicalStress: Double
@@ -219,17 +218,27 @@ class FaceViewController: UIViewController {
             return
         }
 
-        let targetFeatures: [Double]
+        let calibPPG: [Double]
+        let targetPPG = output.metrics.ppg
+        if calibrationPPG.isEmpty {
+            calibrationPPG = targetPPG
+            calibPPG       = targetPPG
+        } else {
+            calibPPG = calibrationPPG
+        }
+
+        let bp: EstimateFromRawPPGPredictBpVital
         do {
-            targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
-                .getBPFeatureExtraction(
-                    ppg: output.metrics.ppg,
-                    ts: output.ts
+            bp = try await EstimateFromRawPPGPredict(apiKey: apiKey)
+                .getEstimateFromRawPPGPredict(
+                    calSys: cuffSys,
+                    calDia: cuffDia,
+                    calPPG: calibPPG,
+                    targetPPG: targetPPG
                 )
-                .ft
         } catch let error {
             uploadFailureDiagnostic(
-                failedApi: .extractBPFeatureTarget,
+                failedApi: .estimateFromRawPPGPredict,
                 error: error,
                 output: output
             )
@@ -237,34 +246,7 @@ class FaceViewController: UIViewController {
             return
         }
 
-        let calibFeatures: [Double]
-        if calibrationBPFeatures.isEmpty {
-            calibrationBPFeatures = targetFeatures
-            calibFeatures = targetFeatures
-        } else {
-            calibFeatures = calibrationBPFeatures
-        }
-
-        let bp: EstimateSingleBpVital
-        do {
-            bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
-                .getEstimateSingleBpVital(
-                    cuffSys: cuffSys,
-                    cuffDia: cuffDia,
-                    calibFt: calibFeatures,
-                    targetFt: targetFeatures
-                )
-        } catch let error {
-            uploadFailureDiagnostic(
-                failedApi: .estimateSingleBPVital,
-                error: error,
-                output: output
-            )
-            print("estimate single bp vital api error: \(error.localizedDescription)")
-            return
-        }
-
-        print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
+        print("[++\(#fileID):\(#line)]- sys: \(bp.sys), dia: \(bp.dia)")
         print("[++\(#fileID):\(#line)]- hr: ", output.metrics.hr)//심박
         print("[++\(#fileID):\(#line)]- sdnn: ", output.metrics.sdnn)//스트레스
         print("[++\(#fileID):\(#line)]- rmssd: ", output.metrics.rmssd)//스트레스 회복력

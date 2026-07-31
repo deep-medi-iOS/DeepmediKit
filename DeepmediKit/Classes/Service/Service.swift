@@ -711,32 +711,32 @@ public struct EstimateSingleBpVital: Codable {
 public struct EstimateFromRawPPGPredictBpVital: Codable {
     public let calDbp: Double
     public let calSbp: Double
-    public let deltaDbp: Double
-    public let deltaSbp: Double
+//    public let deltaDbp: Double
+//    public let deltaSbp: Double
     public let dia: Double
     public let sys: Double
 
     public init(
         calDbp: Double,
         calSbp: Double,
-        deltaDbp: Double,
-        deltaSbp: Double,
+//        deltaDbp: Double,
+//        deltaSbp: Double,
         dia: Double,
         sys: Double,
     ) {
         self.calDbp = calDbp
         self.calSbp = calSbp
-        self.deltaDbp = deltaDbp
-        self.deltaSbp = deltaSbp
+//        self.deltaDbp = deltaDbp
+//        self.deltaSbp = deltaSbp
         self.dia = dia
         self.sys = sys
     }
-    
+
     private enum CodingKeys: String, CodingKey {
         case calDbp = "cal_dbp"
         case calSbp = "cal_sbp"
-        case deltaDbp = "delta_dbp"
-        case deltaSbp = "delta_sbp"
+//        case deltaDbp = "delta_dbp"
+//        case deltaSbp = "delta_sbp"
         case dia = "estimated_dbp"
         case sys = "estimated_sbp"
     }
@@ -776,113 +776,128 @@ public final class EstimateStressFromRrProvider {
     }
 }
 
-public final class EstimateSingleBpVitalProvider {
+public final class EstimateFromRawPPGPredict {
     private let network: DeepmediAPIClient
 
     public init(apiKey: String) {
         self.network = DeepmediAPIClient(apiKey: apiKey)
     }
 
-    public func getEstimateSingleBpVital(
-        cuffSys: Int,
-        cuffDia: Int,
-        calibFt: [Double],
-        targetFt: [Double]
-    ) async throws -> EstimateSingleBpVital {
-        let request = EstimateSingleBpVitalRequest(
-            cuff_sys: cuffSys,
-            cuff_dia: cuffDia,
-            calib_ft: calibFt,
-            target_ft: targetFt
+    public func getEstimateFromRawPPGPredict(
+        calSys: Int,
+        calDia: Int,
+        calPPG: [Double],
+        targetPPG: [Double]
+    ) async throws -> EstimateFromRawPPGPredictBpVital {
+        let request = EstimateFromRawPPGPredictRequest(
+            cal_sbp: calSys,
+            cal_dbp: calDia,
+            cal_ppg: calPPG,
+            target_ppg: targetPPG,
+            sampling_rate: 100
         )
         return try await network.post(
-            urlString: "https://i40d9fg0vx.apigw.ntruss.com/bp_estimator/bp_estimate/bp_estimate/estimate_single_bp_vital",
+            urlString: "https://mqwdwf67ll.apigw.ntruss.com/bp_estimate_raw_ppg/v1/bp_estimate_from_raw_ppg/predict",
             body: request
         )
     }
 }
 
-//적용전 260723
-//public final class EstimateFromRawPPGPredict {
+//public final class EstimateSingleBpVitalProvider {
 //    private let network: DeepmediAPIClient
 //
 //    public init(apiKey: String) {
 //        self.network = DeepmediAPIClient(apiKey: apiKey)
 //    }
 //
-//    public func getEstimateFromRawPPGPredict(
-//        calSys: Int,
-//        calDia: Int,
-//        calPPG: [Double],
-//        targetPPG: [Double]
-//    ) async throws -> EstimateFromRawPPGPredictBpVital {
-//        let request = EstimateFromRawPPGPredictRequest(
-//            cal_sbp: calSys,
-//            cal_dbp: calDia,
-//            cal_ppg: calPPG,
-//            target_ppg: targetPPG,
-//            sampling_rate: 100
+//    public func getEstimateSingleBpVital(
+//        cuffSys: Int,
+//        cuffDia: Int,
+//        calibFt: [Double],
+//        targetFt: [Double]
+//    ) async throws -> EstimateSingleBpVital {
+//        let request = EstimateSingleBpVitalRequest(
+//            cuff_sys: cuffSys,
+//            cuff_dia: cuffDia,
+//            calib_ft: calibFt,
+//            target_ft: targetFt
 //        )
 //        return try await network.post(
-//            urlString: "https://api.deep-medi.com/bp_estimate_from_raw_ppg/predict",
+//            urlString: "https://i40d9fg0vx.apigw.ntruss.com/bp_estimator/bp_estimate/bp_estimate/estimate_single_bp_vital",
 //            body: request
 //        )
 //    }
 //}
-//적용전
-//        let calibPPG: [Double]
-//        let targetPPG = output.metrics.ppg
-//        if calibrationPPG.isEmpty {
-//            calibrationPPG = targetPPG
-//            calibPPG       = targetPPG
-//        } else {
-//            calibPPG = calibrationPPG
-//        }
-//
-//        let bp: EstimateFromRawPPGPredictBpVital
+//        var calibrationBPFeatures: [Double] = []
+//        let targetFeatures: [Double]
 //        do {
-//            print("[++\(#fileID):\(#line)]- cal ppg: ", calibPPG.count)
-//            print("[++\(#fileID):\(#line)]- target ppg: ", targetPPG.count)
-//            bp = try await EstimateFromRawPPGPredict(apiKey: apiKey)
-//                .getEstimateFromRawPPGPredict(
-//                    calSys: cuffSys,
-//                    calDia: cuffDia,
-//                    calPPG: calibPPG,
-//                    targetPPG: targetPPG
+//            targetFeatures = try await BPFeatureExtractionProvider(apiKey: apiKey)
+//                .getBPFeatureExtraction(
+//                    ppg: output.metrics.ppg,
+//                    ts: output.ts
 //                )
+//                .ft
 //        } catch let error {
 //            uploadFailureDiagnostic(
-//                failedApi: .estimateFromRawPPGPredict,
+//                failedApi: .extractBPFeatureTarget,
 //                error: error,
 //                output: output
 //            )
 //            print("extract bp feature target api error: \(error.localizedDescription)")
 //            return
 //        }
-
-public final class BPFeatureExtractionProvider {
-    private let network: DeepmediAPIClient
-
-    public init(apiKey: String) {
-        self.network = DeepmediAPIClient(apiKey: apiKey)
-    }
-
-    public func getBPFeatureExtraction(
-        ppg: [Double],
-        ts: [Double]
-    ) async throws -> BPFeatureExtraction {
-        let request = BPFeatureExtractionRequest(
-            ppg: ppg,
-            timestamp: ts
-        )
-        return try await network.post(
-            urlString: "https://i40d9fg0vx.apigw.ntruss.com/bp_estimator/bp_estimate/bp_estimate/extract_bp_ft",
-            body: request
-        )
-    }
-}
-
-public typealias BPfeatureExtractionProvider = BPFeatureExtractionProvider
+//
+//        let calibFeatures: [Double]
+//        if calibrationBPFeatures.isEmpty {
+//            calibrationBPFeatures = targetFeatures
+//            calibFeatures = targetFeatures
+//        } else {
+//            calibFeatures = calibrationBPFeatures
+//        }
+//
+//        let bp: EstimateSingleBpVital
+//        do {
+//            bp = try await EstimateSingleBpVitalProvider(apiKey: apiKey)
+//                .getEstimateSingleBpVital(
+//                    cuffSys: cuffSys,
+//                    cuffDia: cuffDia,
+//                    calibFt: calibFeatures,
+//                    targetFt: targetFeatures
+//                )
+//        } catch let error {
+//            uploadFailureDiagnostic(
+//                failedApi: .estimateSingleBPVital,
+//                error: error,
+//                output: output
+//            )
+//            print("estimate single bp vital api error: \(error.localizedDescription)")
+//            return
+//        }
+//        print("[++\(#fileID):\(#line)]- bp: ", bp)//심혈관
+//
+//public final class BPFeatureExtractionProvider {
+//    private let network: DeepmediAPIClient
+//
+//    public init(apiKey: String) {
+//        self.network = DeepmediAPIClient(apiKey: apiKey)
+//    }
+//
+//    public func getBPFeatureExtraction(
+//        ppg: [Double],
+//        ts: [Double]
+//    ) async throws -> BPFeatureExtraction {
+//        let request = BPFeatureExtractionRequest(
+//            ppg: ppg,
+//            timestamp: ts
+//        )
+//        return try await network.post(
+//            urlString: "https://i40d9fg0vx.apigw.ntruss.com/bp_estimator/bp_estimate/bp_estimate/extract_bp_ft",
+//            body: request
+//        )
+//    }
+//}
+//
+//public typealias BPfeatureExtractionProvider = BPFeatureExtractionProvider
 
 final class Service {
     static let manager = Service()
