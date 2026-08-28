@@ -10,7 +10,7 @@ import UIKit
 /// 앱에서 실제 사용 중인 DeepmediKit SDK 버전을 제공한다.
 public enum DeepmediKitSDK {
     // 번들 메타데이터를 읽을 수 없는 정적 링크 환경에서 사용할 버전이다.
-    private static let fallbackVersion = "3.6.6"
+    private static let fallbackVersion = "3.6.7"
 
     /// 리소스 번들과 프레임워크에서 현재 로드된 SDK 버전을 찾는다.
     public static let version: String = {

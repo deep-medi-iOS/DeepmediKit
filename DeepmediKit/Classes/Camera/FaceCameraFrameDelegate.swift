@@ -360,7 +360,7 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             checkRealFace: false,
             requiredStableFrames: 1
         )
-        cropFaceRect = ultraTightFaceCropRect(
+        cropFaceRect = faceCaptureCropRect(
             from: face.frame,
             imageWidth: imageWidth,
             imageHeight: imageHeight
@@ -404,14 +404,15 @@ extension FaceKit: AVCaptureVideoDataOutputSampleBufferDelegate {
             && rightDiff < threshold
     }
 
-    private func ultraTightFaceCropRect(
+    private func faceCaptureCropRect(
         from faceFrame: CGRect,
         imageWidth: CGFloat,
         imageHeight: CGFloat
     ) -> CGRect {
-        // 216 기준 얼굴 검출 영역에서 어제 조정한 중앙 100×160 비율만 수집한다.
-        let targetWidthRatio: CGFloat = 100.0 / 216.0
-        let targetHeightRatio: CGFloat = 160.0 / 216.0
+        // 얼굴 검출 영역의 중앙을 기준으로 좌우·상하 수집 범위를 넓힌다.
+        // 기존 100×160보다 여유를 두어 캡처 이미지와 비슷한 구도를 유지한다.
+        let targetWidthRatio: CGFloat = 124.0 / 216.0
+        let targetHeightRatio: CGFloat = 180.0 / 216.0
         let insetXRatio = (1.0 - targetWidthRatio) / 2.0
         let insetYRatio = (1.0 - targetHeightRatio) / 2.0
 

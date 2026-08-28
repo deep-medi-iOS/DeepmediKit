@@ -104,6 +104,9 @@ class FaceViewController: UIViewController {
         setupUI()
 
         faceMeasureKit.startSession()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.printCameraSettings()
+        }
     }
 
     deinit {
@@ -187,6 +190,49 @@ class FaceViewController: UIViewController {
             self.faceMeasureKit?.releaseSession()
             self.faceMeasureKit = nil
         }
+    }
+
+    private func printCameraSettings() {
+        guard let deviceInput = session.inputs.compactMap({
+            $0 as? AVCaptureDeviceInput
+        }).first else {
+            print("[Camera Settings] AVCaptureDeviceInput not found")
+            return
+        }
+
+        let device = deviceInput.device
+        let dimensions = CMVideoFormatDescriptionGetDimensions(
+            device.activeFormat.formatDescription
+        )
+        let frameDurationSeconds = CMTimeGetSeconds(
+            device.activeVideoMinFrameDuration
+        )
+        let fps = frameDurationSeconds > 0 ? 1 / frameDurationSeconds : 0
+        let exposureSeconds = CMTimeGetSeconds(device.exposureDuration)
+        let maximumExposureSeconds = CMTimeGetSeconds(
+            device.activeMaxExposureDuration
+        )
+        let videoOutput = session.outputs.first {
+            $0 is AVCaptureVideoDataOutput
+        } as? AVCaptureVideoDataOutput
+        let pixelFormat = videoOutput?.videoSettings[
+            kCVPixelBufferPixelFormatTypeKey as String
+        ] ?? "unknown"
+
+        print(
+            """
+            [Camera Settings]
+            preset: \(session.sessionPreset.rawValue)
+            device: \(device.localizedName) (\(device.uniqueID))
+            position: \(device.position)
+            format: \(dimensions.width)x\(dimensions.height) @ \(String(format: "%.2f", fps)) fps
+            exposure: mode=\(device.exposureMode.rawValue), duration=\(String(format: "%.6f", exposureSeconds))s, maxDuration=\(String(format: "%.6f", maximumExposureSeconds))s, ISO=\(String(format: "%.1f", device.iso))
+            focus: mode=\(device.focusMode.rawValue), zoom=\(String(format: "%.2f", device.videoZoomFactor))x
+            white balance: mode=\(device.whiteBalanceMode.rawValue)
+            torch: available=\(device.hasTorch), mode=\(device.torchMode.rawValue)
+            output: pixelFormat=\(pixelFormat), discardsLateFrames=\(videoOutput?.alwaysDiscardsLateVideoFrames ?? false)
+            """
+        )
     }
 
     private func requestVitalEstimates(from output: FaceKit.PhysMorphNet) async {

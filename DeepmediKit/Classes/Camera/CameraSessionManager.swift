@@ -158,6 +158,9 @@ class CameraSessionManager: NSObject {
             let frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps.rounded()))
             device.activeVideoMinFrameDuration = frameDuration
             device.activeVideoMaxFrameDuration = frameDuration
+            if part == .face {
+                limitFaceMaximumExposureDuration(device)
+            }
         } catch {
             print("lockForConfiguration failed:", error)
         }
@@ -271,7 +274,30 @@ class CameraSessionManager: NSObject {
             return
         }
 
-        setUpCaptureDevice(mode)
+        configureCaptureDevice { [weak self] device in
+            guard device.isExposureModeSupported(mode) else { return }
+            device.exposureMode = mode
+            self?.limitFaceMaximumExposureDuration(device)
+        }
+    }
+
+    /// 얼굴 측정 중 자동 노출이 1/30초보다 느린 셔터를 선택하지 못하게 제한한다.
+    /// 기기 포맷의 지원 범위가 더 짧으면 해당 최대값을 사용한다.
+    private func limitFaceMaximumExposureDuration(_ device: AVCaptureDevice) {
+        let requestedDuration = CMTime(value: 1, timescale: 30)
+        let format = device.activeFormat
+        let maximumDuration: CMTime
+
+        if CMTimeCompare(requestedDuration, format.minExposureDuration) < 0 {
+            maximumDuration = format.minExposureDuration
+            print("Face exposure limit unsupported; using format minimum duration:", maximumDuration)
+        } else if CMTimeCompare(requestedDuration, format.maxExposureDuration) > 0 {
+            maximumDuration = format.maxExposureDuration
+        } else {
+            maximumDuration = requestedDuration
+        }
+
+        device.activeMaxExposureDuration = maximumDuration
     }
     
     func correctColor() {
