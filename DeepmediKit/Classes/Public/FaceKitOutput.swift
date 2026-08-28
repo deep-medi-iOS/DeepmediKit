@@ -291,9 +291,20 @@ public extension FaceKit {
                     sdnn: 0.0,
                     rmssd: 0.0,
                     hr: 0.0,
-                    quality: 0.0,
                     rrList: [],
-                    ppg: []
+                    ppg: [],
+                    quality: 0.0,
+                    inputFrameCount: 0,
+                    usedFrameCount: 0,
+                    clipSpanS: 0.0,
+                    durationS: 0.0,
+                    measuredFPS: 0.0,
+                    keepRate: 0.0,
+                    rrCV: 0.0,
+                    ok: true,
+                    nPeaks: 0,
+                    nRRSmooth: 0,
+                    peakTimesS: []
                 ),
                 URL(fileURLWithPath: "")
             )

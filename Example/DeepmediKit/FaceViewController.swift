@@ -178,7 +178,6 @@ class FaceViewController: UIViewController {
 
         faceMeasureKit?.coreMetrics { [weak self] physMorphNet  in
             guard let self else { return }
-            print("[++\(#fileID):\(#line)]- physMorphNet: ", physMorphNet.metrics.rrList)
             guard physMorphNet.binPath != nil, physMorphNet.metrics.ppg.count != 0 else {
                 return
             }

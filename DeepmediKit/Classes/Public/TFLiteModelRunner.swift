@@ -171,14 +171,37 @@ public struct PhysMorphNetResult: Equatable {
     public let rrList: [Double]
     public let ppg: [Double]
     public let quality: Double
+
+    public let inputFrameCount: Int
+    public let usedFrameCount: Int
+    public let clipSpanS: Float
+    public let durationS: Double
+    public let measuredFPS: Double
+    public let keepRate: Double
+    public let rrCV: Double?
+    public var ok: Bool
+    public let nPeaks: Int
+    public let nRRSmooth: Int
+    public let peakTimesS: [Double]
     
     public init(
         sdnn: Double,
         rmssd: Double,
         hr: Double,
-        quality: Double,
         rrList: [Double],
-        ppg: [Double]
+        ppg: [Double],
+        quality: Double,
+        inputFrameCount: Int,
+        usedFrameCount: Int,
+        clipSpanS: Float,
+        durationS: Double,
+        measuredFPS: Double,
+        keepRate: Double,
+        rrCV: Double,
+        ok: Bool,
+        nPeaks: Int,
+        nRRSmooth: Int,
+        peakTimesS: [Double]
     ) {
         self.sdnn = sdnn
         self.rmssd = rmssd
@@ -186,6 +209,18 @@ public struct PhysMorphNetResult: Equatable {
         self.quality = quality
         self.rrList = rrList
         self.ppg = ppg
+
+        self.inputFrameCount = inputFrameCount
+        self.usedFrameCount = usedFrameCount
+        self.clipSpanS = clipSpanS
+        self.durationS = durationS
+        self.measuredFPS = measuredFPS
+        self.keepRate = keepRate
+        self.rrCV = rrCV
+        self.ok = ok
+        self.nPeaks = nPeaks
+        self.nRRSmooth = nRRSmooth
+        self.peakTimesS = peakTimesS
     }
 }
 
@@ -311,9 +346,20 @@ internal final class FaceCoreMetricsCalculator {
             sdnn: hrv.sdnnMS ?? 0.0,
             rmssd: hrv.rmssdMS ?? 0.0,
             hr: hrv.meanHRBPM ?? 0.0,
-            quality: hrv.qualityConf,
             rrList: hrv.rrSmoothMS,
-            ppg: normalized.ppgHat
+            ppg: normalized.ppgHat,
+            quality: hrv.qualityConf,
+            inputFrameCount: prepared.inputFrameCount,
+            usedFrameCount: prepared.usedFrameCount,
+            clipSpanS: prepared.clipSpanS,
+            durationS: prepared.durationS,
+            measuredFPS: prepared.measuredFPS,
+            keepRate: hrv.keepRate,
+            rrCV: hrv.rrCV ?? 0.0,
+            ok: hrv.ok,
+            nPeaks: hrv.nPeaks,
+            nRRSmooth: hrv.nRRSmooth,
+            peakTimesS: hrv.peakTimesS
         )
     }
 
@@ -534,9 +580,17 @@ internal final class FaceCoreMetricsCalculator {
 
         guard peakIndices.count >= 2 else {
             return .init(
-                sdnnMS: nil, rmssdMS: nil, meanHRBPM: nil,
-                qualityConf: qualityConf, keepRate: 0, rrCV: nil, ok: false,
-                nPeaks: peakIndices.count, nRRSmooth: 0, peakTimesS: peakTimesS, rrSmoothMS: []
+                sdnnMS: nil,
+                rmssdMS: nil,
+                meanHRBPM: nil,
+                qualityConf: qualityConf,
+                keepRate: 0,
+                rrCV: nil,
+                ok: false,
+                nPeaks: peakIndices.count,
+                nRRSmooth: 0,
+                peakTimesS: peakTimesS,
+                rrSmoothMS: []
             )
         }
 
