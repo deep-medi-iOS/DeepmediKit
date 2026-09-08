@@ -245,16 +245,15 @@ final class SampleBufferConverter {
         
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
 
-        // YUV 420 포맷 처리 (일반적으로 카메라에서 사용)
+        // 얼굴 마스크 이미지는 non-planar BGRA이므로 plane API를 사용하지 않는다.
         if pixelFormat == kCVPixelFormatType_32BGRA {
-            // Y plane
-            guard let yBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
-                print("Failed to get Y plane")
+            guard let yBaseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+                print("Failed to get BGRA base address")
                 return 0.0
             }
-            let yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
-            let yHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
-            let yWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+            let yBytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+            let yHeight = CVPixelBufferGetHeight(pixelBuffer)
+            let yWidth = CVPixelBufferGetWidth(pixelBuffer)
             
             // Y 평균값 계산
             var ySum: Float = 0
@@ -267,14 +266,8 @@ final class SampleBufferConverter {
                     ySum += Float(row[i + 1]) // G
                     yCount += 1
                 }
-//                let rowData = yBaseAddress + row * yBytesPerRow
-//                for col in 0..<yWidth {
-//                    let yValue = rowData.load(fromByteOffset: col, as: UInt8.self)
-//                    ySum += Float(yValue)
-//                    yCount += 1
-//                }
             }
-            return ySum / Float(yCount)
+            return yCount > 0 ? ySum / Float(yCount) : 0.0
         }
         return 0.0
     }
