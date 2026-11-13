@@ -91,6 +91,7 @@ class RecordModel {
         mentalStress: Float
     
     var cardioRisk: Double
+    var hrv: [String: Int] = [:]
     
     init() {
         self.hr = 65
