@@ -43,12 +43,15 @@ class Service {
                 
                 // ✅ multipart body
                 var builder = MultipartFormDataBuilder()
-                let params: [String: String] = [
+                var params: [String: String] = [
                     "age": "\(age)",
-                    "gender": "\(gender)",
-                    "weight": "\(weight ?? 0)",
-                    "height": "\(height ?? 0)"
+                    "gender": "\(gender)"
                 ]
+                // 둘 중 하나라도 빠지면 서버가 성별, 연령별 평균 키와 몸무게로 혈압을 계산한다. "0"을 보내면 키 0, 몸무게 0으로 계산한다.
+                if let weight, let height, weight > 0, height > 0 {
+                    params["weight"] = "\(weight)"
+                    params["height"] = "\(height)"
+                }
                 
                 // rgb 파일 mimeType은 실제 포맷에 맞게 조정 (예: video/mp4, application/octet-stream 등)
                 let body = try builder.makeBody(
@@ -94,6 +97,7 @@ class Service {
                 self.recordModel.physicalStress = msg.physicalStress
                 self.recordModel.mentalStress = msg.mentalStress
                 self.recordModel.af = msg.afDetect
+                self.recordModel.hrv = ["rmssd": msg.rmssd, "sdnn": msg.sdnn].compactMapValues { $0 }
                 
                 com(nil)
             } catch {
@@ -242,9 +246,11 @@ struct ResultData: Codable {
         physicalStress: Float,
         mentalStress: Float,
         afDetect: Int
+    let rmssd: Int?,
+        sdnn: Int?
     
     enum CodingKeys: String, CodingKey {
-        case hr, sys, dia, mentalStress, physicalStress , afDetect = "af_detect"
+        case hr, sys, dia, mentalStress, physicalStress , afDetect = "af_detect", rmssd = "RMSSD", sdnn = "SDNN"
     }
 }
 

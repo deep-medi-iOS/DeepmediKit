@@ -291,7 +291,7 @@ public class FaceKit: NSObject {
                                             "sys": self.recordModel.sys,
                                             "dia": self.recordModel.dia,
                                             "cardioRisk": self.recordModel.cardioRisk
-                                        ]))
+                                        ].merging(self.recordModel.hrv) { current, _ in current }))
                                     }
                                 }
                             } else {
@@ -304,7 +304,7 @@ public class FaceKit: NSObject {
                                     "sys": self.recordModel.sys,
                                     "dia": self.recordModel.dia,
                                     "cardioRisk": 9999.0
-                                ]))
+                                ].merging(self.recordModel.hrv) { current, _ in current }))
                             }
                         }
                     }
