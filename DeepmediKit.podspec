@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'DeepmediKit'
-  s.version          = '1.4.4'
+  s.version          = '1.4.5'
   s.summary          = 'Framework for measurement finger Tap or face'
 
 # This description is used to generate tags and improve search results.
@@ -25,7 +25,8 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'BSD', :file => 'LICENSE' }
   s.author           = { 'demianjun' => 'demianjun@gmail.com' }
   s.source           = { :git => 'https://github.com/deep-medi-iOS/DeepmediKit.git', :tag => s.version.to_s }
-  s.ios.deployment_target = '16.0'
+  s.ios.deployment_target = '15.5'
+  s.prefix_header_file = false
   s.source_files = 'DeepmediKit','DeepmediKit/Objc/*.{h,mm}', 'DeepmediKit/Classes/**/*.{h,swift}'
   
   s.swift_versions = '5.0'
